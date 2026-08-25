@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ring Diagram Editor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12151b;
+    --panel:#1b1f27;
+    --panel-2:#20242e;
+    --line:#2a2f3a;
+    --line-soft:#242833;
+    --text:#e9ebf0;
+    --muted:#8890a0;
+    --accent:#e8a33d;
+    --accent-dim:#4a3a22;
+    --teal:#5fb4a2;
+    --danger:#d9695f;
+    --font-display:'Space Grotesk',sans-serif;
+    --font-body:'Inter',sans-serif;
+    --font-mono:'IBM Plex Mono',monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    display:flex;
+    height:100vh;
+    overflow:hidden;
+  }
+  ::selection{background:var(--accent-dim);}
+
+  /* ---------- Sidebar ---------- */
+  #sidebar{
+    width:340px;
+    min-width:340px;
+    background:var(--panel);
+    border-right:1px solid var(--line);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .brand{
+    padding:20px 20px 16px;
+    border-bottom:1px solid var(--line);
+  }
+  .brand-row{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .brand-actions{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    flex-shrink:0;
+  }
+  .brand h1{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:17px;
+    letter-spacing:0.02em;
+    margin:0 0 3px;
+  }
+  .brand p{
+    margin:0;
+    font-size:12px;
+    color:var(--muted);
+  }
+  .download-btn{
+    flex-shrink:0;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--accent);
+    font-family:var(--font-mono);
+    font-size:11px;
+    padding:6px 11px;
+    border-radius:7px;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:all .15s;
+    text-align:left;
+  }
+  .download-btn:hover{
+    border-color:var(--accent);
+    background:var(--accent-dim);
+  }
+
+  .section{
+    padding:16px 20px;
+    border-bottom:1px solid var(--line);
+  }
+  .section-label{
+    font-family:var(--font-mono);
+    font-size:10px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin:0 0 10px;
+  }
+
+  .ring-count-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .stepper{
+    display:flex;
+    align-items:center;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .stepper button{
+    width:32px;height:32px;
+    background:transparent;
+    border:none;
+    color:var(--text);
+    font-size:16px;
+    cursor:pointer;
+    font-family:var(--font-mono);
+  }
+  .stepper button:hover{background:var(--line-soft);}
+  .stepper input{
+    width:44px;
+    text-align:center;
+    background:transparent;
+    border:none;
+    color:var(--text);
+    font-family:var(--font-mono);
+    font-size:14px;
+    -moz-appearance:textfield;
+  }
+  .stepper input::-webkit-outer-spin-button,
+  .stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  .ring-count-hint{font-size:11px;color:var(--muted);}
+
+  #circleList{
+    flex:1;
+    overflow-y:auto;
+    padding:8px 0 120px;
+  }
+  .circle-block{
+    padding:12px 20px 14px;
+    border-bottom:1px solid var(--line-soft);
+  }
+  .circle-block-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:8px;
+  }
+  .circle-block-head h3{
+    font-family:var(--font-display);
+    font-size:13px;
+    font-weight:600;
+    margin:0;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .ring-dot{
+    width:9px;height:9px;
+    border-radius:50%;
+    border:1.5px solid var(--muted);
+    display:inline-block;
+  }
+  .add-sector-btn{
+    background:transparent;
+    border:1px dashed var(--line);
+    color:var(--muted);
+    font-family:var(--font-mono);
+    font-size:11px;
+    padding:5px 10px;
+    border-radius:6px;
+    cursor:pointer;
+    transition:all .15s;
+  }
+  .add-sector-btn:hover:not(:disabled){
+    border-color:var(--accent);
+    color:var(--accent);
+  }
+  .add-sector-btn:disabled{
+    opacity:.35;
+    cursor:not-allowed;
+  }
+
+  .radius-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:10px;
+  }
+  .radius-row label{
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    color:var(--muted);
+    letter-spacing:.03em;
+    flex-shrink:0;
+  }
+  .radius-input{
+    width:52px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:6px;
+    color:var(--text);
+    padding:4px 6px;
+    font-family:var(--font-mono);
+    font-size:12px;
+    flex-shrink:0;
+  }
+  .radius-input:focus{outline:none;border-color:var(--accent);}
+  .radius-slider{
+    flex:1;
+    accent-color:var(--accent);
+    height:4px;
+  }
+
+  .sector-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:7px 8px;
+    border-radius:7px;
+    cursor:pointer;
+    border:1px solid transparent;
+    margin-bottom:3px;
+  }
+  .sector-row:hover{background:var(--panel-2);}
+  .sector-row.selected{
+    background:var(--accent-dim);
+    border-color:var(--accent);
+  }
+  .sector-swatch{
+    width:14px;height:14px;
+    border-radius:4px;
+    flex-shrink:0;
+    border:1px solid rgba(255,255,255,.15);
+  }
+  .sector-row-text{
+    flex:1;
+    min-width:0;
+    font-size:12.5px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .sector-row-text .lbl{color:var(--text);}
+  .sector-row-text .rng{
+    color:var(--muted);
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    margin-left:6px;
+  }
+  .empty-note{
+    font-size:11.5px;
+    color:var(--muted);
+    padding:4px 8px;
+    font-style:italic;
+  }
+
+  /* ---------- Editor panel (fixed bottom of sidebar) ---------- */
+  #editorPanel{
+    border-top:1px solid var(--line);
+    background:var(--panel-2);
+    padding:16px 20px 18px;
+    display:none;
+    flex-shrink:0;
+  }
+  #editorPanel.active{display:block;}
+  .editor-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:12px;
+  }
+  .editor-head span{
+    font-family:var(--font-mono);
+    font-size:10px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--accent);
+  }
+  .delete-btn{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--danger);
+    font-size:11px;
+    font-family:var(--font-mono);
+    padding:4px 9px;
+    border-radius:6px;
+    cursor:pointer;
+  }
+  .delete-btn:hover{background:rgba(217,105,95,.12);border-color:var(--danger);}
+
+  .field{margin-bottom:11px;}
+  .field label{
+    display:block;
+    font-size:10.5px;
+    color:var(--muted);
+    margin-bottom:5px;
+    font-family:var(--font-mono);
+    letter-spacing:.03em;
+  }
+  .field input[type=text]{
+    width:100%;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    color:var(--text);
+    padding:8px 10px;
+    font-size:13px;
+    font-family:var(--font-body);
+  }
+  .field input[type=text]:focus{outline:none;border-color:var(--accent);}
+
+  .angle-row{display:flex;gap:10px;}
+  .angle-row .field{flex:1;margin-bottom:0;}
+  .angle-row input[type=number]{
+    width:100%;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    color:var(--text);
+    padding:8px 10px;
+    font-family:var(--font-mono);
+    font-size:13px;
+  }
+  .angle-row input[type=number]:focus{outline:none;border-color:var(--accent);}
+
+  .color-row{
+    display:flex;
+    gap:7px;
+    margin-top:6px;
+    flex-wrap:wrap;
+  }
+  .color-swab{
+    width:22px;height:22px;
+    border-radius:6px;
+    cursor:pointer;
+    border:1px solid rgba(255,255,255,.18);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.15);
+  }
+  .color-swab.active{outline:2px solid var(--accent);outline-offset:2px;}
+  .color-custom{
+    width:22px;height:22px;
+    border-radius:6px;
+    border:1px solid var(--line);
+    padding:0;
+    background:none;
+    cursor:pointer;
+  }
+
+  .rgb-row{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin-top:8px;
+  }
+  .rgb-field{
+    display:flex;
+    align-items:center;
+    gap:4px;
+  }
+  .rgb-field span{
+    font-family:var(--font-mono);
+    font-size:9.5px;
+    color:var(--muted);
+    letter-spacing:.04em;
+  }
+  .rgb-field input{
+    width:42px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:5px;
+    color:var(--text);
+    padding:4px 5px;
+    font-family:var(--font-mono);
+    font-size:12px;
+    text-align:center;
+  }
+  .rgb-field input:focus{outline:none;border-color:var(--accent);}
+  .rgb-hex{
+    margin-left:auto;
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    color:var(--muted);
+    letter-spacing:.03em;
+  }
+
+  .field-hint{
+    font-size:10.5px;
+    color:var(--muted);
+    margin-top:6px;
+    line-height:1.5;
+  }
+
+  /* ---------- Main canvas area ---------- */
+  #main{
+    flex:1;
+    position:relative;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:
+      radial-gradient(circle at center, #171b23 0%, var(--bg) 70%);
+  }
+  #main svg{
+    max-width:92%;
+    max-height:92%;
+    user-select:none;
+    touch-action:none;
+  }
+  .top-hint{
+    position:absolute;
+    top:20px;
+    left:50%;
+    transform:translateX(-50%);
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--muted);
+    background:var(--panel);
+    border:1px solid var(--line);
+    padding:6px 14px;
+    border-radius:20px;
+    letter-spacing:.02em;
+    white-space:nowrap;
+  }
+  .top-hint b{color:var(--accent);font-weight:500;}
+
+  .sector-path{cursor:grab;}
+  .sector-path:active{cursor:grabbing;}
+  .sector-label{
+    font-family:var(--font-body);
+    font-size:12px;
+    font-weight:600;
+    pointer-events:none;
+  }
+  .handle{
+    cursor:ew-resize;
+    fill:#fff;
+    stroke:#12151b;
+    stroke-width:1.5;
+  }
+  .handle:hover{fill:var(--accent);}
+  .gap-region{
+    fill:url(#hatch);
+    stroke:var(--line);
+    stroke-width:1;
+    cursor:pointer;
+    opacity:0.55;
+  }
+  .gap-region:hover{opacity:0.85;}
+  .tick{stroke:var(--line);stroke-width:1;}
+  .tick.major{stroke:#3a4050;stroke-width:1.2;}
+  .tick-label{
+    font-family:var(--font-mono);
+    font-size:10px;
+    fill:var(--muted);
+  }
+  .ring-guide{
+    fill:none;
+    stroke:var(--line-soft);
+    stroke-width:1;
+    stroke-dasharray:2 4;
+  }
+  .radius-hit{
+    fill:none;
+    stroke:transparent;
+    stroke-width:16;
+    cursor:ns-resize;
+  }
+  .radius-handle{
+    fill:var(--panel);
+    stroke:var(--accent);
+    stroke-width:1.5;
+    cursor:ns-resize;
+  }
+  .radius-handle:hover{fill:var(--accent);}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div class="brand">
+    <div class="brand-row">
+      <div>
+        <h1>Ring Diagram</h1>
+        <p>Concentric circles, sliced into sectors</p>
+      </div>
+      <div class="brand-actions">
+        <button id="downloadSvgBtn" class="download-btn" title="Download the diagram as an SVG file">⬇ SVG</button>
+        <button id="downloadJsonBtn" class="download-btn" title="Download the diagram definition as a JSON file">⬇ JSON</button>
+        <button id="uploadJsonBtn" class="download-btn" title="Load a diagram from a JSON file">⬆ Upload</button>
+        <input type="file" id="uploadJsonInput" accept=".json,application/json" style="display:none;">
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <p class="section-label">Circles</p>
+    <div class="ring-count-row">
+      <div class="stepper">
+        <button id="decCircle">−</button>
+        <input id="circleCountInput" type="number" min="1" max="12" value="3">
+        <button id="incCircle">+</button>
+      </div>
+      <span class="ring-count-hint">rings, centre outward</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <p class="section-label">Outline</p>
+    <div class="color-row" id="outlineColorRow"></div>
+    <div class="rgb-row" id="outlineColorRgbRow"></div>
+  </div>
+
+  <div id="circleList"></div>
+
+  <div id="editorPanel">
+    <div class="editor-head">
+      <span id="editorRingLabel">RING 1 · SECTOR</span>
+      <button class="delete-btn" id="deleteSectorBtn">Delete</button>
+    </div>
+
+    <div class="field">
+      <label for="labelInput">Label</label>
+      <input type="text" id="labelInput" maxlength="40" placeholder="Sector text">
+    </div>
+
+    <div class="angle-row">
+      <div class="field">
+        <label for="startInput">Start (°)</label>
+        <input type="number" id="startInput" min="0" max="360" step="1">
+      </div>
+      <div class="field">
+        <label for="sizeInput">Size (°)</label>
+        <input type="number" id="sizeInput" min="0.5" max="360" step="1">
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:12px;">
+      <label>Fill colour</label>
+      <div class="color-row" id="colorRow"></div>
+      <div class="rgb-row" id="colorRgbRow"></div>
+    </div>
+
+    <div class="field" style="margin-top:12px;">
+      <label>Text colour</label>
+      <div class="color-row" id="textColorRow"></div>
+      <div class="rgb-row" id="textColorRgbRow"></div>
+    </div>
+
+    <p class="field-hint">Start moves the whole sector to that position (size stays fixed). Size stretches it from the start point. Sectors can cross the 0° mark — e.g. start 320°, size 90° wraps around through 360/0 to 50°. Drag a sector's body to move it, or its edge handles to resize; it will stop when it meets another sector.</p>
+  </div>
+</div>
+
+<div id="main">
+  <div class="top-hint">Click a sector to select · <b>drag body</b> to rotate · <b>drag edge dot</b> to resize</div>
+  <svg id="diagram" viewBox="0 0 640 640"></svg>
+</div>
+
+<script>
+(function(){
+  const PALETTE = ['#e8a33d','#5fb4a2','#c77dff','#f4a3a3','#7fb3e8','#f0d264','#8fd18f','#e88fb0','#a3a8f4','#f0946a',
+    '#000000','#3a3f4a','#8890a0','#ffffff','#d9695f','#4a3a22','#2d5f4f','#6b4c9a','#0f3d5c','#7a2020'];
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const CX = 320, CY = 320;
+  const MAX_R = 260;
+  const MIN_GAP = 0.5; // minimum degrees between edges
+
+  let state = {
+    circles: [], // { id, radius, sectors:[{id,start,end,color,textColor,label}] }
+    outlineColor: '#1a1d24'
+  };
+  let nextId = 1;
+  let selected = null; // {circleId, sectorId}
+  let colorIdx = 0;
+  const MIN_THICKNESS = 14; // minimum ring thickness in canvas units
+
+  function uid(){ return nextId++; }
+
+  function initCircles(n){
+    state.circles = [];
+    for(let i=0;i<n;i++){
+      state.circles.push({ id: uid(), radius: (i+1) * (MAX_R/n), sectors: [] });
+    }
+  }
+  initCircles(3);
+
+  // ---------- geometry helpers ----------
+  function ringBounds(index){
+    const inner = index===0 ? 0 : state.circles[index-1].radius;
+    const outer = state.circles[index].radius;
+    return { inner, outer };
+  }
+  function radiusBounds(idx){
+    const prevOuter = idx===0 ? 0 : state.circles[idx-1].radius;
+    const nextOuter = idx < state.circles.length-1 ? state.circles[idx+1].radius : null;
+    const lower = prevOuter + MIN_THICKNESS;
+    const upper = nextOuter!==null ? nextOuter - MIN_THICKNESS : MAX_R;
+    return { lower, upper };
+  }
+  function setCircleRadius(circle, value){
+    const idx = state.circles.findIndex(c=>c.id===circle.id);
+    if(idx===-1) return;
+    const { lower, upper } = radiusBounds(idx);
+    let v = typeof value === 'number' ? value : parseFloat(value);
+    if(isNaN(v)) v = circle.radius;
+    v = Math.max(lower, Math.min(upper, v));
+    circle.radius = v;
+  }
+  function pointAt(r, angleDeg){
+    const rad = (angleDeg) * Math.PI/180;
+    return { x: CX + r*Math.sin(rad), y: CY - r*Math.cos(rad) };
+  }
+  function angleAt(x,y){
+    const dx = x-CX, dy = y-CY;
+    let deg = Math.atan2(dx, -dy) * 180/Math.PI;
+    if(deg<0) deg+=360;
+    return deg;
+  }
+  function arcPath(innerR, outerR, start, end){
+    if(end - start >= 359.99) end = start + 359.99; // avoid degenerate full-circle SVG arc
+    const large = (end-start)>180 ? 1 : 0;
+    const p1 = pointAt(outerR, start);
+    const p2 = pointAt(outerR, end);
+    const p3 = pointAt(innerR, end);
+    const p4 = pointAt(innerR, start);
+    if(innerR <= 0.001){
+      return `M ${p1.x} ${p1.y} A ${outerR} ${outerR} 0 ${large} 1 ${p2.x} ${p2.y} L ${CX} ${CY} Z`;
+    }
+    return `M ${p1.x} ${p1.y} A ${outerR} ${outerR} 0 ${large} 1 ${p2.x} ${p2.y} L ${p3.x} ${p3.y} A ${innerR} ${innerR} 0 ${large} 0 ${p4.x} ${p4.y} Z`;
+  }
+
+  function norm(a){ return ((a%360)+360)%360; }
+
+  function sortedSectors(circle){
+    return [...circle.sectors].sort((a,b)=>a.start-b.start);
+  }
+
+  // Split a sector's occupied span into one or two non-wrapping [a,b] pieces within [0,360].
+  function subIntervals(sector){
+    const size = sector.end - sector.start;
+    const s = norm(sector.start);
+    const e = s + size;
+    return e <= 360 ? [[s,e]] : [[s,360],[0,e-360]];
+  }
+
+  function gapsOf(circle){
+    let occ = [];
+    circle.sectors.forEach(s => occ.push(...subIntervals(s)));
+    occ.sort((a,b)=>a[0]-b[0]);
+    const merged = [];
+    occ.forEach(([a,b]) => {
+      if(merged.length && a <= merged[merged.length-1][1] + 1e-6){
+        merged[merged.length-1][1] = Math.max(merged[merged.length-1][1], b);
+      } else merged.push([a,b]);
+    });
+    const gaps = [];
+    let cursor = 0;
+    merged.forEach(([a,b]) => {
+      if(a > cursor + 1e-6) gaps.push({start:cursor, end:a});
+      cursor = Math.max(cursor, b);
+    });
+    if(cursor < 360 - 1e-6) gaps.push({start:cursor, end:360});
+    return gaps;
+  }
+
+  // Find how far a point can extend forward/backward around the ring from `anchorAngle`
+  // before hitting another sector (sector `excludeId` is ignored). Returns bounds in a
+  // frame where the anchor sits at 0: lower <= 0 <= upper.
+  function nearestBoundaries(circle, excludeId, anchorAngle){
+    let occ = [];
+    circle.sectors.forEach(s => {
+      if(s.id === excludeId) return;
+      const size = s.end - s.start;
+      const ss = norm(s.start - anchorAngle);
+      const se = ss + size;
+      const pieces = se <= 360 ? [[ss,se]] : [[ss,360],[0,se-360]];
+      pieces.forEach(([a,b]) => { occ.push([a,b]); occ.push([a-360,b-360]); });
+    });
+    let lower = -360, upper = 360;
+    occ.forEach(([a,b]) => {
+      if(b <= 1e-6 && b > lower) lower = b;
+      if(a >= -1e-6 && a < upper) upper = a;
+    });
+    return { lower, upper };
+  }
+
+  function angleDelta(prev, curr){
+    let d = curr - prev;
+    d = ((d + 180) % 360 + 360) % 360 - 180;
+    return d;
+  }
+
+
+  // ---------- state ops ----------
+  function setCircleCount(n){
+    n = Math.max(1, Math.min(12, n));
+    if(n === state.circles.length) return;
+    if(n > state.circles.length){
+      const startLen = state.circles.length;
+      const lastOuter = startLen ? state.circles[startLen-1].radius : 0;
+      const remaining = MAX_R - lastOuter;
+      const toAdd = n - startLen;
+      for(let i=0;i<toAdd;i++){
+        const radius = lastOuter + remaining * ((i+1)/toAdd);
+        state.circles.push({ id: uid(), radius, sectors: [] });
+      }
+    } else {
+      const removed = state.circles.slice(n);
+      state.circles = state.circles.slice(0,n);
+      if(selected && removed.some(c=>c.id===selected.circleId)) selected=null;
+    }
+    document.getElementById('circleCountInput').value = n;
+    renderAll();
+  }
+
+  function addSector(circle){
+    const gaps = gapsOf(circle);
+    if(gaps.length===0) return;
+    let best = gaps[0];
+    for(const g of gaps) if((g.end-g.start) > (best.end-best.start)) best = g;
+    const color = PALETTE[colorIdx % PALETTE.length]; colorIdx++;
+    const sector = { id: uid(), start: best.start, end: best.end, color, textColor: '#0f1115', label: 'Sector' };
+    circle.sectors.push(sector);
+    selected = { circleId: circle.id, sectorId: sector.id };
+    renderAll();
+    focusSelectedInSidebar();
+  }
+
+  function deleteSector(circleId, sectorId){
+    const circle = state.circles.find(c=>c.id===circleId);
+    if(!circle) return;
+    circle.sectors = circle.sectors.filter(s=>s.id!==sectorId);
+    if(selected && selected.sectorId===sectorId) selected=null;
+    renderAll();
+  }
+
+  function getSelectedSector(){
+    if(!selected) return null;
+    const circle = state.circles.find(c=>c.id===selected.circleId);
+    if(!circle) return null;
+    const sector = circle.sectors.find(s=>s.id===selected.sectorId);
+    return sector ? {circle, sector} : null;
+  }
+
+  // ---------- rendering: sidebar ----------
+  function focusSelectedInSidebar(){
+    if(!selected) return;
+    const row = document.querySelector(`.sector-row[data-sector-id="${selected.sectorId}"]`);
+    if(row) row.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    const labelInput = document.getElementById('labelInput');
+    if(labelInput){
+      labelInput.focus({ preventScroll:true });
+      labelInput.select();
+    }
+  }
+
+  function renderSidebar(){
+    document.getElementById('circleCountInput').value = state.circles.length;
+    const list = document.getElementById('circleList');
+    list.innerHTML = '';
+    state.circles.forEach((circle, idx) => {
+      const block = document.createElement('div');
+      block.className = 'circle-block';
+
+      const head = document.createElement('div');
+      head.className = 'circle-block-head';
+      head.innerHTML = `<h3><span class="ring-dot"></span>Ring ${idx+1}</h3>`;
+      const addBtn = document.createElement('button');
+      addBtn.className = 'add-sector-btn';
+      addBtn.textContent = '+ Add sector';
+      const gaps = gapsOf(circle);
+      const full = gaps.length===0;
+      addBtn.disabled = full;
+      addBtn.title = full ? 'Ring is fully divided' : 'Add a sector in the largest free gap';
+      addBtn.onclick = () => addSector(circle);
+      head.appendChild(addBtn);
+      block.appendChild(head);
+
+      const radiusRow = document.createElement('div');
+      radiusRow.className = 'radius-row';
+      const { lower, upper } = radiusBounds(idx);
+      radiusRow.innerHTML = `<label>Radius</label>`;
+      const radiusInput = document.createElement('input');
+      radiusInput.type = 'number';
+      radiusInput.className = 'radius-input';
+      radiusInput.min = Math.round(lower);
+      radiusInput.max = Math.round(upper);
+      radiusInput.step = 1;
+      radiusInput.value = Math.round(circle.radius);
+      radiusInput.onchange = (e) => { setCircleRadius(circle, e.target.value); renderAll(); };
+      radiusRow.appendChild(radiusInput);
+      const radiusSlider = document.createElement('input');
+      radiusSlider.type = 'range';
+      radiusSlider.className = 'radius-slider';
+      radiusSlider.min = lower;
+      radiusSlider.max = upper;
+      radiusSlider.step = 0.5;
+      radiusSlider.value = circle.radius;
+      radiusSlider.oninput = (e) => { setCircleRadius(circle, e.target.value); renderDiagram(); radiusInput.value = Math.round(circle.radius); };
+      radiusSlider.onchange = () => renderSidebar();
+      radiusRow.appendChild(radiusSlider);
+      block.appendChild(radiusRow);
+
+      const sorted = sortedSectors(circle);
+      if(sorted.length===0){
+        const note = document.createElement('div');
+        note.className = 'empty-note';
+        note.textContent = 'No sectors yet — empty ring';
+        block.appendChild(note);
+      } else {
+        sorted.forEach(s => {
+          const row = document.createElement('div');
+          row.className = 'sector-row' + (selected && selected.sectorId===s.id ? ' selected':'');
+          row.dataset.sectorId = s.id;
+          row.innerHTML = `<span class="sector-swatch" style="background:${s.color}"></span>
+            <span class="sector-row-text"><span class="lbl">${escapeHtml(s.label || 'Untitled')}</span><span class="rng">${Math.round(s.start)}°–${Math.round(s.end)}°</span></span>`;
+          row.onclick = () => { selected = {circleId: circle.id, sectorId: s.id}; renderAll(); };
+          block.appendChild(row);
+        });
+      }
+      list.appendChild(block);
+    });
+    renderEditor();
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  function renderEditor(){
+    const panel = document.getElementById('editorPanel');
+    const found = getSelectedSector();
+    if(!found){ panel.classList.remove('active'); return; }
+    panel.classList.add('active');
+    const { circle, sector } = found;
+    const ringIdx = state.circles.findIndex(c=>c.id===circle.id);
+    document.getElementById('editorRingLabel').textContent = `RING ${ringIdx+1} · SECTOR`;
+    document.getElementById('labelInput').value = sector.label || '';
+    document.getElementById('startInput').value = Math.round(sector.start*10)/10;
+    document.getElementById('sizeInput').value = Math.round((sector.end-sector.start)*10)/10;
+
+    if(!sector.textColor) sector.textColor = '#0f1115';
+
+    buildColorRow('colorRow', sector.color, (c) => { sector.color = c; renderAll(); }, 'colorRgbRow');
+    buildColorRow('textColorRow', sector.textColor, (c) => { sector.textColor = c; renderAll(); }, 'textColorRgbRow');
+  }
+
+  function hexToRgb(hex){
+    let h = (hex||'#000000').replace('#','');
+    if(h.length===3) h = h.split('').map(c=>c+c).join('');
+    const num = parseInt(h,16);
+    if(isNaN(num)) return {r:0,g:0,b:0};
+    return { r:(num>>16)&255, g:(num>>8)&255, b:num&255 };
+  }
+  function rgbToHex(r,g,b){
+    const clamp = v => Math.max(0, Math.min(255, Math.round(isNaN(v)?0:v)));
+    return '#' + [clamp(r),clamp(g),clamp(b)].map(v=>v.toString(16).padStart(2,'0')).join('');
+  }
+
+  function buildColorRow(containerId, currentColor, onPick, rgbContainerId){
+    const row = document.getElementById(containerId);
+    row.innerHTML = '';
+    PALETTE.forEach(c => {
+      const sw = document.createElement('div');
+      sw.className = 'color-swab' + (c.toLowerCase()===(currentColor||'').toLowerCase() ? ' active':'');
+      sw.style.background = c;
+      sw.title = c;
+      sw.onclick = () => onPick(c);
+      row.appendChild(sw);
+    });
+    const custom = document.createElement('input');
+    custom.type = 'color';
+    custom.className = 'color-custom';
+    custom.value = currentColor || '#000000';
+    custom.oninput = (e) => onPick(e.target.value);
+    row.appendChild(custom);
+
+    if(!rgbContainerId) return;
+    const rgbRow = document.getElementById(rgbContainerId);
+    if(!rgbRow) return;
+    rgbRow.innerHTML = '';
+    const { r, g, b } = hexToRgb(currentColor);
+    const channels = [['R', r], ['G', g], ['B', b]];
+    const inputs = {};
+    channels.forEach(([label, val]) => {
+      const field = document.createElement('div');
+      field.className = 'rgb-field';
+      const span = document.createElement('span');
+      span.textContent = label;
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = 0; input.max = 255; input.step = 1;
+      input.value = val;
+      input.onchange = () => {
+        const rgb = { r: parseInt(inputs.R.value,10)||0, g: parseInt(inputs.G.value,10)||0, b: parseInt(inputs.B.value,10)||0 };
+        onPick(rgbToHex(rgb.r, rgb.g, rgb.b));
+      };
+      inputs[label] = input;
+      field.appendChild(span);
+      field.appendChild(input);
+      rgbRow.appendChild(field);
+    });
+    const hexLabel = document.createElement('span');
+    hexLabel.className = 'rgb-hex';
+    hexLabel.textContent = (currentColor || '#000000').toUpperCase();
+    rgbRow.appendChild(hexLabel);
+  }
+
+  // ---------- rendering: SVG diagram ----------
+  const svg = document.getElementById('diagram');
+
+  function renderDiagram(){
+    svg.innerHTML = '';
+    const defs = document.createElementNS(SVG_NS,'defs');
+    defs.innerHTML = `<pattern id="hatch" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <rect width="8" height="8" fill="#1b1f27"></rect>
+      <line x1="0" y1="0" x2="0" y2="8" stroke="#2a2f3a" stroke-width="2"></line>
+    </pattern>`;
+    svg.appendChild(defs);
+
+    // background ticks around outer edge
+    const tickG = document.createElementNS(SVG_NS,'g');
+    for(let a=0; a<360; a+=15){
+      const isMajor = a % 90 === 0;
+      const r1 = MAX_R + 6;
+      const r2 = isMajor ? MAX_R + 16 : MAX_R + 11;
+      const p1 = pointAt(r1, a), p2 = pointAt(r2, a);
+      const line = document.createElementNS(SVG_NS,'line');
+      line.setAttribute('x1',p1.x); line.setAttribute('y1',p1.y);
+      line.setAttribute('x2',p2.x); line.setAttribute('y2',p2.y);
+      line.setAttribute('class', 'tick' + (isMajor?' major':''));
+      tickG.appendChild(line);
+      if(isMajor){
+        const lp = pointAt(r2+14, a);
+        const t = document.createElementNS(SVG_NS,'text');
+        t.setAttribute('x', lp.x); t.setAttribute('y', lp.y);
+        t.setAttribute('text-anchor','middle');
+        t.setAttribute('dominant-baseline','middle');
+        t.setAttribute('class','tick-label');
+        t.textContent = a + '°';
+        tickG.appendChild(t);
+      }
+    }
+    svg.appendChild(tickG);
+
+    const total = state.circles.length;
+
+    // ring guide circles + draggable radius handles (one per circle's outer edge)
+    state.circles.forEach((circle, idx) => {
+      const c = document.createElementNS(SVG_NS,'circle');
+      c.setAttribute('cx',CX); c.setAttribute('cy',CY); c.setAttribute('r', circle.radius);
+      c.setAttribute('class','ring-guide');
+      svg.appendChild(c);
+
+      // invisible wide hit-area for dragging the ring's radius
+      const hit = document.createElementNS(SVG_NS,'circle');
+      hit.setAttribute('cx',CX); hit.setAttribute('cy',CY); hit.setAttribute('r', circle.radius);
+      hit.setAttribute('class','radius-hit');
+      hit.addEventListener('pointerdown', (e) => startRadiusDrag(e, circle));
+      svg.appendChild(hit);
+
+      // small tactile handle marker at 12 o'clock on this ring's edge
+      const hp = pointAt(circle.radius, 0);
+      const handle = document.createElementNS(SVG_NS,'rect');
+      handle.setAttribute('x', hp.x-7); handle.setAttribute('y', hp.y-3);
+      handle.setAttribute('width', 14); handle.setAttribute('height', 6);
+      handle.setAttribute('rx', 3);
+      handle.setAttribute('class','radius-handle');
+      handle.addEventListener('pointerdown', (e) => startRadiusDrag(e, circle));
+      svg.appendChild(handle);
+    });
+
+    state.circles.forEach((circle, idx) => {
+      const { inner, outer } = ringBounds(idx);
+
+      // gaps first (so sectors render above)
+      gapsOf(circle).forEach(g => {
+        const path = document.createElementNS(SVG_NS,'path');
+        path.setAttribute('d', arcPath(inner, outer, g.start, g.end));
+        path.setAttribute('class','gap-region');
+        path.onclick = () => addSector(circle);
+        svg.appendChild(path);
+      });
+
+      circle.sectors.forEach(sector => {
+        const g = document.createElementNS(SVG_NS,'g');
+
+        const path = document.createElementNS(SVG_NS,'path');
+        path.setAttribute('d', arcPath(inner, outer, sector.start, sector.end));
+        path.setAttribute('fill', sector.color);
+        path.setAttribute('class','sector-path');
+        path.setAttribute('stroke', selected && selected.sectorId===sector.id ? '#ffffff' : state.outlineColor);
+        path.setAttribute('stroke-width', selected && selected.sectorId===sector.id ? 2.5 : 1.5);
+        path.addEventListener('pointerdown', (e) => startRotateDrag(e, circle, sector));
+        g.appendChild(path);
+
+        // label
+        const midAngle = (sector.start+sector.end)/2;
+        const midR = (inner+outer)/2;
+        const lp = pointAt(midR, midAngle);
+        if((sector.end-sector.start) > 8){
+          const t = document.createElementNS(SVG_NS,'text');
+          t.setAttribute('x', lp.x); t.setAttribute('y', lp.y);
+          t.setAttribute('text-anchor','middle');
+          t.setAttribute('dominant-baseline','middle');
+          t.setAttribute('class','sector-label');
+          t.setAttribute('fill', sector.textColor || '#0f1115');
+          t.textContent = sector.label || '';
+          g.appendChild(t);
+        }
+
+        // resize handles at start & end, positioned at outer edge
+        [['start',sector.start],['end',sector.end]].forEach(([which, ang]) => {
+          const hp = pointAt(outer, ang);
+          const h = document.createElementNS(SVG_NS,'circle');
+          h.setAttribute('cx', hp.x); h.setAttribute('cy', hp.y);
+          h.setAttribute('r', 6);
+          h.setAttribute('class','handle');
+          h.addEventListener('pointerdown', (e) => { e.stopPropagation(); startResizeDrag(e, circle, sector, which); });
+          g.appendChild(h);
+        });
+
+        g.addEventListener('click', () => {
+          if(justDragged){ justDragged = false; return; }
+          selected = {circleId: circle.id, sectorId: sector.id};
+          renderAll();
+          focusSelectedInSidebar();
+        });
+
+        svg.appendChild(g);
+      });
+    });
+  }
+
+  let justDragged = false;
+
+  function svgPointFromEvent(e){
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX; pt.y = e.clientY;
+    const ctm = svg.getScreenCTM().inverse();
+    return pt.matrixTransform(ctm);
+  }
+
+  function startRadiusDrag(e, circle){
+    e.preventDefault();
+    e.stopPropagation();
+    function move(ev){
+      const p = svgPointFromEvent(ev);
+      const dist = Math.hypot(p.x-CX, p.y-CY);
+      setCircleRadius(circle, dist);
+      renderDiagram();
+    }
+    function up(){
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      renderAll();
+    }
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  function startRotateDrag(e, circle, sector){
+    e.preventDefault();
+    const size = sector.end - sector.start;
+    const ref = sector.start; // fixed anchor: this sector's own position at drag start
+    const { lower, upper } = nearestBoundaries(circle, sector.id, ref);
+    let currentStart = sector.start; // continuous, unwrapped — can go negative or past 360
+    const startPt = svgPointFromEvent(e);
+    let prevMouseAngle = angleAt(startPt.x, startPt.y);
+
+    function move(ev){
+      const p = svgPointFromEvent(ev);
+      const a = angleAt(p.x, p.y);
+      const d = angleDelta(prevMouseAngle, a);
+      prevMouseAngle = a;
+      currentStart += d;
+      if(Math.abs(d) > 0.01) justDragged = true;
+      let shifted = currentStart - ref;
+      shifted = Math.max(lower, Math.min(upper - size, shifted));
+      currentStart = ref + shifted;
+      sector.start = norm(currentStart);
+      sector.end = sector.start + size;
+      renderAll(true);
+    }
+    function up(){
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      renderAll();
+    }
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  function startResizeDrag(e, circle, sector, which){
+    e.preventDefault();
+    const startPt = svgPointFromEvent(e);
+    let prevMouseAngle = angleAt(startPt.x, startPt.y);
+
+    if(which === 'end'){
+      const anchor = sector.start; // fixed edge
+      const { upper } = nearestBoundaries(circle, sector.id, anchor);
+      let currentEnd = sector.end; // continuous
+
+      function move(ev){
+        const p = svgPointFromEvent(ev);
+        const a = angleAt(p.x, p.y);
+        const d = angleDelta(prevMouseAngle, a);
+        prevMouseAngle = a;
+        currentEnd += d;
+        if(Math.abs(d) > 0.01) justDragged = true;
+        let size = currentEnd - anchor;
+        size = Math.max(MIN_GAP, Math.min(upper, size));
+        currentEnd = anchor + size;
+        sector.end = currentEnd;
+        renderAll(true);
+      }
+      function up(){
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        renderAll();
+      }
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    } else {
+      const anchor = sector.end; // fixed edge
+      const { lower } = nearestBoundaries(circle, sector.id, anchor);
+      let currentStart = sector.start; // continuous
+
+      function move(ev){
+        const p = svgPointFromEvent(ev);
+        const a = angleAt(p.x, p.y);
+        const d = angleDelta(prevMouseAngle, a);
+        prevMouseAngle = a;
+        currentStart += d;
+        if(Math.abs(d) > 0.01) justDragged = true;
+        let size = anchor - currentStart;
+        size = Math.max(MIN_GAP, Math.min(-lower, size));
+        currentStart = anchor - size;
+        sector.start = norm(currentStart);
+        sector.end = anchor;
+        renderAll(true);
+      }
+      function up(){
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        renderAll();
+      }
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    }
+  }
+
+
+  function renderAll(dragging){
+    renderDiagram();
+    if(!dragging){
+      renderSidebar();
+    } else {
+      // lightweight sync of editor angle fields while dragging
+      const found = getSelectedSector();
+      if(found){
+        document.getElementById('startInput').value = Math.round(found.sector.start*10)/10;
+        document.getElementById('sizeInput').value = Math.round((found.sector.end-found.sector.start)*10)/10;
+      }
+    }
+  }
+
+  // ---------- wire up controls ----------
+  function renderOutlineRow(){
+    buildColorRow('outlineColorRow', state.outlineColor, (c) => { state.outlineColor = c; renderOutlineRow(); renderDiagram(); }, 'outlineColorRgbRow');
+  }
+
+  // ---------- SVG export ----------
+  function escapeXml(str){
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function buildExportSVG(){
+    const bgColor = '#12151b';
+    const lineColor = '#2a2f3a';
+    const lineMajor = '#3a4050';
+    const mutedColor = '#8890a0';
+    const lineSoft = '#242833';
+    const hatchBg = '#1b1f27';
+
+    const parts = [];
+    parts.push(`<svg xmlns="${SVG_NS}" viewBox="0 0 640 640" width="1280" height="1280">`);
+    parts.push(`<rect x="0" y="0" width="640" height="640" fill="${bgColor}"/>`);
+    parts.push(`<defs><pattern id="hatchExport" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="8" height="8" fill="${hatchBg}"/><line x1="0" y1="0" x2="0" y2="8" stroke="${lineColor}" stroke-width="2"/></pattern></defs>`);
+
+    // ticks
+    parts.push('<g>');
+    for(let a=0; a<360; a+=15){
+      const isMajor = a % 90 === 0;
+      const r1 = MAX_R + 6, r2 = isMajor ? MAX_R + 16 : MAX_R + 11;
+      const p1 = pointAt(r1,a), p2 = pointAt(r2,a);
+      parts.push(`<line x1="${p1.x.toFixed(2)}" y1="${p1.y.toFixed(2)}" x2="${p2.x.toFixed(2)}" y2="${p2.y.toFixed(2)}" stroke="${isMajor?lineMajor:lineColor}" stroke-width="${isMajor?1.2:1}"/>`);
+      if(isMajor){
+        const lp = pointAt(r2+14, a);
+        parts.push(`<text x="${lp.x.toFixed(2)}" y="${lp.y.toFixed(2)}" text-anchor="middle" dominant-baseline="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="${mutedColor}">${a}°</text>`);
+      }
+    }
+    parts.push('</g>');
+
+    // ring guide circles
+    state.circles.forEach(circle => {
+      parts.push(`<circle cx="${CX}" cy="${CY}" r="${circle.radius.toFixed(2)}" fill="none" stroke="${lineSoft}" stroke-width="1" stroke-dasharray="2 4"/>`);
+    });
+
+    // gaps + sectors, ring by ring
+    state.circles.forEach((circle, idx) => {
+      const { inner, outer } = ringBounds(idx);
+      gapsOf(circle).forEach(g => {
+        parts.push(`<path d="${arcPath(inner,outer,g.start,g.end)}" fill="url(#hatchExport)" stroke="${lineColor}" stroke-width="1" opacity="0.55"/>`);
+      });
+      circle.sectors.forEach(sector => {
+        parts.push(`<path d="${arcPath(inner,outer,sector.start,sector.end)}" fill="${sector.color}" stroke="${state.outlineColor}" stroke-width="1.5"/>`);
+        if((sector.end-sector.start) > 8 && sector.label){
+          const midAngle = (sector.start+sector.end)/2, midR = (inner+outer)/2;
+          const lp = pointAt(midR, midAngle);
+          parts.push(`<text x="${lp.x.toFixed(2)}" y="${lp.y.toFixed(2)}" text-anchor="middle" dominant-baseline="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="${sector.textColor||'#0f1115'}">${escapeXml(sector.label)}</text>`);
+        }
+      });
+    });
+
+    parts.push('</svg>');
+    return parts.join('');
+  }
+
+  function downloadSVG(){
+    const svgStr = buildExportSVG();
+    const blob = new Blob([svgStr], {type:'image/svg+xml'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ring-diagram.svg';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  document.getElementById('downloadSvgBtn').onclick = downloadSVG;
+
+  // ---------- JSON export / import ----------
+  function triggerDownload(filename, content, mime){
+    const blob = new Blob([content], {type: mime});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function serializeState(){
+    return JSON.stringify({
+      version: 1,
+      outlineColor: state.outlineColor,
+      circles: state.circles.map(c => ({
+        radius: c.radius,
+        sectors: c.sectors.map(s => ({
+          start: s.start,
+          end: s.end,
+          color: s.color,
+          textColor: s.textColor,
+          label: s.label
+        }))
+      }))
+    }, null, 2);
+  }
+
+  function downloadJSON(){
+    triggerDownload('ring-diagram.json', serializeState(), 'application/json');
+  }
+
+  function loadStateFromData(data){
+    if(!data || !Array.isArray(data.circles) || data.circles.length===0){
+      throw new Error('This file has no circles to load.');
+    }
+    const newCircles = data.circles.map(c => {
+      const sectors = Array.isArray(c.sectors) ? c.sectors.map(s => {
+        const start = typeof s.start === 'number' ? s.start : 0;
+        const end = typeof s.end === 'number' ? s.end : start + 1;
+        return {
+          id: uid(),
+          start, end,
+          color: typeof s.color === 'string' ? s.color : PALETTE[0],
+          textColor: typeof s.textColor === 'string' ? s.textColor : '#0f1115',
+          label: typeof s.label === 'string' ? s.label : ''
+        };
+      }) : [];
+      return {
+        id: uid(),
+        radius: typeof c.radius === 'number' && c.radius > 0 ? c.radius : MAX_R,
+        sectors
+      };
+    });
+    state.circles = newCircles;
+    state.outlineColor = typeof data.outlineColor === 'string' ? data.outlineColor : state.outlineColor;
+    selected = null;
+  }
+
+  function handleUploadFile(file){
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        loadStateFromData(data);
+        renderOutlineRow();
+        renderAll();
+      } catch(err){
+        alert('Could not load this diagram file:\n' + err.message);
+      }
+    };
+    reader.onerror = () => alert('Could not read the selected file.');
+    reader.readAsText(file);
+  }
+
+  document.getElementById('downloadJsonBtn').onclick = downloadJSON;
+  document.getElementById('uploadJsonBtn').onclick = () => document.getElementById('uploadJsonInput').click();
+  document.getElementById('uploadJsonInput').onchange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if(file) handleUploadFile(file);
+    e.target.value = '';
+  };
+
+  document.getElementById('incCircle').onclick = () => setCircleCount(state.circles.length+1);
+  document.getElementById('decCircle').onclick = () => setCircleCount(state.circles.length-1);
+  document.getElementById('circleCountInput').onchange = (e) => setCircleCount(parseInt(e.target.value||'1',10));
+
+  document.getElementById('labelInput').oninput = (e) => {
+    const found = getSelectedSector();
+    if(found){ found.sector.label = e.target.value; renderDiagram(); renderSidebarRowsOnly(); }
+  };
+  document.getElementById('startInput').onchange = (e) => {
+    const found = getSelectedSector();
+    if(!found) return;
+    const { circle, sector } = found;
+    const size = sector.end - sector.start;
+    const ref = sector.start;
+    const { lower, upper } = nearestBoundaries(circle, sector.id, ref);
+    let v = parseFloat(e.target.value);
+    if(isNaN(v)) v = sector.start;
+    v = norm(v);
+    // v is a target angle in [0,360); find the shifted-frame representation
+    // (v-ref, or that ± 360) that fits the allowed range with least clamping.
+    const shiftedRaw = v - ref;
+    let best = null;
+    [shiftedRaw - 360, shiftedRaw, shiftedRaw + 360].forEach(cand => {
+      const clamped = Math.max(lower, Math.min(upper - size, cand));
+      const diff = Math.abs(clamped - cand);
+      if(best === null || diff < best.diff) best = { clamped, diff };
+    });
+    sector.start = norm(ref + best.clamped);
+    sector.end = sector.start + size;
+    renderAll();
+  };
+  document.getElementById('sizeInput').onchange = (e) => {
+    const found = getSelectedSector();
+    if(!found) return;
+    const { circle, sector } = found;
+    const anchor = sector.start;
+    const { upper } = nearestBoundaries(circle, sector.id, anchor);
+    let v = parseFloat(e.target.value);
+    if(isNaN(v) || v < MIN_GAP) v = sector.end - sector.start;
+    v = Math.max(MIN_GAP, Math.min(upper, Math.min(v, 360)));
+    sector.end = anchor + v;
+    renderAll();
+  };
+  document.getElementById('deleteSectorBtn').onclick = () => {
+    if(selected) deleteSector(selected.circleId, selected.sectorId);
+  };
+
+  function renderSidebarRowsOnly(){
+    // cheap re-render of just the list labels without losing focus on text input
+    const list = document.getElementById('circleList');
+    const rows = list.querySelectorAll('.sector-row .lbl');
+    const found = getSelectedSector();
+    if(found){
+      rows.forEach(r => {}); // no-op; full renderSidebar on blur handles correctness
+    }
+  }
+
+  document.getElementById('labelInput').onblur = () => renderSidebar();
+
+  // seed with a couple of example sectors so the canvas isn't empty
+  (function seed(){
+    const c0 = state.circles[0];
+    addSectorSilent(c0, 0, 360, PALETTE[0], 'Core');
+    const c1 = state.circles[1];
+    addSectorSilent(c1, 0, 150, PALETTE[1], 'North');
+    addSectorSilent(c1, 150, 270, PALETTE[2], 'East');
+    function addSectorSilent(circle, start, end, color, label){
+      circle.sectors.push({id: uid(), start, end, color, textColor:'#0f1115', label});
+      colorIdx++;
+    }
+  })();
+
+  renderOutlineRow();
+  renderAll();
+})();
+</script>
+</body>
+</html>

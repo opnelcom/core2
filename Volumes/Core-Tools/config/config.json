@@ -1,0 +1,7 @@
+{
+  "name": "core-tools",
+  "port": 3000,
+  "logToFile": true,
+  "fileLogMode": "all",
+  "nodeEnv": "development"
+}

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Core Administration</title>
+  <link rel="stylesheet" href="/admin/style.css">
+</head>
+<body>
+  <main class="admin-shell">
+    <aside class="admin-sidebar">
+      <nav class="admin-nav" aria-label="Administration">
+        <button class="nav-button active" type="button" data-view="dashboard">Dashboard</button>
+        <button class="nav-button" type="button" data-view="applications">Applications</button>
+        <button class="nav-button" type="button" data-view="themes">Themes</button>
+        <button class="nav-button" type="button" data-view="tenants">Tenants</button>
+        <button class="nav-button" type="button" data-view="users">Users</button>
+        <button class="nav-button" type="button" data-view="tenant-users">Tenant users</button>
+        <button class="nav-button" type="button" data-view="tenant-applications">Tenant applications</button>
+        <button class="nav-button" type="button" data-view="tenant-application-users">Application users</button>
+      </nav>
+    </aside>
+
+    <section class="admin-content">
+      <header class="content-header">
+        <div>
+          <p id="view-eyebrow" class="eyebrow">Overview</p>
+          <h2 id="view-title">Dashboard</h2>
+        </div>
+        <button id="refresh-button" class="secondary-action" type="button">Refresh</button>
+      </header>
+
+      <section id="alert" class="alert" hidden></section>
+      <section id="view-root"></section>
+    </section>
+  </main>
+  <script src="/admin/app.js"></script>
+</body>
+</html>

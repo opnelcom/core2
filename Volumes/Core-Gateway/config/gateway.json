@@ -1,0 +1,21 @@
+{
+  "hostname": "joppenheim.org",
+  "tls": {
+    "certFile": "certs/fullchain.pem",
+    "keyFile": "certs/privkey.pem",
+    "redirectHttpToHttps": true,
+    "hsts": true
+  },
+  "acme": {
+    "challengeRoot": "acme/.well-known/acme-challenge"
+  },
+  "routes": [
+    {"prefix":"/admin","target":"http://core-admin:3000","stripPrefix":true},
+    {"prefix":"/monitor","target":"http://core-monitor:3000","stripPrefix":true},
+    {"prefix":"/erp","target":"http://core-erp:3000","stripPrefix":true},
+    {"prefix":"/objectsphere","target":"http://core-objectsphere:3000","stripPrefix":true},
+    {"prefix":"/tasks","target":"http://core-tasks:3000","stripPrefix":true},
+    {"prefix":"/tools","target":"http://core-tools:3000","stripPrefix":true},
+    {"prefix":"/","target":"http://core-saas:3000","stripPrefix":false}
+  ]
+}

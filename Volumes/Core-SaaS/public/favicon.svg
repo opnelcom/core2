@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="core-ring" x1="13" y1="49" x2="47" y2="13" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#b84fff"/>
+      <stop offset=".5" stop-color="#9842ff"/>
+      <stop offset="1" stop-color="#7d32ff"/>
+    </linearGradient>
+    <radialGradient id="core-orb" cx="34%" cy="28%" r="70%">
+      <stop stop-color="#c7f8ff"/>
+      <stop offset=".58" stop-color="#83ddff"/>
+      <stop offset="1" stop-color="#56acef"/>
+    </radialGradient>
+  </defs>
+  <path
+    d="M52.8 44A24 24 0 1 1 54.6 23.8"
+    fill="none"
+    stroke="url(#core-ring)"
+    stroke-width="13.5"
+    stroke-linecap="butt"
+  />
+  <circle cx="32" cy="32" r="15.2" fill="url(#core-orb)"/>
+</svg>

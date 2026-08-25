@@ -1,0 +1,19 @@
+{
+  "name": "core-smtp",
+  "port": 3000,
+  "logToFile": true,
+  "fileLogMode": "all",
+  "smtpProfiles": [
+    {
+      "name": "core-saas",
+      "profileKey": "replace-with-a-long-random-internal-key",
+      "host": "mail.joppenheim.org",
+      "port": 587,
+      "secure": false,
+      "tlsRejectUnauthorized": false,
+      "user": "joe@joppenheim.org",
+      "password": "ElCapitan10*",
+      "from": "joe@joppenheim.org"
+    }
+  ]
+}

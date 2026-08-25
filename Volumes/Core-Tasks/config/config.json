@@ -1,0 +1,23 @@
+{
+    "name":  "core-tasks",
+    "port":  3000,
+    "logToFile":  true,
+    "fileLogMode":  "all",
+    "dbBrokerURL":  "http://core-broker:3000",
+    "dbBrokerProfile":  "core_tasks",
+    "dbBrokerKey":  "replace-with-a-long-random-internal-key",
+    "dbBrokerProfiles":  [
+                             {
+                                 "name":  "core_tasks",
+                                 "key":  "replace-with-a-long-random-internal-key"
+                             },
+                             {
+                                 "name":  "core_saas",
+                                 "key":  "replace-with-a-long-random-internal-key"
+                             }
+                         ],
+    "sessionSecret":  "replace-with-a-long-random-session-secret",
+    "cookieSecure":  false,
+    "nodeEnv":  "development",
+    "maxBodyBytes":  15728640
+}

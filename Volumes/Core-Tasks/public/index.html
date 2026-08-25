@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vision</title>
+  <link rel="stylesheet" href="/tasks/style.css">
+</head>
+<body>
+  <main class="task-shell">
+    <aside class="side-menu">
+      <nav class="menu-list" aria-label="Vision navigation">
+        <button class="menu-item active" data-view="about" type="button">About</button>
+        <button class="menu-item" data-view="dashboard" type="button">Dashboard</button>
+        <button class="menu-item" data-view="tasks" type="button">Tasks</button>
+        <button class="menu-item" data-view="setup" type="button">Setup</button>
+      </nav>
+    </aside>
+
+    <section class="workspace">
+      <section id="alert" class="alert" hidden></section>
+
+      <section id="view-about" class="view-panel">
+        <section class="about-hero">
+          <div class="about-hero-copy">
+            <p class="eyebrow">About</p>
+            <h1>Vision keeps your long-term direction connected to daily progress.</h1>
+            <p class="lede">Capture ideas, shape them into goals, break goals into projects and milestones, then track each next action from intention to realisation across personal, family, and work life.</p>
+          </div>
+          <div class="about-journey" aria-label="Idea to realisation journey">
+            <span>Idea</span>
+            <span>Vision</span>
+            <span>Goal</span>
+            <span>Project</span>
+            <span>Milestone</span>
+            <strong>Realised</strong>
+          </div>
+        </section>
+
+        <section class="about-scenarios" aria-label="Vision planning examples">
+          <article class="scenario-card scenario-vision">
+            <div class="scenario-icon" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+            <div>
+              <p class="eyebrow">Vision Level</p>
+              <h2>Keep the bigger picture visible while work changes shape</h2>
+              <p>Start with the outcome you want, then connect goals, projects, milestones, and next actions underneath it. Progress rolls upward so the long-term vision never gets separated from today's work.</p>
+            </div>
+            <ul class="scenario-stack">
+              <li>Vision</li>
+              <li>Goal</li>
+              <li>Project</li>
+              <li>Milestone</li>
+              <li>Next action</li>
+            </ul>
+          </article>
+
+          <article class="scenario-card scenario-life">
+            <div>
+              <p class="eyebrow">Life Areas</p>
+              <h2>Balance personal, family, and work commitments</h2>
+              <p>Separate responsibilities into meaningful areas without losing the shared view. A family renovation, a work delivery, a health goal, and a financial plan can each have their own hierarchy and status.</p>
+            </div>
+            <div class="life-grid" aria-label="Personal family and work goal examples">
+              <span>Personal</span>
+              <b>Health reset</b>
+              <small>Weekly plan</small>
+              <span>Family</span>
+              <b>Home upgrade</b>
+              <small>Supplier quotes</small>
+              <span>Work</span>
+              <b>Sales follow-up</b>
+              <small>Client proposal</small>
+            </div>
+          </article>
+
+          <article class="scenario-card scenario-progress">
+            <div>
+              <p class="eyebrow">Realisation Level</p>
+              <h2>Track movement from idea to done</h2>
+              <p>Use statuses, importance, due dates, documents, and rollup progress to see what is active, blocked, overdue, or complete. The dashboard turns scattered effort into visible momentum.</p>
+            </div>
+            <div class="realisation-board" aria-label="Progress states">
+              <span>Idea captured</span>
+              <span>Shaped into goal</span>
+              <span>Planning</span>
+              <span>In motion</span>
+              <span>Delivered</span>
+              <strong>Realised</strong>
+            </div>
+          </article>
+        </section>
+
+        <section class="about-grid about-capabilities">
+          <article class="about-card">
+            <h2>Maintain your vision</h2>
+            <p>Keep high-level direction, goals, and execution in one hierarchy so priorities remain visible during busy weeks.</p>
+          </article>
+          <article class="about-card">
+            <h2>Convert ideas into action</h2>
+            <p>Capture raw ideas, promote them into projects, and break them into milestones and next actions that can actually move.</p>
+          </article>
+          <article class="about-card">
+            <h2>Review progress clearly</h2>
+            <p>Use rollup progress, statuses, due dates, and documents to support weekly reviews and make blockers easy to spot.</p>
+          </article>
+        </section>
+      </section>
+
+      <section id="view-dashboard" class="view-panel" hidden>
+        <div class="view-header">
+          <div>
+            <p class="eyebrow">Dashboard</p>
+            <h1>Task overview</h1>
+          </div>
+          <button id="dashboard-refresh" class="secondary-action" type="button">Refresh</button>
+        </div>
+        <div id="dashboard-summary" class="metric-grid"></div>
+        <section class="dashboard-card">
+          <h2>Status</h2>
+          <div id="dashboard-statuses" class="metric-grid dashboard-breakdown-grid"></div>
+        </section>
+        <section class="dashboard-card">
+          <h2>Importance</h2>
+          <div id="dashboard-importance" class="metric-grid dashboard-breakdown-grid"></div>
+        </section>
+        <section class="dashboard-card">
+          <h2>Critical Items</h2>
+          <div id="dashboard-critical-items" class="critical-item-grid"></div>
+        </section>
+        <section id="dashboard-filter-items-card" class="dashboard-card" hidden>
+          <div class="dashboard-card-title-row">
+            <h2 id="dashboard-filter-items-title">Tasks</h2>
+            <button id="close-dashboard-filter-items" class="icon-button" type="button" aria-label="Close task grid">x</button>
+          </div>
+          <div id="dashboard-filter-items" class="dashboard-table-wrap"></div>
+        </section>
+      </section>
+
+      <section id="view-tasks" class="view-panel" hidden>
+        <header class="task-toolbar">
+          <div>
+            <p class="eyebrow">Vision</p>
+            <h1>Task hierarchy</h1>
+          </div>
+          <div class="toolbar-actions">
+            <input id="search" type="search" placeholder="Type to search...">
+            <button id="voice-action" class="secondary-action" type="button" aria-label="Voice action" title="Voice action">Voice</button>
+            <button id="clear-search" class="secondary-action" type="button">Clear</button>
+            <button id="refresh" class="secondary-action" type="button">Refresh</button>
+          </div>
+        </header>
+
+        <section class="task-layout">
+          <section class="tree-panel">
+            <div class="panel-heading">
+              <p class="eyebrow">Tasks</p>
+              <button id="add-root" class="icon-button" type="button" aria-label="New top-level task" title="New top-level task">+</button>
+            </div>
+            <div id="tree" class="task-tree" aria-label="Task tree"></div>
+          </section>
+
+          <aside id="detail-panel" class="detail-panel" hidden>
+            <div class="detail-header">
+              <p class="eyebrow">Task detail</p>
+              <button id="close-detail" class="icon-button" type="button" aria-label="Close task detail">x</button>
+            </div>
+            <div class="detail-tabs" role="tablist" aria-label="Task detail sections">
+              <button class="detail-tab-button active" data-detail-tab="details" type="button">Task Details</button>
+              <button class="detail-tab-button" data-detail-tab="subtasks" type="button">Subtasks</button>
+              <button class="detail-tab-button" data-detail-tab="documents" type="button">Documents</button>
+            </div>
+            <section id="details-tab" class="detail-tab-panel">
+              <form id="task-form">
+                <input id="task-id" type="hidden">
+                <label for="task-name">Title</label>
+                <input id="task-name" required>
+                <label for="task-description">Description</label>
+                <textarea id="task-description" rows="4"></textarea>
+                <div class="form-grid">
+                  <label for="task-importance">Importance
+                    <select id="task-importance">
+                      <option value="low">Low</option>
+                      <option value="normal">Normal</option>
+                      <option value="high">High</option>
+                      <option value="critical">Critical</option>
+                    </select>
+                  </label>
+                  <label for="task-status">Status
+                    <select id="task-status">
+                      <option value="active">Active</option>
+                      <option value="future">Future</option>
+                      <option value="on_hold">On hold</option>
+                      <option value="blocked">Blocked</option>
+                      <option value="complete">Complete</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </label>
+                  <label for="task-percent">Manual %
+                    <input id="task-percent" type="number" min="0" max="100" step="1">
+                  </label>
+                </div>
+                <div class="form-grid">
+                  <label for="task-start">Start date
+                    <input id="task-start" type="date">
+                  </label>
+                  <label for="task-due">Due date
+                    <input id="task-due" type="date">
+                  </label>
+                  <label for="task-parent">Parent
+                    <select id="task-parent"></select>
+                  </label>
+                </div>
+                <div class="rollup-card">
+                  <span>Rollup progress</span>
+                  <strong id="task-rollup">0%</strong>
+                  <div class="progress-track"><span id="task-rollup-bar"></span></div>
+                </div>
+                <div class="form-actions">
+                  <button type="submit">Save task</button>
+                  <button id="add-child" class="secondary-action" type="button">Add child</button>
+                  <button id="archive-task" class="secondary-action" type="button">Archive</button>
+                  <button id="delete-task" class="danger-action" type="button">Delete</button>
+                </div>
+              </form>
+            </section>
+            <section id="subtasks-tab" class="detail-tab-panel" hidden>
+              <div class="subtask-filter-row">
+                <label for="subtask-status-filter">Status</label>
+                <select id="subtask-status-filter">
+                  <option value="all">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="future">Future</option>
+                  <option value="on_hold">On hold</option>
+                  <option value="blocked">Blocked</option>
+                  <option value="complete">Complete</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+              <div id="subtask-grid" class="subtask-grid"></div>
+            </section>
+            <section id="documents-tab" class="detail-tab-panel" hidden>
+              <div class="document-toolbar">
+                <div>
+                  <p class="eyebrow">Documents</p>
+                  <h2>Task files</h2>
+                </div>
+                <button id="upload-document" class="icon-button" type="button" aria-label="Upload document" title="Upload document">+</button>
+              </div>
+              <input id="document-file" type="file" hidden>
+              <div id="document-list" class="document-list"></div>
+            </section>
+          </aside>
+        </section>
+      </section>
+
+      <section id="view-setup" class="view-panel" hidden>
+        <div class="view-header">
+          <div>
+            <p class="eyebrow">Setup</p>
+            <h1>Reference task areas</h1>
+          </div>
+          <button id="copy-reference-categories" class="secondary-action" type="button">Copy reference categories</button>
+        </div>
+        <section class="dashboard-card">
+          <h2>Starter categories</h2>
+          <p class="setup-help">Copy Personal, Family, Work, Health, Finance, Home, Learning, and Projects as editable top-level tasks.</p>
+        </section>
+        <section class="dashboard-card">
+          <h2>AI voice actions</h2>
+          <form id="openai-form" class="setup-form">
+            <label for="openai-api-key">OpenAI API key</label>
+            <input id="openai-api-key" type="password" autocomplete="off" placeholder="Leave blank to keep saved key">
+            <label for="openai-model">Model</label>
+            <input id="openai-model" value="gpt-4.1-mini">
+            <p id="openai-key-status" class="setup-help">No key saved.</p>
+            <div class="form-actions">
+              <button type="submit">Save AI settings</button>
+              <button id="clear-openai-key" class="danger-action" type="button">Clear key</button>
+            </div>
+          </form>
+        </section>
+      </section>
+    </section>
+
+    <div id="status" class="status-toast">Ready.</div>
+  </main>
+  <div id="voice-review" class="review-overlay" hidden>
+    <section class="review-panel" role="dialog" aria-modal="true" aria-labelledby="voice-review-title">
+      <div class="detail-header">
+        <div>
+          <p class="eyebrow">Voice action</p>
+          <h2 id="voice-review-title">Confirm changes</h2>
+        </div>
+        <button id="close-voice-review" class="icon-button" type="button" aria-label="Close voice action review">x</button>
+      </div>
+      <p id="voice-review-transcript" class="voice-transcript"></p>
+      <p id="voice-review-summary" class="review-summary"></p>
+      <div id="voice-review-list" class="review-list"></div>
+      <div class="form-actions review-actions">
+        <button id="confirm-voice-actions" type="button">Apply selected</button>
+        <button id="cancel-voice-actions" class="secondary-action" type="button">Cancel</button>
+      </div>
+    </section>
+  </div>
+  <script src="/tasks/app.js"></script>
+</body>
+</html>

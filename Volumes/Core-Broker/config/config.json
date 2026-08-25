@@ -1,0 +1,57 @@
+{
+    "name":  "core-broker",
+    "port":  3000,
+    "logToFile":  true,
+    "fileLogMode":  "all",
+    "maxBodyBytes":  209715200,
+    "dbProfiles":  [
+                       {
+                           "name":  "core_saas",
+                           "profileKey":  "replace-with-a-long-random-internal-key",
+                           "host":  "core-db-saas",
+                           "port":  5432,
+                           "database":  "core_saas",
+                           "user":  "core_user",
+                           "password":  "replace-with-a-strong-password",
+                           "poolMax":  4,
+                           "poolIdleTimeoutMillis":  10000,
+                           "connectionTimeoutMillis":  5000
+                       },
+                       {
+                           "name":  "core_erp",
+                           "profileKey":  "replace-with-a-long-random-internal-key",
+                           "host":  "core-db-erp",
+                           "port":  5432,
+                           "database":  "core_erp",
+                           "user":  "erp_user",
+                           "password":  "replace-with-a-strong-password",
+                           "poolMax":  4,
+                           "poolIdleTimeoutMillis":  10000,
+                           "connectionTimeoutMillis":  5000
+                       },
+                       {
+                           "name":  "core_objectsphere",
+                           "profileKey":  "replace-with-a-long-random-internal-key",
+                           "host":  "core-db-objectsphere",
+                           "port":  5432,
+                           "database":  "core_objectsphere",
+                           "user":  "objectsphere_user",
+                           "password":  "replace-with-a-strong-password",
+                           "poolMax":  4,
+                           "poolIdleTimeoutMillis":  10000,
+                           "connectionTimeoutMillis":  5000
+                       },
+                       {
+                           "name":  "core_tasks",
+                           "profileKey":  "replace-with-a-long-random-internal-key",
+                           "host":  "core-db-tasks",
+                           "port":  5432,
+                           "database":  "core_tasks",
+                           "user":  "tasks_user",
+                           "password":  "replace-with-a-strong-password",
+                           "poolMax":  4,
+                           "poolIdleTimeoutMillis":  10000,
+                           "connectionTimeoutMillis":  5000
+                       }
+                   ]
+}

@@ -1,0 +1,211 @@
+:root{
+  --theme-brand:#15d7bb;
+  --theme-brand-dark:#043946;
+  --theme-accent:#7cff91;
+  --theme-header-tint:rgba(21,215,187,.20);
+  --theme-page:#052f3b;
+  --theme-panel:#075865;
+  --theme-panel-soft:#0a8377;
+  --theme-ink:#f0fffb;
+  --theme-muted:#9de3dd;
+  --theme-line:rgba(112,255,224,.28);
+  --theme-glow:rgba(29,255,196,.32);
+  --theme-success:#70ff8f;
+  --theme-danger:#ff6b86;
+  --theme-shadow:0 28px 42px rgba(0,15,22,.46),0 10px 18px rgba(0,15,22,.34),0 0 0 1px rgba(154,255,235,.18),0 0 34px rgba(44,255,208,.34),inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(0,20,28,.22);
+  --theme-page-overlay:radial-gradient(circle at 30% 18%,rgba(124,255,145,.22),transparent 26%),linear-gradient(180deg,rgba(0,83,94,.70) 0%,rgba(0,155,139,.46) 45%,rgba(0,47,58,.78) 100%);
+  --theme-page-opacity:1;
+  --theme-header-photo:none;
+  --theme-header-position:center center;
+  --theme-header-image:
+    radial-gradient(circle at 18% 24%,rgba(124,255,145,.28),transparent 19%),
+    radial-gradient(circle at 80% 20%,rgba(68,238,255,.22),transparent 22%),
+    linear-gradient(135deg,#043946 0%,#05817b 52%,#052f3b 100%);
+  --theme-body-background:
+    radial-gradient(circle at 14% 12%,rgba(114,255,141,.20),transparent 23%),
+    radial-gradient(circle at 80% 18%,rgba(39,228,255,.16),transparent 25%),
+    radial-gradient(circle at 50% 92%,rgba(21,215,187,.24),transparent 36%),
+    linear-gradient(145deg,#032a35 0%,#007a70 50%,#042b36 100%);
+  --theme-body-background-size:auto;
+  --theme-shell-background:#04313d;
+  --theme-header-background:linear-gradient(135deg,rgba(5,73,85,.82),rgba(8,147,132,.58));
+  --theme-header-overlay:linear-gradient(90deg,rgba(4,49,61,.72) 0%,rgba(4,49,61,.36) 46%,rgba(21,215,187,.22) 100%);
+  --theme-header-shadow:0 1px 0 rgba(151,255,232,.24),0 24px 70px rgba(0,20,29,.42);
+  --theme-panel-background:linear-gradient(145deg,rgba(16,145,132,.78),rgba(4,76,89,.74));
+  --theme-panel-color:var(--theme-ink);
+  --theme-tabs-background:rgba(3,65,78,.48);
+  --theme-input-background:rgba(3,55,66,.66);
+  --theme-link-color:#9dfff3;
+  --theme-button-background:linear-gradient(135deg,#087a75,#15d7bb);
+  --theme-button-border:rgba(144,255,231,.46);
+  --theme-button-color:#f0fffb;
+  --theme-button-hover-background:linear-gradient(135deg,#70ff8f,#19e6cb);
+  --theme-button-hover-border:rgba(240,255,251,.72);
+  --theme-button-hover-color:#032f39;
+  --theme-secondary-background:rgba(2,48,59,.46);
+  --theme-secondary-border:rgba(144,255,231,.30);
+  --theme-secondary-hover-background:rgba(21,215,187,.22);
+  --theme-secondary-hover-color:#f0fffb;
+  --theme-secondary-hover-border:rgba(124,255,145,.58);
+  --theme-toolbar-color:#9dfff3;
+  --theme-brand-mark-background:linear-gradient(135deg,#043946,#15d7bb 68%,#70ff8f);
+  --theme-brand-mark-color:#f0fffb;
+  --theme-brand-mark-shadow:0 0 30px rgba(112,255,143,.36),0 16px 44px rgba(0,18,26,.42);
+  --theme-toast-success:#064b48;
+  --theme-backdrop-background:rgba(0,18,26,.74);
+  --theme-table-background:transparent;
+  --theme-table-color:var(--theme-ink);
+  --theme-th-background:rgba(21,215,187,.12);
+  --theme-td-border:rgba(144,255,231,.16);
+  --theme-grid-background:rgba(4,57,70,.48);
+  --theme-grid-border:rgba(144,255,231,.22);
+  --theme-grid-color:var(--theme-muted);
+  --theme-grid-hover-background:rgba(21,215,187,.18);
+  --theme-grid-hover-border:rgba(124,255,145,.44);
+  --theme-grid-hover-color:var(--theme-ink);
+  --theme-application-home-hover-background:rgba(21,215,187,.18);
+  --theme-application-home-hover-backdrop:blur(14px);
+  --theme-home-heading-color:var(--theme-ink);
+}
+body{
+  --ink:var(--theme-ink);
+  --muted:var(--theme-muted);
+  --line:var(--theme-line);
+  --panel:var(--theme-panel);
+  --page:var(--theme-page);
+  --brand:var(--theme-brand);
+  --brand-dark:var(--theme-brand-dark);
+  --accent:var(--theme-accent);
+  --success:var(--theme-success);
+  --danger:var(--theme-danger);
+  --shadow:var(--theme-shadow);
+  color:var(--theme-ink);
+  background:var(--theme-body-background);
+  background-size:var(--theme-body-background-size);
+}
+.landing-shell{background:var(--theme-shell-background)}
+.landing-header{
+  border-color:var(--theme-line);
+  background:var(--theme-header-background) !important;
+  box-shadow:var(--theme-header-shadow);
+}
+.landing-header::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  background-image:var(--theme-header-overlay),var(--theme-header-photo,var(--theme-header-image));
+  background-repeat:no-repeat;
+  background-position:var(--theme-header-position,right center);
+  background-size:cover;
+  opacity:.95;
+}
+.application-home-item:hover{
+  background:var(--theme-application-home-hover-background);
+  backdrop-filter:var(--theme-application-home-hover-backdrop);
+}
+.landing-home .content-heading .eyebrow,.landing-home .content-heading h1{color:var(--theme-home-heading-color)}
+.auth-card,.management-panel,.table-panel,.proof-grid div,.tenant-grid-panel,.tenant-list-panel,.tenant-detail-panel,.dialog-card,.profile-menu,.empty-state,.application-home-item,.tenant-setup-grid,.tenant-user-grid,.tenant-application-grid,.tenant-application-users,.application-frame{
+  background:var(--theme-panel-background);
+  border-color:var(--theme-line);
+  color:var(--theme-panel-color);
+  box-shadow:var(--theme-shadow);
+  backdrop-filter:blur(18px) saturate(130%);
+  outline:1px solid rgba(188,255,242,.12);
+}
+.tabs,.tenant-tabs,.tenant-grid-tabs,.tenant-new-grid,.tenant-grid-expanded,.result,.assignment-item{
+  background:var(--theme-tabs-background);
+  border-color:var(--theme-line);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10);
+}
+input,select,.application-select{
+  background:var(--theme-input-background);
+  border-color:var(--theme-line);
+  color:var(--theme-ink);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+}
+input::placeholder{color:rgba(157,227,221,.62)}
+label,.lead,.microcopy,.profile-copy small,.proof-grid span,.application-home-copy small,.session-user,td,.tenant-grid-head,.tenant-child-head,th{color:var(--theme-muted)}
+a,.eyebrow,.link-button,.secondary-action,.secondary-form-action,.icon-action,.home-action,.grid-expand,.tenant-tab,.tenant-grid-tab,.tab-button{color:var(--theme-link-color)}
+button,.primary-action,.square-action,.add-grid-button{
+  background:var(--theme-button-background);
+  border-color:var(--theme-button-border);
+  color:var(--theme-button-color);
+  box-shadow:0 12px 32px rgba(0,18,26,.36),0 0 18px rgba(21,215,187,.18),inset 0 1px 0 rgba(255,255,255,.18);
+}
+button:hover,.primary-action:hover,.square-action:hover,.add-grid-button:hover{
+  background:var(--theme-button-hover-background);
+  border-color:var(--theme-button-hover-border);
+  color:var(--theme-button-hover-color);
+}
+.secondary-action,.secondary-form-action,.icon-action,.home-action,.logo-button,.profile-button,.tab-button,.tenant-tab,.tenant-grid-tab,.grid-expand,.profile-menu button{
+  background:var(--theme-secondary-background);
+  border-color:var(--theme-secondary-border);
+}
+.logo-button,.logo-button:hover,.logo-button:focus-visible{border-color:transparent}
+.application-icon-button,.application-launcher-panel .home-action{color:var(--theme-toolbar-color)}
+.application-launcher-panel,
+.application-icon-list{
+  overflow:visible;
+}
+.secondary-action:hover,.secondary-form-action:hover,.icon-action:hover,.home-action:hover,.logo-button:hover,.profile-button:hover,.tab-button:hover,.tab-button.active,.tenant-tab:hover,.tenant-tab.active,.tenant-grid-tab:hover,.tenant-grid-tab.active,.grid-expand:hover,.application-home-item:hover,.tenant-list-item:hover,.tenant-list-item.active,.profile-menu button:hover{
+  background:var(--theme-secondary-hover-background);
+  color:var(--theme-secondary-hover-color);
+  border-color:var(--theme-secondary-hover-border);
+}
+.application-home-item,
+.application-home-item:hover{
+  border-color:transparent;
+  outline:none;
+  box-shadow:0 28px 42px rgba(0,15,22,.40),0 12px 20px rgba(0,15,22,.28),0 0 34px rgba(44,255,208,.24),inset 0 1px 0 rgba(255,255,255,.16),inset 0 -1px 0 rgba(0,20,28,.14);
+}
+.application-home-item::before{
+  display:none;
+}
+.application-icon-button:hover,
+.application-icon-button:focus-visible,
+.application-icon-button.active{
+  z-index:1;
+  box-shadow:0 18px 30px rgba(0,15,22,.38),0 8px 16px rgba(0,15,22,.24),0 0 28px rgba(44,255,208,.26),inset 0 1px 0 rgba(255,255,255,.16),inset 0 -1px 0 rgba(0,20,28,.14);
+}
+.application-home-copy strong{
+  font-weight:700;
+  line-height:1.18;
+}
+.application-home-copy small{
+  font-weight:400;
+}
+.brand-mark,.avatar:not(.has-photo){
+  background:var(--theme-brand-mark-background);
+  color:var(--theme-brand-mark-color);
+  box-shadow:var(--theme-brand-mark-shadow);
+}
+.toast.success{background:var(--theme-toast-success)}
+.dialog-card::backdrop{background:var(--theme-backdrop-background)}
+table,.tenant-list-item{background:var(--theme-table-background);color:var(--theme-table-color)}
+th,.tenant-grid-head,.tenant-child-head{background:var(--theme-th-background)}
+td,.tenant-child-row,.tenant-grid-row,.tenant-grid-expanded,.tenant-app-user-row{border-color:var(--theme-td-border)}
+.grid-expand{
+  background:var(--theme-grid-background);
+  border-color:var(--theme-grid-border);
+  color:var(--theme-grid-color);
+}
+.grid-expand:hover{
+  background:var(--theme-grid-hover-background);
+  border-color:var(--theme-grid-hover-border);
+  color:var(--theme-grid-hover-color);
+}
+.auth-card,.management-panel,.table-panel,.tenant-grid-panel,.tenant-list-panel,.tenant-detail-panel,.application-frame{
+  position:relative;
+  overflow:hidden;
+}
+.auth-card::before,.management-panel::before,.table-panel::before,.tenant-grid-panel::before,.tenant-list-panel::before,.tenant-detail-panel::before,.application-frame::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:linear-gradient(135deg,rgba(255,255,255,.18),transparent 28%,rgba(112,255,143,.08) 100%);
+}
+.auth-card > *,.management-panel > *,.table-panel > *,.tenant-grid-panel > *,.tenant-list-panel > *,.tenant-detail-panel > *,.application-frame > *{
+  position:relative;
+}

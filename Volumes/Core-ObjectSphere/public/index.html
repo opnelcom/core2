@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ObjectSphere</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/objectsphere/style.css">
+</head>
+<body>
+  <main class="object-shell">
+    <aside class="side-menu">
+      <nav class="menu-list" aria-label="ObjectSphere navigation">
+        <button class="menu-item active" data-view="about" type="button">About</button>
+        <button class="menu-item" data-view="dashboard" type="button">Dashboard</button>
+        <button class="menu-item" data-view="objectsphere" type="button">ObjectSphere</button>
+        <button class="menu-item" data-view="setup" type="button">Setup</button>
+      </nav>
+    </aside>
+
+    <section class="workspace">
+      <section id="alert" class="alert" hidden></section>
+
+      <section id="view-about" class="view-panel">
+        <section class="about-hero">
+          <div class="about-hero-copy">
+            <p class="eyebrow">About</p>
+            <h1>ObjectSphere maps the real world into a working object hierarchy.</h1>
+            <p class="about-lede">Use one flexible structure to zoom from the whole world to the tiny thing that needs attention. Model places, systems, assets, components, and parts with photos, documents, attributes, accounts, and maintenance context attached at exactly the right level.</p>
+          </div>
+          <figure class="about-cutaway">
+            <img src="/objectsphere/assets/objectsphere-building-cutaway.png" alt="Blueprint-style building cutaway with labelled rooms, furniture, planters, and commercial spaces">
+          </figure>
+        </section>
+
+        <section class="about-scenarios" aria-label="ObjectSphere management examples">
+          <article class="scenario-card scenario-world">
+            <div class="scenario-icon" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+            <div>
+              <p class="eyebrow">World Level</p>
+              <h2>Zoom from planet scale to the part in your hand</h2>
+              <p>Start broad, then keep drilling down: globe, country, city, building, structure, asset, component, and part. The hierarchy can describe a landmark, a robot kitchen, a theatre rig, a telecom mast, or anything else with nested detail.</p>
+            </div>
+            <ul class="scenario-stack">
+              <li>Globe</li>
+              <li>Country</li>
+              <li>City</li>
+              <li>Building</li>
+              <li>Structure</li>
+              <li>Asset</li>
+              <li>Component</li>
+              <li>Part</li>
+            </ul>
+          </article>
+
+          <article class="scenario-card scenario-property">
+            <div>
+              <p class="eyebrow">Object Level</p>
+              <h2>Describe any real-world thing in useful detail</h2>
+              <p>Break an object into zones, assemblies, service areas, components, and replaceable parts. Store photos against the exact node so inspections, upgrades, and repair history stay visually grounded.</p>
+            </div>
+            <div class="property-cutaway" aria-label="Object hierarchy example">
+              <div class="floor-row">
+                <span>Zone A</span>
+                <b>Rooftop lab</b>
+                <b>Prep counter</b>
+              </div>
+              <div class="floor-row">
+                <span>Asset</span>
+                <b>Noodle Bot NB-7</b>
+                <b>Broth pump</b>
+              </div>
+              <div class="room-photos">
+                <figure><span></span><figcaption>Context photo</figcaption></figure>
+                <figure><span></span><figcaption>Component detail</figcaption></figure>
+                <figure><span></span><figcaption>Part label</figcaption></figure>
+              </div>
+            </div>
+          </article>
+
+          <article class="scenario-card scenario-equipment">
+            <div>
+              <p class="eyebrow">Equipment Level</p>
+              <h2>Trace assets down to parts and components</h2>
+              <p>Model complex equipment from location to asset, component, and part. Add manuals and technical documents where technicians expect to find them.</p>
+            </div>
+            <div class="equipment-chain" aria-label="Equipment object chain">
+              <span>Structure</span>
+              <span>Location</span>
+              <span>Asset</span>
+              <span>Component</span>
+              <span>Part</span>
+              <strong>Maintenance manual</strong>
+            </div>
+          </article>
+        </section>
+
+        <section class="about-grid about-capabilities">
+          <article class="about-card">
+            <h2>Model anything as a tree</h2>
+            <p>Create parent and child relationships for properties, sites, assets, equipment, rooms, portfolios, departments, product assemblies, or any custom hierarchy.</p>
+          </article>
+          <article class="about-card">
+            <h2>Shape data with object types</h2>
+            <p>Define reusable object types and attributes in setup. A single item can behave like a place, asset, room, equipment item, assembly, part, or any custom type you create.</p>
+          </article>
+          <article class="about-card">
+            <h2>Keep evidence with the object</h2>
+            <p>Attach photos, documents, manuals, attribute history, and AI-assisted imports directly to the object they describe, then reorganise the hierarchy without losing context.</p>
+          </article>
+        </section>
+      </section>
+
+      <section id="view-dashboard" class="view-panel" hidden>
+        <div class="view-header">
+          <div>
+            <p class="eyebrow">Dashboard</p>
+          </div>
+          <button id="dashboard-refresh" class="secondary-action" type="button">Refresh</button>
+        </div>
+        <div id="dashboard-summary" class="metric-grid"></div>
+        <section class="dashboard-card">
+          <h2>Object types</h2>
+          <div id="type-counts" class="count-list"></div>
+        </section>
+        <section id="dashboard-type-items-card" class="dashboard-card" hidden>
+          <div class="setup-title-row">
+            <h2 id="dashboard-type-items-title">Objects</h2>
+            <button id="close-dashboard-type-items" class="icon-button" type="button" aria-label="Close objects grid">x</button>
+          </div>
+          <div id="dashboard-type-items" class="dashboard-table-wrap"></div>
+        </section>
+        <section class="dashboard-card dashboard-calendar-card">
+          <div class="setup-title-row">
+            <h2 id="dashboard-calendar-title">Events</h2>
+            <div class="calendar-actions">
+              <button id="dashboard-calendar-prev" class="icon-button" type="button" aria-label="Previous month" title="Previous month">&lt;</button>
+              <button id="dashboard-calendar-next" class="icon-button" type="button" aria-label="Next month" title="Next month">&gt;</button>
+            </div>
+          </div>
+          <div class="calendar-weekdays" aria-hidden="true">
+            <span>Sun</span>
+            <span>Mon</span>
+            <span>Tue</span>
+            <span>Wed</span>
+            <span>Thu</span>
+            <span>Fri</span>
+            <span>Sat</span>
+          </div>
+          <div id="dashboard-calendar" class="dashboard-calendar" aria-label="Monthly event calendar"></div>
+        </section>
+      </section>
+
+      <section id="view-objectsphere" class="view-panel" hidden>
+        <header class="object-toolbar">
+          <div>
+            <p class="eyebrow">ObjectSphere</p>
+            <h1>Object hierarchy</h1>
+          </div>
+          <div class="toolbar-actions">
+            <input id="search" type="search" placeholder="Type to search...">
+            <button id="voice-action" class="secondary-action" type="button" aria-label="Voice action" title="Voice action">Voice</button>
+            <button id="clear-search" class="secondary-action" type="button">Clear</button>
+            <button id="refresh" class="secondary-action" type="button">Refresh</button>
+          </div>
+        </header>
+
+        <section class="object-layout">
+          <section class="tree-panel">
+            <div class="panel-heading">
+              <p class="eyebrow">ObjectSphere</p>
+              <button id="add-root" class="icon-button" type="button" aria-label="New page" title="New page">+</button>
+            </div>
+            <div id="tree" class="object-tree" aria-label="Object tree"></div>
+          </section>
+
+          <aside id="detail-panel" class="detail-panel" hidden>
+            <div class="detail-header">
+              <p class="eyebrow">Edit</p>
+              <button id="close-detail" class="icon-button" type="button" aria-label="Close edit panel">x</button>
+            </div>
+            <div class="edit-tabs" role="tablist" aria-label="Object editor sections">
+              <button class="edit-tab-button active" data-item-panel="object" type="button">Object</button>
+              <button class="edit-tab-button" data-item-panel="attribute" type="button">Characteristics</button>
+              <button class="edit-tab-button" data-item-panel="event" type="button">Events</button>
+              <button class="edit-tab-button" data-item-panel="photo" type="button">Photos</button>
+              <button class="edit-tab-button" data-item-panel="location" type="button">Location</button>
+              <button class="edit-tab-button" data-item-panel="document" type="button">Documents</button>
+            </div>
+
+            <section id="object-panel" class="edit-tab-panel">
+              <form id="item-form" hidden>
+              <label for="item-name">Name</label>
+              <input id="item-name" name="item_name" required>
+
+              <label for="item-quantity">Quantity</label>
+              <input id="item-quantity" name="quantity" type="number" min="1" step="1" value="1" required>
+
+              <label for="item-description">Description</label>
+              <textarea id="item-description" name="item_description" rows="4"></textarea>
+
+              <div class="form-actions">
+                <button type="submit">Save</button>
+                <button id="describe-item" class="secondary-action" type="button">Describe</button>
+                <button id="import-photo" class="secondary-action" type="button">Import photo</button>
+                <button id="archive-item" class="secondary-action" type="button">Archive</button>
+                <button id="delete-item" class="danger-action" type="button">Delete</button>
+              </div>
+              <input id="import-photo-file" type="file" accept="image/*" capture="environment" hidden>
+
+              <div class="section-divider"></div>
+
+              <section id="item-type-panel" class="item-type-panel">
+                <p class="eyebrow">Object types</p>
+                <div id="item-type-list" class="type-toggle-list"></div>
+                <div id="wireframe-panel" class="wireframe-panel"></div>
+              </section>
+              </form>
+            </section>
+
+            <section id="attribute-panel" class="edit-tab-panel" hidden>
+              <div id="item-type-tabs" class="item-type-tabs"></div>
+              <div id="attribute-panels" class="attribute-panels"></div>
+            </section>
+
+            <section id="photo-panel" class="edit-tab-panel" hidden>
+              <div class="tab-panel-header">
+                <p class="eyebrow">Photos</p>
+                <button id="upload-photo" class="icon-button" type="button" aria-label="Take or upload photo" title="Take or upload photo">+</button>
+              </div>
+              <input id="photo-file" type="file" accept="image/*" capture="environment" hidden>
+              <div id="photo-list" class="attachment-grid"></div>
+            </section>
+
+            <section id="event-panel" class="edit-tab-panel" hidden>
+              <div class="tab-panel-header">
+                <p class="eyebrow">Events</p>
+                <button id="new-event" class="icon-button" type="button" aria-label="New event" title="New event">+</button>
+              </div>
+              <div class="event-scope-tabs" role="tablist" aria-label="Event scope">
+                <button class="event-scope-button active" data-event-scope="direct" type="button">Direct</button>
+                <button class="event-scope-button" data-event-scope="children" type="button">From children</button>
+                <button class="event-scope-button" data-event-scope="all" type="button">All</button>
+              </div>
+              <div id="event-list" class="event-list"></div>
+              <form id="event-form" class="event-form" hidden>
+                <div class="detail-header event-form-header">
+                  <p class="eyebrow">Event detail</p>
+                  <button id="close-event-form" class="icon-button" type="button" aria-label="Close event detail panel">x</button>
+                </div>
+                <input id="event-id" type="hidden">
+                <label for="event-title">Title</label>
+                <input id="event-title" placeholder="Broken window, stolen equipment, inspection finding">
+                <label for="event-type">Event type</label>
+                <select id="event-type"></select>
+                <div class="event-form-grid">
+                  <label for="event-at">Event date
+                    <input id="event-at" type="datetime-local">
+                  </label>
+                  <label for="event-severity">Severity
+                    <select id="event-severity">
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="critical">Critical</option>
+                    </select>
+                  </label>
+                  <label for="event-status">Status
+                    <select id="event-status">
+                      <option value="open">Open</option>
+                      <option value="in_review">In review</option>
+                      <option value="resolved">Resolved</option>
+                      <option value="closed">Closed</option>
+                    </select>
+                  </label>
+                </div>
+                <label for="event-reported-by">Reported by</label>
+                <input id="event-reported-by" placeholder="Name or email">
+                <label for="event-description">Description</label>
+                <textarea id="event-description" rows="4"></textarea>
+                <div class="form-actions">
+                  <button type="submit">Save event</button>
+                  <button id="cancel-event" class="secondary-action" type="button">Cancel</button>
+                  <button id="delete-event" class="danger-action" type="button" hidden>Delete</button>
+                </div>
+              </form>
+            </section>
+
+            <section id="document-panel" class="edit-tab-panel" hidden>
+              <div class="tab-panel-header">
+                <p class="eyebrow">Documents</p>
+                <button id="upload-document" class="icon-button" type="button" aria-label="Upload document" title="Upload document">+</button>
+              </div>
+              <input id="document-file" type="file" hidden>
+              <div id="document-list" class="document-list"></div>
+            </section>
+
+            <section id="location-panel" class="edit-tab-panel" hidden>
+              <div class="tab-panel-header">
+                <p class="eyebrow">Location</p>
+                <button id="add-location" class="icon-button" type="button" aria-label="Add location" title="Add location">+</button>
+              </div>
+              <label class="location-provider" for="map-tile-provider">Tile provider
+                <select id="map-tile-provider">
+                  <option value="osm">OpenStreetMap</option>
+                  <option value="carto-light">Carto Light</option>
+                  <option value="carto-dark">Carto Dark</option>
+                  <option value="esri-world">Esri World Street</option>
+                  <option value="offline">Offline coordinate grid</option>
+                </select>
+              </label>
+              <div class="location-fields">
+                <label for="item-longitude">Longitude
+                  <input id="item-longitude" type="number" step="0.0000001" min="-180" max="180" placeholder="28.0473051">
+                </label>
+                <label for="item-latitude">Latitude
+                  <input id="item-latitude" type="number" step="0.0000001" min="-90" max="90" placeholder="-26.2041028">
+                </label>
+              </div>
+              <div id="location-empty" class="empty-state">No location has been set for this object.</div>
+              <div id="location-map" class="location-map" hidden></div>
+              <div class="form-actions">
+                <button id="save-location" type="button">Save location</button>
+                <button id="clear-location" class="secondary-action" type="button">Clear location</button>
+              </div>
+            </section>
+          </aside>
+        </section>
+      </section>
+
+      <section id="view-setup" class="view-panel" hidden>
+        <div class="setup-header">
+          <div>
+            <p class="eyebrow">Setup</p>
+            <h1>Object types and attributes</h1>
+          </div>
+          <button id="copy-reference-types" class="secondary-action" type="button">Copy reference types</button>
+        </div>
+
+        <div class="setup-grid">
+          <section class="setup-card">
+            <div class="setup-title-row">
+              <h2>AI import</h2>
+            </div>
+            <form id="openai-form" class="setup-form">
+              <label for="openai-api-key">OpenAI API key</label>
+              <input id="openai-api-key" type="password" autocomplete="off" placeholder="Leave blank to keep saved key">
+              <label for="openai-model">Model</label>
+              <input id="openai-model" value="gpt-4.1-mini">
+              <p id="openai-key-status" class="setup-help">No key saved.</p>
+              <div class="form-actions">
+                <button type="submit">Save AI settings</button>
+                <button id="clear-openai-key" class="danger-action" type="button">Clear key</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="setup-card">
+            <div class="setup-title-row">
+              <h2>Tenant transfer</h2>
+            </div>
+            <div class="transfer-grid">
+              <label class="transfer-option">
+                <span>OpenAI settings</span>
+                <input id="transfer-openai-settings" type="checkbox">
+              </label>
+              <label for="tenant-import-mode">Import mode</label>
+              <select id="tenant-import-mode">
+                <option value="append">Append</option>
+                <option value="replace">Replace existing ObjectSphere data</option>
+              </select>
+              <div class="form-actions">
+                <button id="export-tenant-data" type="button">Export JSON</button>
+                <button id="select-tenant-import" class="secondary-action" type="button">Import JSON</button>
+              </div>
+              <input id="tenant-import-file" type="file" accept="application/json,.json" hidden>
+              <p id="tenant-transfer-status" class="setup-help">Exports include objects, setup, attributes, history, events, photos, wireframes, and documents.</p>
+            </div>
+          </section>
+
+          <section class="setup-card">
+            <div class="setup-title-row">
+              <h2>Object types</h2>
+            </div>
+            <div id="object-type-list" class="setup-list"></div>
+            <button id="new-type" class="add-grid-button" type="button">+</button>
+            <section id="type-panel" class="setup-edit-panel" hidden>
+              <div class="detail-header">
+                <p class="eyebrow">New object type</p>
+                <button id="cancel-type" class="icon-button" type="button" aria-label="Close object type panel">x</button>
+              </div>
+              <form id="type-form" class="setup-form">
+                <input id="type-id" type="hidden">
+                <label for="type-name">Type name</label>
+                <input id="type-name" placeholder="Property, Asset, Equipment">
+                <label for="type-description">Description</label>
+                <textarea id="type-description" rows="4"></textarea>
+                <span class="field-label">Status</span>
+                <label class="grid-toggle form-toggle" for="type-status">
+                  <input id="type-status" type="checkbox" checked>
+                  <span></span>
+                </label>
+                <div class="form-actions">
+                  <button type="submit">Save type</button>
+                </div>
+              </form>
+            </section>
+          </section>
+
+          <section class="setup-card">
+            <div class="setup-title-row">
+              <h2>Event types</h2>
+            </div>
+            <div id="event-type-list" class="setup-list"></div>
+            <button id="new-event-type" class="add-grid-button" type="button">+</button>
+            <section id="event-type-panel" class="setup-edit-panel" hidden>
+              <div class="detail-header">
+                <p class="eyebrow">New event type</p>
+                <button id="cancel-event-type" class="icon-button" type="button" aria-label="Close event type panel">x</button>
+              </div>
+              <form id="event-type-form" class="setup-form">
+                <input id="event-type-id" type="hidden">
+                <label for="event-type-name">Type name</label>
+                <input id="event-type-name" placeholder="Damage, Robbery, Incident">
+                <label for="event-type-description">Description</label>
+                <textarea id="event-type-description" rows="4"></textarea>
+                <label for="event-type-default-severity">Default severity</label>
+                <select id="event-type-default-severity">
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+                <span class="field-label">Status</span>
+                <label class="grid-toggle form-toggle" for="event-type-status">
+                  <input id="event-type-status" type="checkbox" checked>
+                  <span></span>
+                </label>
+                <div class="form-actions">
+                  <button type="submit">Save event type</button>
+                </div>
+              </form>
+            </section>
+          </section>
+
+          <section id="setup-attribute-panel" class="setup-card" hidden>
+            <div class="setup-title-row">
+              <h2>Attributes</h2>
+              <button id="new-attribute" type="button">New attribute</button>
+            </div>
+            <div id="attribute-list" class="setup-list"></div>
+            <form id="attribute-form" class="setup-form">
+              <input id="attribute-id" type="hidden">
+              <label for="attribute-object-type">Object type</label>
+              <select id="attribute-object-type"></select>
+              <label for="attribute-name">Attribute name</label>
+              <input id="attribute-name" placeholder="Address, Supplier, Market Value">
+              <label for="attribute-type">Attribute type</label>
+              <select id="attribute-type">
+                <option value="text">Text</option>
+                <option value="large_text">Large text</option>
+                <option value="date">Date</option>
+                <option value="number">Number</option>
+                <option value="float">Float</option>
+                <option value="currency">Currency</option>
+              </select>
+              <label for="attribute-status">Status</label>
+              <select id="attribute-status">
+                <option value="active">Active</option>
+                <option value="disabled">Disabled</option>
+              </select>
+              <div class="form-actions">
+                <button type="submit">Save attribute</button>
+                <button id="disable-attribute" class="danger-action" type="button">Disable</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      </section>
+    </section>
+
+    <div id="status" class="status-toast">Ready.</div>
+  </main>
+  <div id="photo-viewer" class="photo-viewer" hidden>
+    <button id="close-photo-viewer" class="icon-button photo-viewer-close" type="button" aria-label="Close photo">x</button>
+    <img id="photo-viewer-image" alt="">
+    <p id="photo-viewer-name"></p>
+  </div>
+  <div id="import-review" class="import-review" hidden>
+    <section class="import-review-panel" role="dialog" aria-modal="true" aria-labelledby="import-review-title">
+      <div class="detail-header">
+        <div>
+          <p class="eyebrow">Import</p>
+          <h2 id="import-review-title">Review objects</h2>
+        </div>
+        <button id="close-import-review" class="icon-button" type="button" aria-label="Close import review">x</button>
+      </div>
+      <p id="import-review-parent" class="import-parent"></p>
+      <div id="import-review-list" class="import-review-list"></div>
+      <div class="form-actions import-review-actions">
+        <button id="confirm-import" type="button">Import selected</button>
+        <button id="cancel-import" class="secondary-action" type="button">Cancel</button>
+      </div>
+    </section>
+  </div>
+  <div id="enhance-review" class="import-review" hidden>
+    <section class="import-review-panel" role="dialog" aria-modal="true" aria-labelledby="enhance-review-title">
+      <div class="detail-header">
+        <div>
+          <p class="eyebrow">Enhance</p>
+          <h2 id="enhance-review-title">Review attributes</h2>
+        </div>
+        <button id="close-enhance-review" class="icon-button" type="button" aria-label="Close enhancement review">x</button>
+      </div>
+      <p id="enhance-review-summary" class="import-parent"></p>
+      <div id="enhance-review-list" class="import-review-list"></div>
+      <div id="enhance-review-sources" class="enhance-sources"></div>
+      <div class="form-actions import-review-actions">
+        <button id="confirm-enhance" type="button">Apply selected</button>
+        <button id="cancel-enhance" class="secondary-action" type="button">Cancel</button>
+      </div>
+    </section>
+  </div>
+  <div id="voice-review" class="import-review" hidden>
+    <section class="import-review-panel" role="dialog" aria-modal="true" aria-labelledby="voice-review-title">
+      <div class="detail-header">
+        <div>
+          <p class="eyebrow">Voice action</p>
+          <h2 id="voice-review-title">Confirm changes</h2>
+        </div>
+        <button id="close-voice-review" class="icon-button" type="button" aria-label="Close voice action review">x</button>
+      </div>
+      <p id="voice-review-transcript" class="voice-transcript"></p>
+      <p id="voice-review-summary" class="import-parent"></p>
+      <div id="voice-review-list" class="import-review-list"></div>
+      <div class="form-actions import-review-actions">
+        <button id="confirm-voice-actions" type="button">Apply selected</button>
+        <button id="cancel-voice-actions" class="secondary-action" type="button">Cancel</button>
+      </div>
+    </section>
+  </div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/objectsphere/app.js"></script>
+</body>
+</html>

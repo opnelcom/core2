@@ -1,0 +1,19 @@
+{
+  "name": "core-saas",
+  "port": 3000,
+  "logToFile": true,
+  "fileLogMode": "all",
+  "database": "core_saas",
+  "dbBrokerURL": "http://core-broker:3000",
+  "dbBrokerProfile": "core_saas",
+  "dbBrokerKey": "replace-with-a-long-random-internal-key",
+  "smtpUrl": "http://core-smtp:3000",
+  "smtpProfile": "core-saas",
+  "smtpProfileKey": "replace-with-a-long-random-internal-key",
+  "sessionSecret": "replace-with-a-long-random-session-secret",
+  "sessionMaxAgeSeconds": 2592000,
+  "cookieSecure": false,
+  "nodeEnv": "production",
+  "bootstrapAdminEmail": "joppenheim@opnel.com",
+  "publicBaseUrl": "https://home.joppenheim.org:9000"
+}

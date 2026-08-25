@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Core | Account Access</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main>
+      <section id="auth" class="auth-shell">
+        <div class="brand-panel">
+          <div class="brand-mark core-brand-mark" aria-hidden="true"><img src="/assets/core-logo.svg" alt=""></div>
+          <p class="eyebrow">Core Platform</p>
+          <h1>Commercial workspace access for growing teams.</h1>
+          <p class="lead">
+            Register your organization account, activate it securely, and sign
+            in to manage tenants, applications, and users from one place.
+          </p>
+
+          <div class="proof-grid" aria-label="Platform highlights">
+            <div>
+              <strong>Tenant ready</strong>
+              <span>Provisioned workspaces after activation</span>
+            </div>
+            <div>
+              <strong>Secure access</strong>
+              <span>Activation-first account lifecycle</span>
+            </div>
+            <div>
+              <strong>Admin aware</strong>
+              <span>Administration, monitor, and ERP links built in</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="auth-card" aria-label="Account access">
+          <div class="tabs" role="tablist" aria-label="Account actions">
+            <button
+              class="tab-button active"
+              type="button"
+              data-panel="login-panel"
+            >
+              Sign in
+            </button>
+            <button
+              class="tab-button"
+              type="button"
+              data-panel="register-panel"
+            >
+              Register
+            </button>
+            <button
+              class="tab-button"
+              type="button"
+              data-panel="activate-panel"
+            >
+              Activate
+            </button>
+            <button class="tab-button" type="button" data-panel="forgot-panel">
+              Reset
+            </button>
+            <button
+              class="tab-button utility-tab"
+              type="button"
+              data-panel="set-password-panel"
+            >
+              Set password
+            </button>
+          </div>
+
+          <section
+            id="login-panel"
+            class="auth-panel active"
+            aria-labelledby="login-title"
+          >
+            <div class="panel-heading">
+              <p class="eyebrow">Welcome back</p>
+              <h2 id="login-title">Sign in to Core</h2>
+            </div>
+            <label for="l-email">Email</label>
+            <input
+              id="l-email"
+              type="email"
+              autocomplete="email"
+              placeholder="you@company.com"
+            />
+            <label for="l-password">Password</label>
+            <input
+              id="l-password"
+              type="password"
+              autocomplete="current-password"
+              placeholder="Enter your password"
+            />
+            <button id="login-submit" class="primary-action" type="button">
+              Sign in
+            </button>
+            <div class="form-footer">
+              <button
+                class="link-button"
+                type="button"
+                data-panel="forgot-panel"
+              >
+                Forgot password?
+              </button>
+              <button
+                class="link-button"
+                type="button"
+                data-panel="register-panel"
+              >
+                Create account
+              </button>
+            </div>
+          </section>
+
+          <section
+            id="register-panel"
+            class="auth-panel"
+            aria-labelledby="register-title"
+          >
+            <div class="panel-heading">
+              <p class="eyebrow">New customer account</p>
+              <h2 id="register-title">Register your workspace</h2>
+            </div>
+            <div class="field-grid">
+              <div>
+                <label for="r-known-name">Preferred name</label>
+                <input
+                  id="r-known-name"
+                  autocomplete="given-name"
+                  placeholder="Alex"
+                />
+              </div>
+              <div>
+                <label for="r-full-name">Full name</label>
+                <input
+                  id="r-full-name"
+                  autocomplete="name"
+                  placeholder="Alex Morgan"
+                />
+              </div>
+            </div>
+            <label for="r-email">Email Address</label>
+            <input
+              id="r-email"
+              type="email"
+              autocomplete="email"
+              placeholder="you@company.com"
+            />
+            <label for="r-password">Password</label>
+            <input
+              id="r-password"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Minimum 8 characters"
+            />
+            <button id="register-submit" class="primary-action" type="button">
+              Create account
+            </button>
+            <p class="microcopy">
+              Activation instructions are sent to the email address you register
+              with.
+            </p>
+            <pre id="register-result" class="result" aria-live="polite"></pre>
+          </section>
+
+          <section
+            id="activate-panel"
+            class="auth-panel"
+            aria-labelledby="activate-title"
+          >
+            <div class="panel-heading">
+              <p class="eyebrow">Secure activation</p>
+              <h2 id="activate-title">Activate your account</h2>
+            </div>
+            <label for="token">Activation token</label>
+            <input
+              id="token"
+              autocomplete="one-time-code"
+              placeholder="Paste activation token"
+            />
+            <button id="activate-submit" class="primary-action" type="button">
+              Activate account
+            </button>
+            <p class="microcopy">
+              Activation tokens expire after 24 hours. Request a new activation
+              email if the token is missing or expired.
+            </p>
+            <div class="divider"></div>
+            <label for="a-email">Email Address</label>
+            <input
+              id="a-email"
+              type="email"
+              autocomplete="email"
+              placeholder="you@company.com"
+            />
+            <button
+              id="resend-activation-submit"
+              class="secondary-form-action"
+              type="button"
+            >
+              Resend activation email
+            </button>
+            <p id="resend-result" class="inline-status" aria-live="polite"></p>
+            <pre id="activate-result" class="result" aria-live="polite"></pre>
+          </section>
+
+          <section
+            id="forgot-panel"
+            class="auth-panel"
+            aria-labelledby="forgot-title"
+          >
+            <div class="panel-heading">
+              <p class="eyebrow">Password recovery</p>
+              <h2 id="forgot-title">Reset your password</h2>
+            </div>
+            <label for="f-email">Email Address</label>
+            <input
+              id="f-email"
+              type="email"
+              autocomplete="email"
+              placeholder="you@company.com"
+            />
+            <button id="forgot-submit" class="primary-action" type="button">
+              Send reset link
+            </button>
+            <p class="microcopy">
+              If the account is active, we will send a secure reset link to the
+              registered email address.
+            </p>
+            <p id="forgot-result" class="inline-status" aria-live="polite"></p>
+            <div class="form-footer">
+              <button
+                class="link-button"
+                type="button"
+                data-panel="login-panel"
+              >
+                Back to sign in
+              </button>
+              <button
+                class="link-button"
+                type="button"
+                data-panel="activate-panel"
+              >
+                Activate account
+              </button>
+            </div>
+          </section>
+
+          <section
+            id="set-password-panel"
+            class="auth-panel"
+            aria-labelledby="set-password-title"
+          >
+            <div class="panel-heading">
+              <p class="eyebrow">Choose a new password</p>
+              <h2 id="set-password-title">Set your password</h2>
+            </div>
+            <label for="reset-token">Reset token</label>
+            <input
+              id="reset-token"
+              autocomplete="one-time-code"
+              placeholder="Paste reset token"
+            />
+            <label for="new-password">New password</label>
+            <input
+              id="new-password"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Minimum 8 characters"
+            />
+            <button
+              id="set-password-submit"
+              class="primary-action"
+              type="button"
+            >
+              Update password
+            </button>
+            <p id="reset-result" class="inline-status" aria-live="polite"></p>
+            <div class="form-footer">
+              <button
+                class="link-button"
+                type="button"
+                data-panel="login-panel"
+              >
+                Back to sign in
+              </button>
+              <button
+                class="link-button"
+                type="button"
+                data-panel="forgot-panel"
+              >
+                Request reset link
+              </button>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <div id="message" class="toast" role="status" aria-live="polite"></div>
+    </main>
+    <script src="/auth.js"></script>
+  </body>
+</html>

@@ -1,0 +1,30 @@
+.env
+*.env
+*.local
+*.log
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+.cache/
+.next/
+
+# Runtime logs and generated state
+Volumes/**/logs/
+Volumes/**/Logs/
+Volumes/Databases/**/Data/
+Volumes/Databases/**/Backup/
+
+# Certificates, ACME and certbot state
+Volumes/Certbot/
+Volumes/Core-Gateway/acme/
+Volumes/Core-Gateway/certs/*.pem
+*.key
+*.pfx
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

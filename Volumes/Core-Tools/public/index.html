@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Core Tools</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="tools-shell">
+    <header class="app-topbar">
+      <h1>Core Tools</h1>
+    </header>
+
+    <div class="tools-frame">
+      <aside class="side-menu" aria-label="Core Tools">
+        <nav class="menu-list" aria-label="Tool list">
+          <button class="menu-item active" type="button" data-tool="world-map">World map</button>
+          <button class="menu-item" type="button" data-tool="base64">Base64 encoder/decoder</button>
+          <button class="menu-item" type="button" data-tool="sector">Sector generator</button>
+        </nav>
+      </aside>
+
+      <main class="workspace">
+        <section class="tool-view active" id="world-map" aria-labelledby="world-map-title">
+          <header class="view-header">
+            <div>
+              <p class="eyebrow">Coordinate lookup</p>
+              <h2 id="world-map-title">World map</h2>
+            </div>
+            <label class="search-field">
+              <span>Find city</span>
+              <input id="city-search" type="search" placeholder="Search mapped cities">
+            </label>
+          </header>
+          <div class="map-layout">
+            <div class="map-panel">
+              <div id="world-map-stage" class="map-stage" role="img" aria-label="Interactive world map">
+                <p class="map-loading">Loading world map...</p>
+              </div>
+            </div>
+            <div class="panel">
+              <h3>Map controls</h3>
+              <div class="map-controls" aria-label="Map controls">
+                <button class="secondary-action pan-button" type="button" data-pan="up" aria-label="Pan up">Up</button>
+                <button class="secondary-action pan-button" type="button" data-pan="left" aria-label="Pan left">Left</button>
+                <button class="secondary-action pan-button" type="button" data-pan="right" aria-label="Pan right">Right</button>
+                <button class="secondary-action pan-button" type="button" data-pan="down" aria-label="Pan down">Down</button>
+                <button id="zoom-in" type="button">Zoom in</button>
+                <button id="zoom-out" class="secondary-action" type="button">Zoom out</button>
+                <button id="reset-map" class="secondary-action" type="button">Reset</button>
+              </div>
+              <div class="toggle-list" aria-label="Map layer toggles">
+                <label class="toggle-row">
+                  <input id="toggle-country-labels" type="checkbox" checked>
+                  <span>Country labels</span>
+                </label>
+                <label class="toggle-row">
+                  <input id="toggle-country-borders" type="checkbox" checked>
+                  <span>Country borders</span>
+                </label>
+                <label class="toggle-row">
+                  <input id="toggle-state-borders" type="checkbox" checked>
+                  <span>States and regions</span>
+                </label>
+                <label class="toggle-row">
+                  <input id="toggle-city-markers" type="checkbox" checked>
+                  <span>City markers</span>
+                </label>
+              </div>
+              <h3>Selected point</h3>
+              <dl class="metric-list">
+                <div><dt>Latitude</dt><dd id="selected-lat">0.0000</dd></div>
+                <div><dt>Longitude</dt><dd id="selected-lon">0.0000</dd></div>
+                <div><dt>Nearest city</dt><dd id="nearest-city">Gulf of Guinea</dd></div>
+              </dl>
+              <div id="city-list" class="city-list" aria-live="polite"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="tool-view" id="base64" aria-labelledby="base64-title">
+          <header class="view-header">
+            <div>
+              <p class="eyebrow">Text utilities</p>
+              <h2 id="base64-title">Base64 encoder/decoder</h2>
+            </div>
+            <div class="button-row">
+              <button id="encode-button" type="button">Encode</button>
+              <button id="decode-button" class="secondary-action" type="button">Decode</button>
+              <button id="swap-button" class="secondary-action" type="button">Swap</button>
+            </div>
+          </header>
+          <div class="split-layout">
+            <label class="text-panel">
+              <span>Input</span>
+              <textarea id="base64-input" spellcheck="false">Core Tools</textarea>
+            </label>
+            <label class="text-panel">
+              <span>Output</span>
+              <textarea id="base64-output" spellcheck="false" readonly></textarea>
+            </label>
+          </div>
+          <p id="base64-status" class="status-line" aria-live="polite"></p>
+        </section>
+
+        <section class="tool-view" id="sector" aria-labelledby="sector-title">
+          <header class="view-header">
+            <div>
+              <p class="eyebrow">Geometry helper</p>
+              <h2 id="sector-title">Sector generator</h2>
+            </div>
+            <button id="copy-sector-json" type="button">Copy JSON</button>
+          </header>
+          <div class="sector-layout">
+            <form class="panel control-grid" id="sector-form">
+              <label>
+                <span>Sector count</span>
+                <input id="sector-count" type="number" min="1" max="72" value="8">
+              </label>
+              <label>
+                <span>Radius</span>
+                <input id="sector-radius" type="number" min="10" max="1000" value="120">
+              </label>
+              <label>
+                <span>Start angle</span>
+                <input id="sector-start" type="number" min="-360" max="360" value="0">
+              </label>
+              <label>
+                <span>Label prefix</span>
+                <input id="sector-prefix" type="text" value="Sector">
+              </label>
+            </form>
+            <div class="panel sector-preview">
+              <svg id="sector-svg" viewBox="-150 -150 300 300" aria-label="Generated sectors"></svg>
+            </div>
+            <label class="text-panel sector-json">
+              <span>Generated JSON</span>
+              <textarea id="sector-json" readonly spellcheck="false"></textarea>
+            </label>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

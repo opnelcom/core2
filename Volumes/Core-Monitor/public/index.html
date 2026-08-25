@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Core Monitor</title>
+  <link rel="stylesheet" href="/monitor/style.css">
+</head>
+<body>
+  <main class="monitor-shell">
+    <aside class="monitor-sidebar">
+      <nav class="monitor-nav" aria-label="Monitor views">
+        <button class="nav-button active" type="button" data-view="containers">Docker containers</button>
+        <button class="nav-button" type="button" data-view="resources">OS resources</button>
+        <button class="nav-button" type="button" data-view="databases">Database connections</button>
+      </nav>
+    </aside>
+
+    <section class="monitor-content">
+      <header class="monitor-header">
+        <div>
+          <p id="view-eyebrow" class="eyebrow">Runtime</p>
+          <h2 id="view-title">Docker containers</h2>
+        </div>
+        <div class="header-actions">
+          <label class="auto-refresh">
+            <input id="auto-refresh" type="checkbox" checked>
+            <span>Auto refresh</span>
+          </label>
+          <button id="refresh-button" type="button">Refresh</button>
+        </div>
+      </header>
+
+      <section id="alert" class="alert" hidden></section>
+
+      <section class="summary-grid" aria-label="Platform summary">
+        <article class="summary-card">
+          <span id="summary-one-label" class="summary-label">Containers</span>
+          <strong id="summary-one">-</strong>
+        </article>
+        <article class="summary-card">
+          <span id="summary-two-label" class="summary-label">Attention</span>
+          <strong id="summary-two">-</strong>
+        </article>
+        <article class="summary-card">
+          <span class="summary-label">Last checked</span>
+          <strong id="checked-at">-</strong>
+        </article>
+      </section>
+
+      <section id="view-root"></section>
+    </section>
+  </main>
+  <script src="/monitor/app.js"></script>
+</body>
+</html>

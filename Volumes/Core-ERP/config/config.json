@@ -1,0 +1,23 @@
+{
+    "name":  "core-erp",
+    "port":  3000,
+    "logToFile":  true,
+    "fileLogMode":  "all",
+    "database":  "core_erp",
+    "dbBrokerURL":  "http://core-broker:3000",
+    "dbBrokerProfile":  "core_erp",
+    "dbBrokerKey":  "replace-with-a-long-random-internal-key",
+    "dbBrokerProfiles":  [
+                             {
+                                 "name":  "core_erp",
+                                 "key":  "replace-with-a-long-random-internal-key"
+                             },
+                             {
+                                 "name":  "core_saas",
+                                 "key":  "replace-with-a-long-random-internal-key"
+                             }
+                         ],
+    "sessionSecret":  "replace-with-a-long-random-session-secret",
+    "cookieSecure":  false,
+    "nodeEnv":  "development"
+}

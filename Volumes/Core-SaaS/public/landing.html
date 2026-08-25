@@ -1,0 +1,247 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Core | Landing</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main>
+    <section id="app" class="landing-shell">
+      <header class="landing-header">
+        <div class="launcher-wrap">
+          <div class="launcher-control">
+            <div class="application-launcher-panel">
+              <button id="core-about-button" class="logo-button" type="button" aria-label="About Core">
+                <span class="brand-mark small core-brand-mark" aria-hidden="true">
+                  <img src="/assets/core-logo.svg" alt="">
+                </span>
+              </button>
+              <button id="home-button" class="home-action" type="button" aria-label="Return to application list" title="Application list">
+                <span class="home-icon toolbar" aria-hidden="true">
+                  <svg viewBox="0 0 48 48" focusable="false">
+                    <path class="app-icon-stroke" d="M11 22.5 24 11l13 11.5V39H11z"/>
+                    <path class="app-icon-line" d="M18 39V27h12v12M9 24l15-13 15 13"/>
+                  </svg>
+                </span>
+              </button>
+              <div id="application-icons" class="application-icon-list" role="listbox" aria-label="Applications"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tenant-switcher">
+          <div class="tenant-control">
+            <select id="tenants"></select>
+            <button id="manage-tenants" class="icon-action" type="button" aria-label="Manage tenants" title="Manage tenants">&#9998;</button>
+          </div>
+        </div>
+
+        <div class="profile-wrap">
+          <button id="profile-button" class="profile-button" type="button" aria-label="Open profile options">
+            <span class="avatar" id="profile-avatar">U</span>
+            <span class="profile-copy">
+              <strong id="profile-known-name">User</strong>
+              <small id="profile-email"></small>
+            </span>
+          </button>
+          <div id="profile-menu" class="profile-menu" hidden>
+            <button id="open-profile-dialog" type="button">Update profile</button>
+            <button id="open-password-dialog" type="button">Change password</button>
+            <button id="logout-submit" type="button">Logout</button>
+          </div>
+        </div>
+      </header>
+
+      <section class="landing-content">
+        <div id="landing-home" class="landing-home">
+          <div class="content-heading">
+            <div>
+              <p class="eyebrow">Core Home</p>
+              <h1 id="landing-welcome">Welcome</h1>
+            </div>
+            <p id="landing-context" class="session-user"></p>
+          </div>
+          <div id="application-home-list" class="application-home-list"></div>
+        </div>
+
+        <div id="core-about" class="core-about" hidden>
+          <section class="core-about-hero">
+            <div class="core-about-copy">
+              <p class="eyebrow">About</p>
+              <h1>Core is the launch point for your shared business workspace.</h1>
+              <p class="core-about-lede">Use Core to sign in once, switch tenants, apply tenant themes, manage access, and open the applications that hold the day-to-day work.</p>
+            </div>
+            <div class="core-about-rings">
+              <img src="/assets/core-about-overlap.png" alt="Blue wireframe diagram showing overlapping Users, Tenants, and Applications spheres around Core shared workspaces">
+            </div>
+          </section>
+
+          <section class="core-about-scenarios" aria-label="Core platform examples">
+            <article class="core-scenario-card core-scenario-access">
+              <div class="core-scenario-icon" aria-hidden="true">
+                <span></span><span></span><span></span>
+              </div>
+              <div>
+                <p class="eyebrow">Access Layer</p>
+                <h2>One front door for users, tenants, and applications</h2>
+                <p>Core keeps authentication, tenant switching, profile management, and application launch in one consistent shell so each user arrives in the right workspace.</p>
+              </div>
+              <ul class="core-scenario-stack">
+                <li>User</li>
+                <li>Tenant</li>
+                <li>Role</li>
+                <li>Application</li>
+              </ul>
+            </article>
+
+            <article class="core-scenario-card">
+              <div>
+                <p class="eyebrow">Tenant Layer</p>
+                <h2>Separate contexts without changing tools</h2>
+                <p>Each tenant can carry its own theme, users, assignments, and available applications, while the navigation model stays familiar.</p>
+              </div>
+              <div class="core-tenant-grid" aria-label="Tenant examples">
+                <span>Personal</span>
+                <b>Home base</b>
+                <small>Private apps</small>
+                <span>Business</span>
+                <b>Operations</b>
+                <small>Shared users</small>
+                <span>Project</span>
+                <b>Delivery</b>
+                <small>Focused access</small>
+              </div>
+            </article>
+
+            <article class="core-scenario-card">
+              <div>
+                <p class="eyebrow">Application Layer</p>
+                <h2>Move between specialist apps without losing context</h2>
+                <p>Open ObjectSphere, Vision, administration, monitoring, or future modules from the same shell. The current tenant theme and panel controls travel with the experience.</p>
+              </div>
+              <div class="core-app-chain" aria-label="Application workspace chain">
+                <span>Core Home</span>
+                <span>App icons</span>
+                <span>Theme</span>
+                <span>Panels</span>
+                <strong>Work in context</strong>
+              </div>
+            </article>
+          </section>
+
+          <section class="core-about-grid">
+            <article class="core-about-card">
+              <h2>Launch applications</h2>
+              <p>Use the icon rail and home page to move quickly into the tools available to the current tenant.</p>
+            </article>
+            <article class="core-about-card">
+              <h2>Manage access</h2>
+              <p>Tenant administrators can manage users, application availability, and assignments from the same shell.</p>
+            </article>
+            <article class="core-about-card">
+              <h2>Keep a consistent workspace</h2>
+              <p>The tenant theme, profile, session, and panel transparency controls give each app a unified operating frame.</p>
+            </article>
+          </section>
+        </div>
+
+        <div id="application-workspace" class="application-workspace" hidden>
+          <div class="workspace-toolbar">
+            <div class="application-title-row">
+              <h1 id="active-application-title">Application</h1>
+              <label class="panel-transparency-control" for="panel-transparency-slider" title="Panel transparency">
+                <input id="panel-transparency-slider" type="range" min="0" max="100" step="1" value="0" aria-label="Panel transparency">
+                <span id="panel-transparency-value">0%</span>
+              </label>
+            </div>
+          </div>
+          <iframe id="application-frame" class="application-frame" title="Selected application"></iframe>
+        </div>
+
+        <div id="tenant-management" class="tenant-management" hidden>
+          <div class="workspace-toolbar">
+            <div>
+              <p class="eyebrow">Tenant Administration</p>
+              <h1>Tenant management</h1>
+            </div>
+          </div>
+
+          <section class="tenant-grid-panel">
+            <div class="panel-heading inline-heading">
+              <div>
+                <p class="eyebrow">Tenants</p>
+                <h2>Accessible tenants</h2>
+              </div>
+              <button id="new-tenant-toggle" class="square-action" type="button" aria-label="Create tenant">+</button>
+            </div>
+
+            <div id="new-tenant-panel" class="new-tenant-panel" hidden>
+              <div class="tenant-new-grid">
+                <div>
+                  <label for="new-tenant-name">New tenant</label>
+                  <input id="new-tenant-name" placeholder="Tenant name">
+                </div>
+                <div>
+                  <label for="new-tenant-theme">Theme</label>
+                  <select id="new-tenant-theme"></select>
+                </div>
+                <button id="create-tenant-submit" class="primary-action compact" type="button">Create tenant</button>
+              </div>
+            </div>
+
+            <div id="tenant-management-grid" class="tenant-setup-grid"></div>
+          </section>
+        </div>
+      </section>
+
+      <dialog id="profile-dialog" class="dialog-card">
+        <form method="dialog">
+          <div class="panel-heading">
+            <p class="eyebrow">Profile</p>
+            <h2>Update profile</h2>
+          </div>
+          <label for="profile-known-input">Known name</label>
+          <input id="profile-known-input" autocomplete="given-name">
+          <label for="profile-full-input">Full name</label>
+          <input id="profile-full-input" autocomplete="name">
+          <div class="profile-photo-editor">
+            <span id="profile-photo-preview" class="avatar profile-photo-preview">U</span>
+            <div>
+              <label for="profile-photo-input">Profile picture</label>
+              <input id="profile-photo-input" type="file" accept="image/png,image/jpeg,image/webp">
+              <button id="clear-profile-photo" class="secondary-form-action compact" type="button">Remove picture</button>
+            </div>
+          </div>
+          <div class="dialog-actions">
+            <button id="close-profile-dialog" class="secondary-form-action" type="button">Cancel</button>
+            <button id="save-profile-submit" class="primary-action compact" type="button">Save profile</button>
+          </div>
+        </form>
+      </dialog>
+
+      <dialog id="password-dialog" class="dialog-card">
+        <form method="dialog">
+          <div class="panel-heading">
+            <p class="eyebrow">Security</p>
+            <h2>Change password</h2>
+          </div>
+          <label for="current-password">Current password</label>
+          <input id="current-password" type="password" autocomplete="current-password">
+          <label for="change-password">New password</label>
+          <input id="change-password" type="password" autocomplete="new-password" placeholder="Minimum 8 characters">
+          <div class="dialog-actions">
+            <button id="close-password-dialog" class="secondary-form-action" type="button">Cancel</button>
+            <button id="change-password-submit" class="primary-action compact" type="button">Change password</button>
+          </div>
+        </form>
+      </dialog>
+    </section>
+
+    <div id="message" class="toast" role="status" aria-live="polite"></div>
+  </main>
+  <script src="/landing.js"></script>
+</body>
+</html>

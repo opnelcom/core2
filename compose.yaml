@@ -1,0 +1,344 @@
+name: core-platform
+
+services:
+  core-db-saas:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: core_saas
+      POSTGRES_USER: ${CORE_DB_USER}
+      POSTGRES_PASSWORD: ${CORE_DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./Volumes/Databases/Core-SaaS/Data:/var/lib/postgresql/data
+      - ./Volumes/Databases/Core-SaaS/Init:/docker-entrypoint-initdb.d:ro
+      - ./Volumes/Databases/Core-SaaS/Backup:/backup
+    networks: [core-database]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  core-db-erp:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: core_erp
+      POSTGRES_USER: ${ERP_DB_USER}
+      POSTGRES_PASSWORD: ${ERP_DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ./Volumes/Databases/Core-ERP/Data:/var/lib/postgresql/data
+      - ./Volumes/Databases/Core-ERP/Init:/docker-entrypoint-initdb.d:ro
+      - ./Volumes/Databases/Core-ERP/Backup:/backup
+    ports:
+      - "5435:5432"
+    networks: [core-database]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  core-db-objectsphere:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: core_objectsphere
+      POSTGRES_USER: ${OBJECTSPHERE_DB_USER}
+      POSTGRES_PASSWORD: ${OBJECTSPHERE_DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ./Volumes/Databases/Core-ObjectSphere/Data:/var/lib/postgresql/data
+      - ./Volumes/Databases/Core-ObjectSphere/Init:/docker-entrypoint-initdb.d:ro
+      - ./Volumes/Databases/Core-ObjectSphere/Backup:/backup
+    ports:
+      - "5433:5432"
+    networks: [core-database]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  core-db-tasks:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: core_tasks
+      POSTGRES_USER: ${TASKS_DB_USER}
+      POSTGRES_PASSWORD: ${TASKS_DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ./Volumes/Databases/Core-Tasks/Data:/var/lib/postgresql/data
+      - ./Volumes/Databases/Core-Tasks/Init:/docker-entrypoint-initdb.d:ro
+      - ./Volumes/Databases/Core-Tasks/Backup:/backup
+    ports:
+      - "5434:5432"
+    networks: [core-database]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  core-broker:
+    image: core-runtime:1.0
+    build:
+      context: ./Applications/Core-Runtime
+    restart: unless-stopped
+    init: true
+    expose:
+      - "3000"
+    volumes:
+      - ./Volumes/Core-Broker:/app/content:ro
+      - ./Volumes/Core-Broker/logs:/app/logs
+    networks: [core-application, core-database]
+    healthcheck:
+      test: ["CMD", "node", "/app/healthcheck.js"]
+      interval: 1m
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+
+  core-smtp:
+    image: core-runtime:1.0
+    restart: unless-stopped
+    init: true
+    expose:
+      - "3000"
+    volumes:
+      - ./Volumes/Core-SMTP:/app/content:ro
+      - ./Volumes/Core-SMTP/logs:/app/logs
+    networks: [core-application, core-outbound]
+    healthcheck:
+      test: ["CMD", "node", "/app/healthcheck.js"]
+      interval: 1m
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+
+  core-saas:
+    image: core-runtime:1.0
+    restart: unless-stopped
+    init: true
+    expose:
+      - "3000"
+    volumes:
+      - ./Volumes/Core-SaaS:/app/content:ro
+      - ./Volumes/Core-SaaS/logs:/app/logs
+    depends_on:
+      core-db-saas: { condition: service_healthy }
+      core-broker: { condition: service_healthy }
+      core-smtp: { condition: service_healthy }
+    networks:
+      - core-application
+      - core-outbound
+    healthcheck:
+      test: ["CMD", "node", "/app/healthcheck.js"]
+      interval: 1m
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+
+  core-admin:
+    image: core-runtime:1.0
+    restart: unless-stopped
+    init: true
+    expose:
+      - "3000"
+    volumes:
+      - ./Volumes/Core-Admin:/app/content:ro
+      - ./Volumes/Core-Admin/logs:/app/logs
+    depends_on:
+      core-broker: { condition: service_healthy }
+    networks:
+      - core-application
+    healthcheck:
+      test: ["CMD", "node", "/app/healthcheck.js"]
+      interval: 1m
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+
+  core-monitor:
+    image: core-runtime:1.0
+    restart: unless-stopped
+    init: true
+    expose:
+      - "3000"
+    volumes:
+      - ./Volumes/Core-Monitor:/app/content:ro
+      - ./Volumes/Core-Monitor/logs:/app/logs
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      core-broker: { condition: service_healthy }
+    networks:
+      - core-application
+    healthcheck:
+      test: ["CMD", "node", "/app/healthcheck.js"]
+      interval: 1m
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+
+  core-erp:
+    image: core-runtime:1.0
+    restart: unless-stopped
+    init: true
+    expose:
+      - "3000"
+    volumes:
+      - ./Volumes/Core-ERP:/app/content:ro
+      - ./Volumes/Core-ERP/logs:/app/logs
+    depends_on:
+      core-broker: { condition: service_healthy }
+    networks:
+      - core-application
+    healthcheck:
+      test: ["CMD", "node", "/app/healthcheck.js"]
+      interval: 1m
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+
+  core-objectsphere:
+    image: core-runtime:1.0
+    restart: unless-stopped
+    init: true
+    expose:
+      - "3000"
+    volumes:
+      - ./Volumes/Core-ObjectSphere:/app/content:ro
+      - ./Volumes/Core-ObjectSphere/logs:/app/logs
+    depends_on:
+      core-broker: { condition: service_healthy }
+      core-db-objectsphere: { condition: service_healthy }
+    networks:
+      - core-application
+      - core-outbound
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    healthcheck:
+      test: ["CMD", "node", "/app/healthcheck.js"]
+      interval: 1m
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+
+  core-tasks:
+    image: core-runtime:1.0
+    restart: unless-stopped
+    init: true
+    expose:
+      - "3000"
+    volumes:
+      - ./Volumes/Core-Tasks:/app/content:ro
+      - ./Volumes/Core-Tasks/logs:/app/logs
+    depends_on:
+      core-broker: { condition: service_healthy }
+      core-db-tasks: { condition: service_healthy }
+    networks:
+      - core-application
+      - core-outbound
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    healthcheck:
+      test: ["CMD", "node", "/app/healthcheck.js"]
+      interval: 1m
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+
+  core-tools:
+    image: core-runtime:1.0
+    restart: unless-stopped
+    init: true
+    expose:
+      - "3000"
+    volumes:
+      - ./Volumes/Core-Tools:/app/content:ro
+      - ./Volumes/Core-Tools/logs:/app/logs
+    networks:
+      - core-application
+    healthcheck:
+      test: ["CMD", "node", "/app/healthcheck.js"]
+      interval: 1m
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+
+  core-gateway:
+    image: core-gateway:1.0
+    build:
+      context: ./Applications/Core-Gateway
+    restart: unless-stopped
+    init: true
+    ports:
+      - "80:3000"
+      - "443:3443"
+    volumes:
+      - ./Volumes/Core-Gateway:/app/content:ro
+      - ./Volumes/Core-Gateway/Logs:/app/logs
+    networks: [core-frontend, core-application]
+    depends_on:
+      core-saas: { condition: service_healthy }
+      core-admin: { condition: service_healthy }
+      core-monitor: { condition: service_healthy }
+      core-erp: { condition: service_healthy }
+      core-objectsphere: { condition: service_healthy }
+      core-tasks: { condition: service_healthy }
+      core-tools: { condition: service_healthy }
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 5m
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  core-frontend:
+    driver: bridge
+  core-application:
+    driver: bridge
+    internal: true
+  core-database:
+    driver: bridge
+    internal: false
+  core-outbound:
+    driver: bridge

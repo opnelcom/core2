@@ -1,0 +1,13 @@
+{
+    "name":  "core-admin",
+    "port":  3000,
+    "logToFile":  true,
+    "fileLogMode":  "all",
+    "database":  "core_saas",
+    "dbBrokerURL":  "http://core-broker:3000",
+    "dbBrokerProfile":  "core_saas",
+    "dbBrokerKey":  "replace-with-a-long-random-internal-key",
+    "sessionSecret":  "replace-with-a-long-random-session-secret",
+    "cookieSecure":  false,
+    "nodeEnv":  "development"
+}
