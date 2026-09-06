@@ -25,7 +25,7 @@ module.exports=async ctx=>{
                    tg.group_name AS transaction_group_name
             FROM erp_role_permission rp
             LEFT JOIN erp_division d ON d.division_id=rp.division_id
-            LEFT JOIN erp_organisation_ledger_family lf ON lf.tenant_id=rp.tenant_id
+            LEFT JOIN erp_ledger_family lf ON lf.tenant_id=rp.tenant_id
               AND lf.organisation_id=rp.organisation_id
               AND lf.ledger_family_code=rp.resource_code
               AND rp.resource_kind='master_data'

@@ -19,26 +19,18 @@ module.exports=async ctx=>{
   const schema=parseJson(ctx.body.schema_json);
   if(!orgId||!code||!name)return ctx.send(400,{error:'Organisation, ledger family code and name are required'});
   if(!schema||Array.isArray(schema)||typeof schema!=='object')return ctx.send(400,{error:'Ledger family schema must be a valid JSON object'});
-  await ctx.broker('core_erp','query',{
-    text:`INSERT INTO erp_ledger_family(ledger_family_code,family_name,requires_standard_account_type,is_active)
-          VALUES($1,$2,$3,$4)
-          ON CONFLICT(ledger_family_code) DO UPDATE
-          SET family_name=excluded.family_name,
-              requires_standard_account_type=excluded.requires_standard_account_type,
-              is_active=excluded.is_active`,
-    values:[code,name,bool(ctx.body.requires_standard_account_type),bool(ctx.body.is_active)]
-  });
   const r=await ctx.broker('core_erp','query',{
-    text:`INSERT INTO erp_organisation_ledger_family(tenant_id,organisation_id,ledger_family_code,family_name,requires_standard_account_type,schema_json,is_active,is_seeded)
-          VALUES($1,$2,$3,$4,$5,$6::jsonb,$7,false)
+    text:`INSERT INTO erp_ledger_family(tenant_id,organisation_id,ledger_family_code,family_name,requires_standard_account_type,requires_legal_entity,schema_json,is_active,is_seeded)
+          VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8,false)
           ON CONFLICT(tenant_id,organisation_id,ledger_family_code) DO UPDATE
           SET family_name=excluded.family_name,
               requires_standard_account_type=excluded.requires_standard_account_type,
+              requires_legal_entity=excluded.requires_legal_entity,
               schema_json=excluded.schema_json,
               is_active=excluded.is_active,
               updated_at=now()
           RETURNING *`,
-    values:[access.tenantId,orgId,code,name,bool(ctx.body.requires_standard_account_type),JSON.stringify(schema),bool(ctx.body.is_active)]
+    values:[access.tenantId,orgId,code,name,bool(ctx.body.requires_standard_account_type),bool(ctx.body.requires_legal_entity),JSON.stringify(schema),bool(ctx.body.is_active)]
   });
   return {ledger_family:r.rows[0]};
 };

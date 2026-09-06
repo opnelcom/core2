@@ -32,7 +32,7 @@ module.exports=async ctx=>{
   if(ctx.body.create_periods){
     await ctx.broker('core_erp','query',{
       text:`INSERT INTO erp_fiscal_period(tenant_id,organisation_id,fiscal_year_id,period_number,period_code,start_date,end_date,status)
-            SELECT $1,$2,$3,n,concat($4,'-',lpad(n::text,2,'0')),
+            SELECT $1,$2,$3,n,concat($4::text,'-',lpad(n::text,2,'0')),
                    ($5::date + ((n-1)||' months')::interval)::date,
                    (($5::date + (n||' months')::interval)::date - 1),
                    'open'

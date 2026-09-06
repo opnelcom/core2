@@ -1,5 +1,5 @@
 'use strict';
-const {authTenant,isAdministrator}=require('../_shared/erp');
+const {authTenant}=require('../_shared/erp');
 
 module.exports=async ctx=>{
   const access=await authTenant(ctx);
@@ -7,7 +7,6 @@ module.exports=async ctx=>{
   const orgId=ctx.query.organisation_id;
   if(!orgId)return ctx.send(400,{error:'organisation_id is required'});
   const transactionTypeId=ctx.query.transaction_type_id||null;
-  const admin=isAdministrator(access);
   const r=await ctx.broker('core_erp','query',{
     text:`SELECT j.*,tt.type_name transaction_type_name,fp.period_code,d.division_name source_division_name,
                  COALESCE(sum(l.debit_amount),0) debit_total,COALESCE(sum(l.credit_amount),0) credit_total
@@ -17,18 +16,9 @@ module.exports=async ctx=>{
           JOIN erp_division d ON d.division_id=j.source_division_id
           LEFT JOIN erp_journal_line l ON l.journal_id=j.journal_id
           WHERE j.tenant_id=$1 AND j.organisation_id=$2 AND j.workflow_status <> 'deleted'
-          AND ($5::uuid IS NULL OR j.transaction_type_id=$5::uuid)
+          AND ($4::uuid IS NULL OR j.transaction_type_id=$4::uuid)
           AND (
-            $3::boolean
-            OR EXISTS (
-              SELECT 1
-              FROM erp_user_role ur
-              JOIN erp_role role ON role.role_id=ur.role_id
-              WHERE ur.tenant_id=$1 AND ur.organisation_id=$2 AND lower(ur.email)=lower($4)
-              AND role.is_active=true AND role.is_admin=true
-              AND ur.valid_from <= CURRENT_DATE AND (ur.valid_to IS NULL OR ur.valid_to >= CURRENT_DATE)
-            )
-            OR EXISTS (
+            EXISTS (
               WITH RECURSIVE ancestors AS (
                 SELECT division_id,parent_division_id FROM erp_division WHERE division_id=j.source_division_id
                 UNION ALL
@@ -41,15 +31,17 @@ module.exports=async ctx=>{
               JOIN erp_role role ON role.role_id=ur.role_id
               JOIN erp_role_permission rp ON rp.role_id=role.role_id
               JOIN ancestors scope ON scope.division_id=rp.division_id
-              WHERE ur.tenant_id=$1 AND ur.organisation_id=$2 AND lower(ur.email)=lower($4)
+              WHERE ur.tenant_id=$1 AND ur.organisation_id=$2 AND lower(ur.email)=lower($3)
               AND role.is_active=true AND ur.valid_from <= CURRENT_DATE AND (ur.valid_to IS NULL OR ur.valid_to >= CURRENT_DATE)
-              AND rp.resource_kind='transaction' AND rp.workflow_status='view'
+              AND rp.resource_kind='transaction'
+              AND (rp.workflow_status='view' OR rp.workflow_status='*' OR rp.workflow_status=j.workflow_status)
               AND (rp.resource_code=j.transaction_type_id::text OR rp.resource_code='*')
             )
+            OR lower(j.created_by_email)=lower($3)
           )
           GROUP BY j.journal_id,tt.type_name,fp.period_code,d.division_name
           ORDER BY j.journal_date DESC,j.created_at DESC`,
-    values:[access.tenantId,orgId,admin,access.auth.email,transactionTypeId]
+    values:[access.tenantId,orgId,access.auth.email,transactionTypeId]
   });
   return {journals:r.rows};
 };

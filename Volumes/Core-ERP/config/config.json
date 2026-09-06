@@ -18,6 +18,7 @@
                              }
                          ],
     "sessionSecret":  "replace-with-a-long-random-session-secret",
+    "maxBodyBytes":  15728640,
     "cookieSecure":  false,
     "nodeEnv":  "development"
 }

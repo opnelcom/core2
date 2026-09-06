@@ -9,7 +9,7 @@ module.exports=async ctx=>{
   const [families,groups,types]=await Promise.all([
     ctx.broker('core_erp','query',{
       text:`SELECT *
-            FROM erp_organisation_ledger_family
+            FROM erp_ledger_family
             WHERE tenant_id=$1 AND organisation_id=$2 AND is_active=true
             ORDER BY ledger_family_code`,
       values:[access.tenantId,orgId]

@@ -1,24 +1,25 @@
 (()=>{
 const $=id=>document.getElementById(id);
 let boot={organisations:[],currencies:[],countries:[],ledger_families:[]};
-let state={orgId:null,currencies:[],countries:[],divisions:[],accounts:[],accountTypes:[],ledgerFamilies:[],ledgerTypes:[],masterTypes:[],masterRecords:[],legalEntities:[],legalEntityDetail:null,journals:[],years:[],periods:[],transactionGroups:[],transactionTypes:[],postingRules:[],roles:[],rolePermissions:[],roleUsers:[],dashboardSummary:null};
+let state={orgId:null,currencies:[],countries:[],taxTypes:[],taxRates:[],divisions:[],accounts:[],accountTypes:[],ledgerFamilies:[],ledgerTypes:[],masterTypes:[],masterRecords:[],legalEntities:[],legalEntityDetail:null,journals:[],years:[],periods:[],financialFormats:[],financialFormatLines:[],financialFormatMappings:[],transactionGroups:[],transactionTypes:[],postingRules:[],roles:[],rolePermissions:[],roleUsers:[],dashboardSummary:null};
 let selectedMasterRecord=null;
 let selectedJournal=null;
 let selectedLegalEntity=null;
 let selectedLedgerFamilyCode='gl';
 let selectedTransactionTypeId='';
-let selectedReport='income';
+let selectedReport='financial_statement';
+let selectedFinancialFormatId='';
+let currentIntakeDraft=null;
 let expandedFiscalYears=new Set();
 let expandedLedgerFamilies=new Set();
 let expandedTransactionGroups=new Set();
 let loadedAccountFamilies=new Set();
-let loadedSlices={menu:false,dashboard:false,divisions:false,fiscal:false,countries:false,currencies:false,ledgerTypes:false,masterTypes:false,legalEntities:false,transactions:false,permissions:false};
+let loadedSlices={menu:false,dashboard:false,divisions:false,fiscal:false,countries:false,currencies:false,taxTypes:false,ledgerTypes:false,masterTypes:false,legalEntities:false,financialFormats:false,transactions:false,permissions:false};
 const today=()=>new Date().toISOString().slice(0,10);
 const pretty=v=>String(v||'').replaceAll('_',' ');
-const setupViews=new Set(['organisations','divisions','fiscal','countries','currencies','ledgerfamilies','transactiongroups','transactiontypes','permissions']);
+const setupViews=new Set(['organisations','divisions','fiscal','countries','currencies','taxtypes','ledgerfamilies','financialformats','transactiongroups','transactiontypes','permissions']);
 const masterWorkflowOptions=['view','*','draft','submitted','approved','rejected','blocked','archived','deleted'];
 const transactionWorkflowOptions=['view','*','draft','submitted','approved','rejected','blocked','reversed','deleted'];
-const legalEntityRequiredFamilies=new Set(['customer','vendor','contract','loan']);
 function orgStorageKey(){
   return boot.tenant_id?`erp.currentOrg.${boot.tenant_id}`:'erp.currentOrg';
 }
@@ -39,6 +40,20 @@ function resolveCurrentOrgId(){
 function dateOnly(value){
   return String(value||'').slice(0,10);
 }
+function timeOnly(value){
+  if(!value)return '';
+  const date=new Date(value);
+  if(!Number.isNaN(date.getTime()))return date.toLocaleTimeString([],{
+    hour:'2-digit',
+    minute:'2-digit'
+  });
+  const match=String(value).match(/T(\d{2}:\d{2})/);
+  return match?match[1]:'';
+}
+function journalDateTime(row){
+  const time=timeOnly(row.created_at);
+  return time?`${dateOnly(row.journal_date)} ${time}`:dateOnly(row.journal_date);
+}
 function searchTerm(id){
   return String($(id)?.value||'').trim().toLowerCase();
 }
@@ -57,7 +72,7 @@ async function api(path,options={}){
 }
 function alert(message){
   $('alert').hidden=!message;
-  $('alert').textContent=message||'';
+  $('alert-message').textContent=message||'';
 }
 function option(select,items,valueKey,labelKey,blank=''){
   if(!select)return;
@@ -97,6 +112,9 @@ function table(target,columns,rows,onClick){
   target.append(el);
 }
 function currentOrg(){return boot.organisations.find(o=>o.organisation_id===state.orgId)||boot.organisations[0];}
+function currentOrganisationId(){
+  return state.orgId||$('organisation-select')?.value||'';
+}
 function setSetupExpanded(expanded){
   $('setup-subnav').hidden=!expanded;
   $('setup-toggle').setAttribute('aria-expanded',expanded?'true':'false');
@@ -126,6 +144,9 @@ async function openView(view){
 function labelForFamily(code){
   const family=state.ledgerFamilies.find(row=>row.ledger_family_code===code);
   return family?.family_name||pretty(code);
+}
+function ledgerFamilyRequiresLegalEntity(code){
+  return !!state.ledgerFamilies.find(row=>row.ledger_family_code===code)?.requires_legal_entity;
 }
 function labelForTransactionType(id){
   const type=state.transactionTypes.find(row=>row.transaction_type_id===id);
@@ -179,7 +200,7 @@ async function openLedgerFamily(familyCode){
   highlightDynamicMenu();
 }
 async function openTransactionType(typeId){
-  await Promise.all([loadMenuData(),ensureDivisions(),ensureFiscal()]);
+  await Promise.all([ensureTransactionSetup(),ensureDivisions(),ensureFiscal()]);
   selectedTransactionTypeId=typeId;
   selectedLedgerFamilyCode='';
   const type=state.transactionTypes.find(row=>row.transaction_type_id===typeId);
@@ -204,10 +225,14 @@ async function openReport(report){
   setMenuExpanded('reports-toggle','reports-subnav',true);
   setMenuExpanded('master-toggle','master-subnav',false);
   setMenuExpanded('transaction-toggle','transaction-subnav',false);
-  const titles={income:'Income Statement',balance:'Balance Sheet',ledger:'Ledger Balances'};
+  const titles={financial_statement:'Financial Statement',ledger:'Ledger Balances'};
   $('page-title').textContent=titles[report]||'Reports';
   $('report-title').textContent=titles[report]||'Reports';
-  $('report-division-label').hidden=report!=='ledger';
+  const financial=report==='financial_statement';
+  ['report-format-label','report-period-from-label','report-period-to-label','report-compare-year-label','report-compare-period-from-label','report-compare-period-to-label'].forEach(id=>$(id).hidden=!financial);
+  $('report-division-label').hidden=false;
+  fillReportFormatSelect();
+  fillReportPeriodSelects();
   renderReport().catch(e=>alert(e.message));
   highlightDynamicMenu();
 }
@@ -226,9 +251,11 @@ function fillSelects(){
   option($('transaction-type-group'),state.transactionGroups,'transaction_group_id',g=>`${g.group_code} - ${g.group_name}`,'Select group');
   option($('report-year'),state.years,'fiscal_year_id',y=>y.fiscal_year_code,'Select fiscal year');
   if(!$('report-year').value&&state.years[0])$('report-year').value=state.years[0].fiscal_year_id;
+  option($('report-compare-year'),state.years,'fiscal_year_id',y=>y.fiscal_year_code,'None');
   [$('org-currency')].forEach(s=>option(s,currencies,'currency_code',c=>`${c.currency_code} - ${c.currency_name}`));
   [$('account-form-family'),$('master-family'),$('account-subledger-family'),$('ledger-type-family')].forEach(s=>option(s,families.filter(f=>f.is_active!==false),'ledger_family_code',f=>`${f.ledger_family_code} - ${f.family_name}`,s?.id==='account-subledger-family'?'None':''));
   if(!$('account-form-family').value||$('account-form-family').value==='bank')$('account-form-family').value='gl';
+  $('account-form-family').disabled=true;
 }
 function fillDivisionSelects(){
   const label=d=>`${'  '.repeat(Number(d.depth)||0)}${d.division_code} - ${d.division_name}`;
@@ -236,15 +263,227 @@ function fillDivisionSelects(){
   option($('report-division'),state.divisions,'division_id',label,'All divisions');
   document.querySelectorAll('.permission-division').forEach(s=>option(s,state.divisions,'division_id',label,'Select division'));
 }
+function periodsForYear(yearId){
+  return state.periods.filter(period=>period.fiscal_year_id===yearId).sort((a,b)=>Number(a.period_number)-Number(b.period_number));
+}
+function fiscalPeriodForDate(dateValue){
+  const date=dateOnly(dateValue);
+  if(!date)return null;
+  return state.periods.find(period=>date>=dateOnly(period.start_date)&&date<=dateOnly(period.end_date))||null;
+}
+function syncJournalPeriodToDate(){
+  const period=fiscalPeriodForDate($('journal-date')?.value);
+  if(period)$('journal-period').value=period.fiscal_period_id;
+  else $('journal-period').value='';
+}
+function fillReportPeriodRange(yearSelectId,fromId,toId){
+  const periods=periodsForYear($(yearSelectId)?.value);
+  option($(fromId),periods,'fiscal_period_id',p=>`${p.period_number} - ${p.period_code}`,'Select period');
+  option($(toId),periods,'fiscal_period_id',p=>`${p.period_number} - ${p.period_code}`,'Select period');
+  if(periods[0]&&!$(fromId).value)$(fromId).value=periods[0].fiscal_period_id;
+  if(periods.at(-1)&&!$(toId).value)$(toId).value=periods.at(-1).fiscal_period_id;
+}
+function fillReportPeriodSelects(){
+  fillReportPeriodRange('report-year','report-period-from','report-period-to');
+  fillReportPeriodRange('report-compare-year','report-compare-period-from','report-compare-period-to');
+}
+function fillReportFormatSelect(){
+  const active=state.financialFormats.filter(format=>format.is_active!==false);
+  option($('report-format'),active,'financial_statement_format_id',format=>`${format.format_name} (${pretty(format.statement_type)})`,'Select format');
+  if(selectedFinancialFormatId&&active.some(format=>format.financial_statement_format_id===selectedFinancialFormatId))$('report-format').value=selectedFinancialFormatId;
+  selectedFinancialFormatId=$('report-format').value||'';
+}
 function fillAccountSelects(){
   const gl=state.accounts.filter(a=>a.ledger_family_code==='gl');
   option($('master-ledger-account'),state.accounts.filter(a=>a.ledger_family_code!=='gl'),'ledger_account_id',a=>`${a.account_code} - ${a.account_name}`,'None');
-  document.querySelectorAll('.line-gl').forEach(s=>option(s,gl,'ledger_account_id',a=>`${a.account_code} - ${a.account_name}`));
-  document.querySelectorAll('.line-sub').forEach(s=>option(s,state.accounts.filter(a=>a.ledger_family_code!=='gl'),'ledger_account_id',a=>`${a.ledger_family_code}: ${a.account_code} - ${a.account_name}`,'None'));
+  document.querySelectorAll('.line-gl').forEach(s=>{
+    const value=s.value;
+    option(s,gl,'ledger_account_id',a=>`${a.account_code} - ${a.account_name}`,'Select GL account');
+    s.value=value;
+  });
+  document.querySelectorAll('.journal-line:not(.journal-line-head)').forEach(syncJournalLineSubledgerOptions);
+}
+function subledgerFamilyForJournalLine(row){
+  const setupFamily=row.dataset.subledgerFamily||'';
+  if(setupFamily)return setupFamily;
+  const glAccount=state.accounts.find(account=>account.ledger_account_id===row.querySelector('.line-gl')?.value);
+  if(glAccount?.requires_subledger&&glAccount.required_subledger_family_code)return glAccount.required_subledger_family_code;
+  return '';
+}
+function syncJournalLineSubledgerOptions(row){
+  const subledger=row.querySelector('.line-sub');
+  if(!subledger)return;
+  const value=subledger.value;
+  const family=subledgerFamilyForJournalLine(row);
+  const accounts=state.accounts.filter(account=>account.ledger_family_code!=='gl'&&(!family||account.ledger_family_code===family));
+  option(subledger,accounts,'ledger_account_id',account=>`${account.account_name} (${account.account_code})`,'None');
+  subledger.value=accounts.some(account=>account.ledger_account_id===value)?value:'';
 }
 function fillLegalEntitySelects(){
   option($('account-legal-entity'),state.legalEntities,'legal_entity_id',e=>`${e.known_name} - ${e.legal_name}`,'None');
   document.querySelectorAll('.relationship-entity').forEach(select=>option(select,state.legalEntities.filter(e=>e.legal_entity_id!==selectedLegalEntity),'legal_entity_id',e=>`${e.known_name} - ${e.legal_name}`,'Select legal entity'));
+}
+function setRequiredMarker(label,required){
+  if(!label)return;
+  let marker=label.querySelector(':scope > .required-marker');
+  if(required&&!marker){
+    marker=document.createElement('span');
+    marker.className='required-marker';
+    marker.textContent='*';
+    const textNode=[...label.childNodes].find(node=>node.nodeType===Node.TEXT_NODE&&node.textContent.trim());
+    if(textNode)textNode.after(marker);
+    else label.prepend(marker);
+  }else if(!required&&marker){
+    marker.remove();
+  }
+}
+function syncRequiredMarkers(root=document){
+  root.querySelectorAll('label').forEach(label=>{
+    const required=label.classList.contains('required')||!!label.querySelector('input[required],select[required],textarea[required]');
+    setRequiredMarker(label,required);
+  });
+}
+function updateAccountLegalEntityRequirement(){
+  const required=ledgerFamilyRequiresLegalEntity($('account-form-family').value||selectedLedgerFamilyCode||'gl');
+  $('account-legal-entity').required=required;
+  $('account-legal-entity').closest('label')?.classList.toggle('required',required);
+  syncRequiredMarkers($('account-form'));
+}
+function formatBytes(bytes){
+  const size=Number(bytes)||0;
+  if(size<1024)return `${size} B`;
+  if(size<1024*1024)return `${Math.ceil(size/1024)} KB`;
+  return `${(size/(1024*1024)).toFixed(1)} MB`;
+}
+function readFileDataUrl(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result);
+    reader.onerror=()=>reject(reader.error||new Error('Could not read file'));
+    reader.readAsDataURL(file);
+  });
+}
+const documentTargets={
+  account:{kind:'ledger_account',id:()=>$('account-id').value,list:'account-document-list',file:'account-document-file'},
+  master:{kind:'master_data_record',id:()=>$('master-record-id').value,list:'master-document-list',file:'master-document-file'},
+  journal:{kind:'journal',id:()=>$('journal-id').value,list:'journal-document-list',file:'journal-document-file'},
+  legalEntity:{kind:'legal_entity',id:()=>$('legal-entity-id').value,list:'legal-entity-document-list',file:'legal-entity-document-file'}
+};
+async function loadEntityDocuments(targetKey){
+  const target=documentTargets[targetKey];
+  const list=$(target.list);
+  const entityId=target.id();
+  if(!entityId){
+    list.innerHTML='<p class="empty">Save the record before uploading documents.</p>';
+    return;
+  }
+  list.innerHTML='<p class="empty">Loading documents...</p>';
+  const params=new URLSearchParams({organisation_id:state.orgId,entity_kind:target.kind,entity_id:entityId});
+  const r=await api(`documents/list?${params.toString()}`);
+  const docs=r.documents||[];
+  if(!docs.length){
+    list.innerHTML='<p class="empty">No documents uploaded.</p>';
+    return;
+  }
+  list.innerHTML='';
+  docs.forEach(doc=>{
+    const row=document.createElement('article');
+    row.className='document-row';
+    const link=document.createElement('a');
+    link.href=doc.data_url;
+    link.download=doc.file_name;
+    link.textContent=doc.file_name;
+    const meta=document.createElement('small');
+    meta.textContent=`${doc.document_type||'other'} - ${doc.mime_type} - ${formatBytes(doc.file_size)}`;
+    const del=document.createElement('button');
+    del.type='button';
+    del.className='secondary document-delete';
+    del.textContent='Delete';
+    del.addEventListener('click',async()=>{
+      if(!confirm(`Delete document "${doc.file_name}"?`))return;
+      await api('documents/delete',{method:'POST',body:JSON.stringify({document_id:doc.document_id})});
+      await loadEntityDocuments(targetKey);
+    });
+    row.append(link,meta,del);
+    list.append(row);
+  });
+}
+async function uploadEntityDocument(targetKey){
+  const target=documentTargets[targetKey];
+  const entityId=target.id();
+  if(!entityId)return alert('Save the record before uploading documents.');
+  const input=$(target.file);
+  const file=input.files&&input.files[0];
+  if(!file)return;
+  try{
+    if(file.size>10*1024*1024)throw new Error('Document must be 10MB or smaller');
+    const dataUrl=await readFileDataUrl(file);
+    await api('documents/upload',{method:'POST',body:JSON.stringify({
+      organisation_id:state.orgId,
+      entity_kind:target.kind,
+      entity_id:entityId,
+      document_type:'other',
+      file_name:file.name,
+      data_url:dataUrl
+    })});
+    input.value='';
+    await loadEntityDocuments(targetKey);
+  }catch(error){
+    alert(error.message);
+  }
+}
+function syncIntakeFieldsFromJson(){
+  let draft;
+  try{
+    draft=JSON.parse($('intake-json').value||'{}');
+  }catch{
+    return;
+  }
+  draft.legal_entity=draft.legal_entity||{};
+  draft.legal_entity.entity_type=$('intake-entity-type').value||'company';
+  draft.legal_entity.legal_name=$('intake-legal-name').value;
+  draft.legal_entity.known_name=$('intake-known-name').value;
+  draft.legal_entity.effective_from=$('intake-effective-from').value||null;
+  draft.legal_entity.effective_to=$('intake-effective-to').value||null;
+  $('intake-json').value=JSON.stringify(draft,null,2);
+  currentIntakeDraft=draft;
+}
+function populateIntakeReview(intake){
+  const draft=intake.extracted_json||{};
+  const entity=draft.legal_entity||{};
+  currentIntakeDraft=draft;
+  $('intake-id').value=intake.intake_id||'';
+  $('intake-entity-type').value=entity.entity_type||'company';
+  $('intake-legal-name').value=entity.legal_name||'';
+  $('intake-known-name').value=entity.known_name||entity.legal_name||'';
+  $('intake-effective-from').value=dateOnly(entity.effective_from);
+  $('intake-effective-to').value=dateOnly(entity.effective_to);
+  $('intake-confidence').value=`${Math.round((Number(draft.confidence)||0)*100)}%`;
+  $('intake-json').value=JSON.stringify(draft,null,2);
+  $('intake-review').hidden=false;
+  const notes=(draft.notes||[]).filter(Boolean);
+  $('intake-status').textContent=notes.length?notes.join(' '):'Review the extracted details before creating the legal entity.';
+}
+function closeDocumentIntake(){
+  $('intake-modal').hidden=true;
+}
+function openDocumentIntake(target){
+  const labels={
+    legal_entity:'legal entity',
+    ledger_account:`${labelForFamily(selectedLedgerFamilyCode||'gl')} entry`,
+    journal:`${selectedTransactionTypeId?labelForTransactionType(selectedTransactionTypeId):'transaction'}`
+  };
+  $('intake-modal').hidden=false;
+  $('intake-title').textContent=`Create ${labels[target]||'record'} from Document`;
+  $('intake-subtitle').textContent=target==='legal_entity'
+    ? 'Upload a source document, review the extracted draft, then create the legal entity.'
+    : 'Document analysis for this target will use the same review flow in the next implementation slice.';
+  $('intake-target-kind').value=target;
+  $('intake-id').value='';
+  $('intake-file').value='';
+  $('intake-status').textContent=target==='legal_entity'?'Choose a document to analyse.':'Only legal entity intake is implemented in this step.';
+  $('intake-review').hidden=true;
+  currentIntakeDraft=null;
 }
 function showLegalEntityTab(tab){
   document.querySelectorAll('[data-legal-entity-tab]').forEach(button=>button.classList.toggle('active',button.dataset.legalEntityTab===tab));
@@ -310,7 +549,7 @@ function setupLegalEntityTabs(){
 }
 function fillAccountTypes(){
   const family=$('account-form-family').value||'gl';
-  option($('account-type'),state.accountTypes.filter(t=>t.ledger_family_code===family),'account_type_id',t=>`${t.account_type_code} - ${t.account_type_name}`,family==='gl'?'Select type':'None');
+  option($('account-type'),state.accountTypes.filter(t=>t.ledger_family_code===family),'account_type_id',t=>`${t.account_type_code} - ${t.account_type_name}`,'Select type');
 }
 function selectedAccountFamilySchema(){
   const family=$('account-form-family').value||selectedLedgerFamilyCode||'gl';
@@ -403,6 +642,7 @@ function renderAccountDetailFields(detail={}){
     textarea.value=JSON.stringify(detail||{},null,2);
     label.append(textarea);
     container.append(label);
+    syncRequiredMarkers(container);
     return;
   }
   const required=new Set(Array.isArray(schema.required)?schema.required:[]);
@@ -437,6 +677,7 @@ function renderAccountDetailFields(detail={}){
   if(tabs.length>1)detailLayout.append(tabBar);
   detailLayout.append(fieldPane);
   container.append(detailLayout);
+  syncRequiredMarkers(container);
 }
 function collectAccountDetail(){
   const container=$('account-detail-fields');
@@ -462,10 +703,12 @@ function collectAccountDetail(){
   return detail;
 }
 function openAccountEditor(account={}){
+  const family=selectedLedgerFamilyCode||account.ledger_family_code||'gl';
   $('account-form').hidden=false;
   $('account-form').reset();
   $('account-id').value=account.ledger_account_id||'';
-  $('account-form-family').value=account.ledger_family_code||selectedLedgerFamilyCode||'gl';
+  $('account-form-family').value=family;
+  $('account-form-family').disabled=true;
   $('account-division').value=account.owner_division_id||'';
   $('account-code').value=account.account_code||'';
   $('account-name').value=account.account_name||'';
@@ -474,7 +717,9 @@ function openAccountEditor(account={}){
   $('account-subledger-family').value=account.required_subledger_family_code||'';
   fillAccountTypes();
   $('account-type').value=account.account_type_id||'';
+  updateAccountLegalEntityRequirement();
   renderAccountDetailFields(account.additional_data||{});
+  loadEntityDocuments('account').catch(e=>alert(e.message));
 }
 function addPanelCloseButtons(){
   [
@@ -486,14 +731,17 @@ function addPanelCloseButtons(){
     'fiscal-period-panel',
     'country-form',
     'currency-form',
+    'tax-type-form',
     'ledger-family-form',
     'ledger-type-form',
+    'financial-format-form',
     'transaction-group-form',
     'transaction-type-form',
     'role-form',
     'account-form',
     'legal-entity-form',
-    'master-record-form'
+    'master-record-form',
+    'journal-form'
   ].forEach(id=>{
     const panel=$(id);
     if(!panel||panel.querySelector(':scope > .panel-close'))return;
@@ -505,6 +753,14 @@ function addPanelCloseButtons(){
     button.addEventListener('click',()=>{panel.hidden=true;});
     panel.prepend(button);
   });
+}
+async function claimErpAdmin(){
+  if(!state.orgId)return;
+  if(!confirm('Create an ERP Admin role and assign your email to it for this organisation?'))return;
+  const result=await api('permissions/claim-admin',{method:'POST',body:JSON.stringify({organisation_id:state.orgId})});
+  loadedSlices.permissions=false;
+  await loadDashboardData(true);
+  alert(`ERP Admin access assigned to ${result.email}.`);
 }
 function renderDashboard(){
   const org=currentOrg();
@@ -520,8 +776,42 @@ function renderDashboard(){
     ['Periods',metric('periods')],
     ['Journals',metric('journals')]
   ];
+  const showClaimAdmin=org&&summary&&Number(summary.admin_users||0)===0;
   $('metrics').innerHTML=cards.map(([k,v])=>`<article class="metric"><span>${k}</span><strong>${v}</strong></article>`).join('');
-  $('org-summary').innerHTML=org?`<p><b>${org.organisation_name}</b></p><p>Code: ${org.organisation_code}</p><p>Base currency: ${org.base_currency_code}</p><p>Status: ${pretty(org.workflow_status)}</p>`:'';
+  $('org-summary').innerHTML=org?`<p><b>${org.organisation_name}</b></p><p>Code: ${org.organisation_code}</p><p>Base currency: ${org.base_currency_code}</p><p>Status: ${pretty(org.workflow_status)}</p>${showClaimAdmin?'<div class="actions"><button type="button" id="claim-erp-admin">Create ERP Admin Role</button></div>':''}`:'';
+  $('claim-erp-admin')?.addEventListener('click',()=>claimErpAdmin().catch(e=>alert(e.message)));
+}
+function resetOrgOpenAIFields(){
+  $('org-openai-model').value='gpt-4.1-mini';
+  $('org-openai-key').value='';
+  $('org-openai-clear').checked=false;
+  $('org-openai-status').textContent='No API key saved.';
+}
+async function loadOrgOpenAISetting(orgId){
+  resetOrgOpenAIFields();
+  if(!orgId)return;
+  try{
+    const setting=await api(`setup/openai?organisation_id=${encodeURIComponent(orgId)}`);
+    $('org-openai-model').value=setting.model||'gpt-4.1-mini';
+    $('org-openai-status').textContent=setting.has_openai_api_key?'OpenAI API key saved.':'No API key saved.';
+  }catch(error){
+    $('org-openai-status').textContent=error.message;
+  }
+}
+async function saveOrgOpenAISetting(orgId){
+  if(!orgId)return;
+  const apiKey=$('org-openai-key').value;
+  const clear=$('org-openai-clear').checked;
+  const model=$('org-openai-model').value||'gpt-4.1-mini';
+  await api('setup/openai',{method:'POST',body:JSON.stringify({
+    organisation_id:orgId,
+    model,
+    openai_api_key:apiKey,
+    clear_openai_api_key:clear
+  })});
+  $('org-openai-key').value='';
+  $('org-openai-clear').checked=false;
+  await loadOrgOpenAISetting(orgId);
 }
 function renderOrganisations(){
   const rows=boot.organisations.filter(row=>rowMatches(row,searchTerm('organisation-search')));
@@ -534,6 +824,7 @@ function renderOrganisations(){
     $('org-copy-source').value=source?.organisation_id||'';
     $('org-copy-target').value=r.organisation_id;
     $('org-delete-target').value=r.organisation_id;
+    loadOrgOpenAISetting(r.organisation_id);
   });
 }
 function renderDivisions(){
@@ -606,6 +897,83 @@ function renderCurrencies(){
     $('currency-decimals').value=r.decimal_places;
   });
 }
+function ratesForTaxType(taxTypeId){
+  return (state.taxRates||[]).filter(rate=>rate.tax_type_id===taxTypeId).sort((a,b)=>dateOnly(b.valid_from).localeCompare(dateOnly(a.valid_from)));
+}
+function taxDirectionLabel(direction){
+  return {output:'Output VAT',input:'Input VAT',none:'No VAT return amount'}[direction]||'No VAT return amount';
+}
+function renderTaxTypes(){
+  const term=searchTerm('tax-type-search');
+  const rows=(state.taxTypes||[]).filter(row=>rowMatches(row,term));
+  const target=$('tax-type-list');
+  if(!rows.length){target.innerHTML='<p class="empty">No tax types match the search.</p>';return;}
+  const el=document.createElement('table');
+  el.className='tax-type-table';
+  el.innerHTML='<thead><tr><th>Code</th><th>Description</th><th>Direction</th><th>Current Rate</th><th>Active</th></tr></thead>';
+  const body=document.createElement('tbody');
+  rows.forEach(type=>{
+    const row=document.createElement('tr');
+    row.className='click-row';
+    const current=ratesForTaxType(type.tax_type_id).find(rate=>rate.is_active!==false&&dateOnly(rate.valid_from)<=today()&&(!rate.valid_to||dateOnly(rate.valid_to)>=today()));
+    row.innerHTML=`<td>${type.tax_type_code}</td><td>${type.tax_type_description}</td><td>${taxDirectionLabel(type.tax_direction)}</td><td>${current?`${Number(current.tax_rate).toFixed(2)}%`:''}</td><td>${type.is_active?'Yes':'No'}</td>`;
+    row.addEventListener('click',()=>openTaxTypeEditor(type));
+    body.append(row);
+  });
+  el.append(body);
+  target.innerHTML='';
+  target.append(el);
+}
+function renderTaxRateLines(rates=[]){
+  const target=$('tax-rate-lines');
+  target.innerHTML='<div class="tax-rate-line-grid"><div class="tax-rate-line tax-rate-line-head"><span>Rate %</span><span>Valid From</span><span>Valid To</span><span>Active</span><span></span></div></div>';
+  rates.forEach(rate=>addTaxRateLine(rate));
+}
+function addTaxRateLine(rate={}){
+  const grid=$('tax-rate-lines').querySelector('.tax-rate-line-grid');
+  const row=document.createElement('div');
+  row.className='tax-rate-line';
+  row.dataset.taxRateId=rate.tax_rate_id||'';
+  row.innerHTML='<input class="tax-rate-value" type="number" step="0.0001" min="0" required><input class="tax-rate-from" type="date" required><input class="tax-rate-to" type="date"><label class="check"><input class="tax-rate-active" type="checkbox" checked> Active</label><button type="button" class="secondary danger">Delete</button>';
+  grid.append(row);
+  row.querySelector('.tax-rate-value').value=rate.tax_rate??0;
+  row.querySelector('.tax-rate-from').value=dateOnly(rate.valid_from)||today();
+  row.querySelector('.tax-rate-to').value=dateOnly(rate.valid_to);
+  row.querySelector('.tax-rate-active').checked=rate.is_active!==false;
+  row.querySelector('button').addEventListener('click',async()=>{
+    const id=row.dataset.taxRateId;
+    if(id){
+      if(!window.confirm('Delete this tax rate?'))return;
+      await api('tax-types/delete-rate',{method:'POST',body:JSON.stringify({tax_rate_id:id})});
+      await ensureTaxTypes(true);
+      renderTaxTypes();
+    }
+    row.remove();
+  });
+}
+function openTaxTypeEditor(type={}){
+  $('tax-type-form').hidden=false;
+  $('tax-type-form').reset();
+  $('tax-type-id').value=type.tax_type_id||'';
+  $('tax-type-code').value=type.tax_type_code||'';
+  $('tax-type-description').value=type.tax_type_description||'';
+  $('tax-type-direction').value=type.tax_direction||'none';
+  $('tax-type-active').checked=type.is_active!==false;
+  renderTaxRateLines(ratesForTaxType(type.tax_type_id));
+}
+function openNewTaxType(){
+  openTaxTypeEditor({is_active:true});
+  renderTaxRateLines([{tax_rate:0,valid_from:today(),is_active:true}]);
+}
+function collectTaxRateLines(){
+  return [...document.querySelectorAll('.tax-rate-line:not(.tax-rate-line-head)')].map(row=>({
+    tax_rate_id:row.dataset.taxRateId||'',
+    tax_rate:row.querySelector('.tax-rate-value').value,
+    valid_from:row.querySelector('.tax-rate-from').value,
+    valid_to:row.querySelector('.tax-rate-to').value,
+    is_active:row.querySelector('.tax-rate-active').checked
+  }));
+}
 function renderLedgerFamilies(){
   const term=searchTerm('ledgerfamily-search');
   const matchingTypeFamilies=new Set((state.ledgerTypes||[]).filter(type=>rowMatches(type,term)).map(type=>type.ledger_family_code));
@@ -614,13 +982,13 @@ function renderLedgerFamilies(){
   if(!rows.length){target.innerHTML='<p class="empty">No ledger families match the search.</p>';return;}
   const el=document.createElement('table');
   el.className='ledger-family-table';
-  el.innerHTML='<thead><tr><th></th><th>Code</th><th>Name</th><th>Standard type</th><th>Active</th></tr></thead>';
+  el.innerHTML='<thead><tr><th></th><th>Code</th><th>Name</th><th>Standard type</th><th>Legal entity</th><th>Active</th></tr></thead>';
   const body=document.createElement('tbody');
   rows.forEach(family=>{
     const row=document.createElement('tr');
     row.className='click-row';
     const expanded=expandedLedgerFamilies.has(family.ledger_family_code);
-    row.innerHTML=`<td><button type="button" class="mini-toggle" aria-label="${expanded?'Collapse':'Expand'} ${family.ledger_family_code}">${expanded?'v':'>'}</button></td><td>${family.ledger_family_code}</td><td>${family.family_name}</td><td>${family.requires_standard_account_type?'Yes':'No'}</td><td>${family.is_active?'Yes':'No'}</td>`;
+    row.innerHTML=`<td><button type="button" class="mini-toggle" aria-label="${expanded?'Collapse':'Expand'} ${family.ledger_family_code}">${expanded?'v':'>'}</button></td><td>${family.ledger_family_code}</td><td>${family.family_name}</td><td>${family.requires_standard_account_type?'Yes':'No'}</td><td>${family.requires_legal_entity?'Required':'Optional'}</td><td>${family.is_active?'Yes':'No'}</td>`;
     row.querySelector('button').addEventListener('click',event=>{
       event.stopPropagation();
       if(expanded)expandedLedgerFamilies.delete(family.ledger_family_code);
@@ -632,7 +1000,7 @@ function renderLedgerFamilies(){
     if(expanded){
       const typeRow=document.createElement('tr');
       const cell=document.createElement('td');
-      cell.colSpan=5;
+      cell.colSpan=6;
       cell.className='nested-cell';
       renderLedgerTypeGrid(cell,family);
       typeRow.append(cell);
@@ -650,6 +1018,7 @@ function selectLedgerFamily(family){
   $('ledger-family-code').readOnly=true;
   $('ledger-family-name').value=family.family_name;
   $('ledger-family-standard-type').checked=!!family.requires_standard_account_type;
+  $('ledger-family-legal-entity').checked=!!family.requires_legal_entity;
   $('ledger-family-schema').value=JSON.stringify(family.schema_json||{},null,2);
   $('ledger-family-active').checked=!!family.is_active;
 }
@@ -696,6 +1065,86 @@ function renderLedgerTypeGrid(target,family){
   });
   tableEl.append(body);
   target.append(tableEl);
+}
+function mappingsForLine(lineId){
+  return state.financialFormatMappings.filter(mapping=>mapping.financial_statement_line_id===lineId);
+}
+function renderFinancialFormats(){
+  const rows=state.financialFormats.filter(row=>rowMatches(row,searchTerm('financial-format-search')));
+  table($('financial-format-list'),[['Code',r=>r.format_code],['Name',r=>r.format_name],['Type',r=>pretty(r.statement_type)],['Active',r=>r.is_active?'Yes':'No']],rows,openFinancialFormatEditor);
+}
+function openFinancialFormatEditor(format={}){
+  selectedFinancialFormatId=format.financial_statement_format_id||'';
+  $('financial-format-form').hidden=false;
+  $('financial-format-form').reset();
+  $('financial-format-id').value=format.financial_statement_format_id||'';
+  $('financial-format-code').value=format.format_code||'';
+  $('financial-format-name').value=format.format_name||'';
+  $('financial-format-type').value=format.statement_type||'income';
+  $('financial-format-active').checked=format.is_active!==false;
+  const lines=state.financialFormatLines.filter(line=>line.financial_statement_format_id===format.financial_statement_format_id);
+  renderFinancialFormatLines(lines.length?lines:[{line_code:'REV',line_label:'Revenue',line_type:'account_group',sort_order:100,is_active:true}]);
+}
+function financialLineKey(line={}){
+  return line.financial_statement_line_id||`new_${Math.random().toString(16).slice(2)}`;
+}
+function refreshFinancialLineParents(){
+  const rows=[...document.querySelectorAll('.financial-line:not(.financial-line-head)')];
+  const options=rows.map(row=>({key:row.dataset.lineKey,label:row.querySelector('.financial-line-code').value||row.querySelector('.financial-line-label').value||'Line'}));
+  rows.forEach(row=>{
+    const current=row.querySelector('.financial-line-parent').value;
+    row.querySelector('.financial-line-parent').innerHTML='<option value="">None</option>'+options.filter(option=>option.key!==row.dataset.lineKey).map(option=>`<option value="${option.key}">${option.label}</option>`).join('');
+    row.querySelector('.financial-line-parent').value=current;
+  });
+}
+function renderFinancialFormatLines(lines=[]){
+  const target=$('financial-format-lines');
+  target.innerHTML='<div class="financial-line-grid"><div class="financial-line financial-line-head"><span>Order</span><span>Code</span><span>Label</span><span>Type</span><span>Parent</span><span>Formula JSON</span><span>GL Accounts</span><span></span></div></div>';
+  lines.forEach(line=>addFinancialFormatLine(line));
+  refreshFinancialLineParents();
+}
+function addFinancialFormatLine(line={}){
+  const row=document.createElement('div');
+  row.className='financial-line';
+  row.dataset.lineKey=financialLineKey(line);
+  row.innerHTML='<input class="financial-line-order" type="number" step="10"><input class="financial-line-code" required><input class="financial-line-label" required><select class="financial-line-type"><option value="header">Header</option><option value="account_group">Account Group</option><option value="formula">Formula</option></select><select class="financial-line-parent"></select><textarea class="financial-line-formula" rows="2"></textarea><select class="financial-line-accounts" multiple></select><button type="button" class="secondary">Remove</button>';
+  $('financial-format-lines').querySelector('.financial-line-grid').append(row);
+  row.querySelector('.financial-line-order').value=line.sort_order??0;
+  row.querySelector('.financial-line-code').value=line.line_code||'';
+  row.querySelector('.financial-line-label').value=line.line_label||'';
+  row.querySelector('.financial-line-type').value=line.line_type||'account_group';
+  row.querySelector('.financial-line-formula').value=JSON.stringify(line.formula_json||{},null,2);
+  option(row.querySelector('.financial-line-accounts'),state.accounts.filter(account=>account.ledger_family_code==='gl'),'ledger_account_id',account=>`${account.account_code} - ${account.account_name}`);
+  mappingsForLine(line.financial_statement_line_id).forEach(mapping=>{
+    const mapped=row.querySelector(`.financial-line-accounts option[value="${mapping.ledger_account_id}"]`);
+    if(mapped)mapped.selected=true;
+  });
+  row.querySelector('.financial-line-code').addEventListener('input',refreshFinancialLineParents);
+  row.querySelector('.financial-line-label').addEventListener('input',refreshFinancialLineParents);
+  row.querySelector('button').addEventListener('click',()=>{row.remove();refreshFinancialLineParents();});
+  refreshFinancialLineParents();
+  row.querySelector('.financial-line-parent').value=line.parent_line_id||'';
+}
+function collectFinancialFormatLines(){
+  const rows=[...document.querySelectorAll('.financial-line:not(.financial-line-head)')];
+  const lineKeys=new Set(rows.map(row=>row.dataset.lineKey));
+  return rows.map(row=>{
+    const parent=row.querySelector('.financial-line-parent').value;
+    return {
+      client_key:row.dataset.lineKey,
+      line_code:row.querySelector('.financial-line-code').value,
+      line_label:row.querySelector('.financial-line-label').value,
+      line_type:row.querySelector('.financial-line-type').value,
+      parent_client_key:lineKeys.has(parent)?parent:'',
+      sort_order:row.querySelector('.financial-line-order').value,
+      formula_json:row.querySelector('.financial-line-formula').value||'{}',
+      account_ids:[...row.querySelector('.financial-line-accounts').selectedOptions].map(option=>option.value),
+      is_active:true
+    };
+  });
+}
+function openNewFinancialFormat(){
+  openFinancialFormatEditor({statement_type:'income',is_active:true});
 }
 function renderPeriodGrid(target,year){
   const periods=state.periods.filter(p=>p.fiscal_year_id===year.fiscal_year_id).sort((a,b)=>a.period_number-b.period_number);
@@ -903,6 +1352,7 @@ function resetLegalEntityForm(){
   $('legal-entity-additional').value='{}';
   renderLegalEntityChildRows();
   renderLegalEntityAccounts([]);
+  loadEntityDocuments('legalEntity').catch(e=>alert(e.message));
 }
 async function openLegalEntityEditor(entity){
   selectedLegalEntity=entity.legal_entity_id;
@@ -950,6 +1400,7 @@ async function openLegalEntityEditor(entity){
   }));
   renderLegalEntityChildRows(identifications,addresses,relationships);
   renderLegalEntityAccounts(detail.accounts||[]);
+  loadEntityDocuments('legalEntity').catch(e=>alert(e.message));
 }
 function renderLegalEntities(){
   const rows=state.legalEntities.filter(row=>rowMatches(row,searchTerm('legal-entity-search')));
@@ -973,15 +1424,17 @@ function renderMasterRecords(){
   const rows=state.masterRecords.filter(row=>rowMatches(row,searchTerm('master-record-search')));
   table($('master-list'),[['Code',r=>r.record_code],['Name',r=>r.display_name],['Owner',r=>r.owner_division_name],['Status',r=>pretty(r.workflow_status)]],rows,r=>{
     selectedMasterRecord=r.master_data_record_id;$('master-record-id').value=r.master_data_record_id;$('master-division').value=r.owner_division_id;$('master-code').value=r.record_code;$('master-display').value=r.display_name;$('master-ledger-account').value=r.ledger_account_id||'';$('master-data').value=JSON.stringify(r.additional_data||{},null,2);
+    loadEntityDocuments('master').catch(e=>alert(e.message));
   });
 }
 function renderJournals(){
   const rows=selectedTransactionTypeId?state.journals.filter(journal=>journal.transaction_type_id===selectedTransactionTypeId):state.journals;
   $('journal-grid-title').textContent=selectedTransactionTypeId?labelForTransactionType(selectedTransactionTypeId):'Transactions';
-  table($('journal-list'),[['Date',r=>r.journal_date],['Number',r=>r.journal_number||'(draft)'],['Description',r=>r.description],['Status',r=>pretty(r.workflow_status)],['Debits',r=>r.debit_total],['Credits',r=>r.credit_total]],rows,async r=>{
+  table($('journal-list'),[['Date/time',r=>journalDateTime(r)],['Number',r=>r.journal_number||'(draft)'],['Description',r=>r.description],['Status',r=>pretty(r.workflow_status)],['Debits',r=>r.debit_total],['Credits',r=>r.credit_total]],rows,async r=>{
     const d=await api(`journals/detail?journal_id=${encodeURIComponent(r.journal_id)}`);
-    selectedJournal=r.journal_id;$('journal-form').hidden=false;$('journal-id').value=r.journal_id;$('journal-type').value=r.transaction_type_id||'';$('journal-period').value=r.fiscal_period_id;$('journal-division').value=r.source_division_id;$('journal-date').value=r.journal_date;$('journal-description').value=r.description;renderJournalLines(d.lines);
+    selectedJournal=r.journal_id;$('journal-form').hidden=false;$('journal-id').value=r.journal_id;$('journal-type').value=r.transaction_type_id||'';$('journal-period').value=r.fiscal_period_id;$('journal-division').value=r.source_division_id;$('journal-date').value=dateOnly(r.journal_date);$('journal-description').value=r.description;renderJournalLines(d.lines);
     setJournalEditable(r.workflow_status==='draft');
+    loadEntityDocuments('journal').catch(e=>alert(e.message));
   });
 }
 async function renderReport(){
@@ -992,11 +1445,56 @@ async function renderReport(){
     return;
   }
   const division=$('report-division').value;
-  const params=new URLSearchParams({organisation_id:state.orgId,fiscal_year_id:yearId,report:selectedReport});
-  if(selectedReport==='ledger'&&division)params.set('division_id',division);
+  const params=new URLSearchParams({organisation_id:state.orgId,report:selectedReport});
+  if(selectedReport==='ledger')params.set('fiscal_year_id',yearId);
+  if(selectedReport==='financial_statement'){
+    const formatId=$('report-format').value;
+    const periodFrom=$('report-period-from').value;
+    const periodTo=$('report-period-to').value;
+    if(!formatId){
+      $('report-result').innerHTML='<p class="empty">Choose a financial statement format before running the report.</p>';
+      return;
+    }
+    if(!periodFrom||!periodTo){
+      $('report-result').innerHTML='<p class="empty">Choose a period range before running the report.</p>';
+      return;
+    }
+    params.set('format_id',formatId);
+    params.set('period_from_id',periodFrom);
+    params.set('period_to_id',periodTo);
+    if($('report-compare-year').value&&$('report-compare-period-from').value&&$('report-compare-period-to').value){
+      params.set('compare_period_from_id',$('report-compare-period-from').value);
+      params.set('compare_period_to_id',$('report-compare-period-to').value);
+    }
+  }
+  if(division)params.set('division_id',division);
   const r=await api(`reports/financial?${params.toString()}`);
-  const amountLabel=selectedReport==='ledger'?'Balance':'Amount';
-  table($('report-result'),[['Account',row=>`${row.account_code} - ${row.account_name}`],['Type',row=>row.account_type_name||row.account_type_code],['Debits',row=>Number(row.debit_total||0).toFixed(2)],['Credits',row=>Number(row.credit_total||0).toFixed(2)],[amountLabel,row=>Number(row.balance||0).toFixed(2)]],r.rows||[]);
+  if(selectedReport==='ledger'){
+    table($('report-result'),[['Account',row=>`${row.account_code} - ${row.account_name}`],['Type',row=>row.account_type_name||row.account_type_code],['Debits',row=>Number(row.debit_total||0).toFixed(2)],['Credits',row=>Number(row.credit_total||0).toFixed(2)],['Balance',row=>Number(row.balance||0).toFixed(2)]],r.rows||[]);
+    return;
+  }
+  renderFinancialStatementResult(r.rows||[]);
+}
+function renderFinancialStatementResult(rows){
+  if(!rows.length){$('report-result').innerHTML='<p class="empty">No statement lines configured for this format.</p>';return;}
+  const hasCompare=rows.some(row=>row.comparative_amount!==undefined);
+  const tableEl=document.createElement('table');
+  tableEl.className='financial-statement-table';
+  tableEl.innerHTML=`<thead><tr><th>Line</th><th>Current</th>${hasCompare?'<th>Comparative</th><th>Variance</th><th>Variance %</th>':''}</tr></thead>`;
+  const body=document.createElement('tbody');
+  rows.forEach(row=>{
+    const tr=document.createElement('tr');
+    tr.className=`statement-line statement-line-${row.line_type}`;
+    const amount=row.amount===null?'':Number(row.amount||0).toFixed(2);
+    const compare=row.comparative_amount===null||row.comparative_amount===undefined?'':Number(row.comparative_amount||0).toFixed(2);
+    const variance=row.variance===null||row.variance===undefined?'':Number(row.variance||0).toFixed(2);
+    const variancePercent=row.variance_percent===null||row.variance_percent===undefined?'':`${Number(row.variance_percent||0).toFixed(2)}%`;
+    tr.innerHTML=`<td style="padding-left:${10+(Number(row.depth)||0)*18}px">${row.line_label}</td><td>${amount}</td>${hasCompare?`<td>${compare}</td><td>${variance}</td><td>${variancePercent}</td>`:''}`;
+    body.append(tr);
+  });
+  tableEl.append(body);
+  $('report-result').innerHTML='';
+  $('report-result').append(tableEl);
 }
 function setJournalEditable(editable){
   ['journal-type','journal-period','journal-division','journal-date','journal-description','add-journal-line','journal-save'].forEach(id=>{
@@ -1004,23 +1502,50 @@ function setJournalEditable(editable){
   });
   document.querySelectorAll('.journal-line input,.journal-line select,.journal-line button').forEach(control=>{control.disabled=!editable;});
 }
+function defaultJournalLinesForType(typeId){
+  const rules=state.postingRules
+    .filter(rule=>rule.transaction_type_id===typeId)
+    .sort((a,b)=>Number(a.line_order||0)-Number(b.line_order||0));
+  const lines=rules.map(rule=>({
+    division_id:$('journal-division').value||'',
+    gl_account_id:rule.default_gl_account_id||'',
+    subledger_account_id:'',
+    subledger_family_code:rule.requires_subledger?rule.subledger_family_code||'':'',
+    description:rule.line_description||'',
+    debit_credit:rule.debit_credit||'debit',
+    debit_amount:'',
+    credit_amount:''
+  }));
+  while(lines.length<2)lines.push({});
+  return lines;
+}
 function renderJournalLines(lines=[{},{}]){
-  $('journal-lines').innerHTML='';
+  $('journal-lines').innerHTML='<div class="journal-line-grid"><div class="journal-line journal-line-head"><span>Division</span><span>GL Account</span><span>Subledger</span><span>Description</span><span>DR/CR</span><span>Amount</span><span>Actions</span></div></div>';
   lines.forEach(line=>addJournalLine(line));
 }
 function addJournalLine(line={}){
   const row=document.createElement('div');
   row.className='journal-line';
-  row.innerHTML='<select class="line-division"></select><select class="line-gl"></select><select class="line-sub"></select><input class="line-description" placeholder="Description"><input class="line-debit" type="number" step="0.01" placeholder="Debit"><input class="line-credit" type="number" step="0.01" placeholder="Credit"><button type="button" class="secondary">Remove</button>';
-  $('journal-lines').append(row);
+  row.dataset.subledgerFamily=line.subledger_family_code||'';
+  row.innerHTML='<select class="line-division"></select><select class="line-gl"></select><select class="line-sub"></select><input class="line-description" placeholder="Description"><select class="line-drcr"><option value="debit">DR</option><option value="credit">CR</option></select><input class="line-amount" type="number" min="0" step="0.01" placeholder="Amount"><button type="button" class="secondary">Remove</button>';
+  let grid=$('journal-lines').querySelector('.journal-line-grid');
+  if(!grid){
+    $('journal-lines').innerHTML='<div class="journal-line-grid"><div class="journal-line journal-line-head"><span>Division</span><span>GL Account</span><span>Subledger</span><span>Description</span><span>DR/CR</span><span>Amount</span><span>Actions</span></div></div>';
+    grid=$('journal-lines').querySelector('.journal-line-grid');
+  }
+  grid.append(row);
   option(row.querySelector('.line-division'),state.divisions,'division_id',d=>d.division_name);
   fillAccountSelects();
   row.querySelector('.line-division').value=line.division_id||$('journal-division').value||'';
   row.querySelector('.line-gl').value=line.gl_account_id||'';
+  syncJournalLineSubledgerOptions(row);
   row.querySelector('.line-sub').value=line.subledger_account_id||'';
+  row.querySelector('.line-gl').addEventListener('change',()=>syncJournalLineSubledgerOptions(row));
   row.querySelector('.line-description').value=line.description||'';
-  row.querySelector('.line-debit').value=Number(line.debit_amount)||'';
-  row.querySelector('.line-credit').value=Number(line.credit_amount)||'';
+  const debit=Number(line.debit_amount)||0;
+  const credit=Number(line.credit_amount)||0;
+  row.querySelector('.line-drcr').value=debit>0?'debit':credit>0?'credit':line.debit_credit||'debit';
+  row.querySelector('.line-amount').value=debit||credit||'';
   row.querySelector('button').addEventListener('click',()=>row.remove());
 }
 function renderTransactionGroups(){
@@ -1120,7 +1645,7 @@ function addTransactionTypeLine(line={}){
   const glAccounts=state.accounts.filter(account=>account.ledger_family_code==='gl'&&account.workflow_status!=='deleted');
   const subledgerFamilies=state.ledgerFamilies.filter(family=>family.ledger_family_code!=='gl'&&family.is_active!==false);
   option(row.querySelector('.tx-line-gl'),glAccounts,'ledger_account_id',account=>`${account.account_code} - ${account.account_name}`,'Select GL account');
-  option(row.querySelector('.tx-line-subledger'),subledgerFamilies,'ledger_family_code',family=>`${family.ledger_family_code} - ${family.family_name}`,'Select subledger family');
+  option(row.querySelector('.tx-line-subledger'),subledgerFamilies,'ledger_family_code',family=>family.family_name,'Select subledger family');
   row.querySelector('.tx-line-drcr').value=line.debit_credit||'debit';
   row.querySelector('.tx-line-gl').value=line.default_gl_account_id||'';
   row.querySelector('.tx-line-requires-subledger').checked=!!line.requires_subledger;
@@ -1210,8 +1735,8 @@ function addRoleUserLine(line={}){
   row.querySelector('button').addEventListener('click',()=>row.remove());
 }
 function resetOrgLoadedState(){
-  loadedSlices={menu:false,dashboard:false,divisions:false,fiscal:false,countries:false,currencies:false,ledgerTypes:false,masterTypes:false,legalEntities:false,transactions:false,permissions:false};
-  state.currencies=[];state.countries=[];state.divisions=[];state.years=[];state.periods=[];state.masterTypes=[];state.masterRecords=[];state.legalEntities=[];state.legalEntityDetail=null;state.journals=[];state.transactionGroups=[];state.transactionTypes=[];state.postingRules=[];state.ledgerFamilies=[];state.ledgerTypes=[];state.accountTypes=[];state.accounts=[];state.roles=[];state.rolePermissions=[];state.roleUsers=[];state.dashboardSummary=null;
+  loadedSlices={menu:false,dashboard:false,divisions:false,fiscal:false,countries:false,currencies:false,taxTypes:false,ledgerTypes:false,masterTypes:false,legalEntities:false,financialFormats:false,transactions:false,permissions:false};
+  state.currencies=[];state.countries=[];state.taxTypes=[];state.taxRates=[];state.divisions=[];state.years=[];state.periods=[];state.masterTypes=[];state.masterRecords=[];state.legalEntities=[];state.legalEntityDetail=null;state.journals=[];state.financialFormats=[];state.financialFormatLines=[];state.financialFormatMappings=[];state.transactionGroups=[];state.transactionTypes=[];state.postingRules=[];state.ledgerFamilies=[];state.ledgerTypes=[];state.accountTypes=[];state.accounts=[];state.roles=[];state.rolePermissions=[];state.roleUsers=[];state.dashboardSummary=null;
   loadedAccountFamilies=new Set();
 }
 async function loadDashboardData(force=false){
@@ -1270,6 +1795,13 @@ async function ensureCurrencies(force=false){
   loadedSlices.currencies=true;
   fillSelects();
 }
+async function ensureTaxTypes(force=false){
+  if(!state.orgId||loadedSlices.taxTypes&&!force)return;
+  const taxes=await api(`tax-types/list?organisation_id=${state.orgId}`);
+  state.taxTypes=taxes.tax_types||[];
+  state.taxRates=taxes.tax_rates||[];
+  loadedSlices.taxTypes=true;
+}
 async function ensureLedgerTypes(force=false){
   if(!state.orgId||loadedSlices.ledgerTypes&&!force)return;
   const ledgerTypes=await api(`ledger-types/list?organisation_id=${state.orgId}`);
@@ -1292,6 +1824,15 @@ async function ensureLegalEntities(force=false){
   state.legalEntities=entities.legal_entities||[];
   loadedSlices.legalEntities=true;
   fillLegalEntitySelects();
+}
+async function ensureFinancialFormats(force=false){
+  if(!state.orgId||loadedSlices.financialFormats&&!force)return;
+  const data=await api(`financial-formats/list?organisation_id=${state.orgId}`);
+  state.financialFormats=data.formats||[];
+  state.financialFormatLines=data.lines||[];
+  state.financialFormatMappings=data.mappings||[];
+  loadedSlices.financialFormats=true;
+  fillReportFormatSelect();
 }
 async function ensureTransactionSetup(force=false){
   if(!state.orgId||loadedSlices.transactions&&!force)return;
@@ -1320,13 +1861,15 @@ async function ensureViewData(view){
   else if(view==='fiscal'){await ensureFiscal();renderFiscal();}
   else if(view==='countries'){await ensureCountries();renderCountries();}
   else if(view==='currencies'){await ensureCurrencies();renderCurrencies();}
+  else if(view==='taxtypes'){await ensureTaxTypes();renderTaxTypes();}
   else if(view==='ledgerfamilies'){await Promise.all([loadMenuData(),ensureLedgerTypes()]);renderLedgerFamilies();}
+  else if(view==='financialformats'){await Promise.all([ensureFinancialFormats(),loadAccountsForFamily('gl')]);renderFinancialFormats();}
   else if(view==='transactiongroups'){await ensureTransactionSetup();renderTransactionGroups();}
   else if(view==='transactiontypes'){await ensureTransactionSetup();renderTransactionTypes();}
   else if(view==='permissions'){await ensurePermissions();renderRoles();}
   else if(view==='legalentities'){await ensureLegalEntities();renderLegalEntities();}
   else if(view==='masterdata'){await Promise.all([ensureMasterTypes(),ensureDivisions(),loadMenuData()]);renderMasterTypes();await loadMasterRecords();}
-  else if(view==='reports'){await Promise.all([ensureFiscal(),ensureDivisions()]);}
+  else if(view==='reports'){await Promise.all([ensureFiscal(),ensureDivisions(),ensureFinancialFormats()]);}
 }
 async function loadOrgData(){
   resetOrgLoadedState();
@@ -1355,7 +1898,7 @@ async function loadAllAccounts(){
 }
 async function loadJournalsForTransactionType(typeId){
   if(!typeId){state.journals=[];return;}
-  const r=await api(`journals/list?organisation_id=${state.orgId}&transaction_type_id=${encodeURIComponent(typeId)}`);
+  const r=await api(`journals/list?organisation_id=${currentOrganisationId()}&transaction_type_id=${encodeURIComponent(typeId)}`);
   state.journals=r.journals||[];
 }
 async function loadMasterRecords(){
@@ -1365,11 +1908,12 @@ async function loadMasterRecords(){
   state.masterRecords=r.records||[];
   renderMasterRecords();
 }
-function renderAll(){renderDashboard();renderOrganisations();renderDivisions();renderFiscal();renderCountries();renderCurrencies();renderLedgerFamilies();renderAccounts();renderLegalEntities();renderMasterTypes();renderJournals();renderTransactionGroups();renderTransactionTypes();renderRoles();}
+function renderAll(){renderDashboard();renderOrganisations();renderDivisions();renderFiscal();renderCountries();renderCurrencies();renderTaxTypes();renderLedgerFamilies();renderFinancialFormats();renderAccounts();renderLegalEntities();renderMasterTypes();renderJournals();renderTransactionGroups();renderTransactionTypes();renderRoles();}
 function resetScreenState(){
   selectedMasterRecord=null;
   selectedJournal=null;
   selectedLegalEntity=null;
+  selectedFinancialFormatId='';
   expandedFiscalYears=new Set();
   expandedLedgerFamilies=new Set();
   expandedTransactionGroups=new Set();
@@ -1381,8 +1925,10 @@ function resetScreenState(){
     'division-form',
     'country-form',
     'currency-form',
+    'tax-type-form',
     'ledger-family-form',
     'ledger-type-form',
+    'financial-format-form',
     'transaction-group-form',
     'transaction-type-form',
     'role-form',
@@ -1392,7 +1938,7 @@ function resetScreenState(){
     'fiscal-editor-panel',
     'fiscal-period-panel'
   ].forEach(id=>{if($(id))$(id).hidden=true;});
-  ['account-form','master-record-form','legal-entity-form','journal-form','fiscal-form','fiscal-period-form'].forEach(id=>$(id)?.reset());
+  ['account-form','master-record-form','legal-entity-form','journal-form','fiscal-form','fiscal-period-form','financial-format-form'].forEach(id=>$(id)?.reset());
   $('account-id').value='';
   $('master-record-id').value='';
   $('journal-id').value='';
@@ -1423,7 +1969,9 @@ document.querySelectorAll('.nav[data-view]').forEach(b=>b.addEventListener('clic
   ['fiscal-search',renderFiscal],
   ['country-search',renderCountries],
   ['currency-search',renderCurrencies],
+  ['tax-type-search',renderTaxTypes],
   ['ledgerfamily-search',renderLedgerFamilies],
+  ['financial-format-search',renderFinancialFormats],
   ['account-search',renderAccounts],
   ['legal-entity-search',renderLegalEntities],
   ['master-record-search',renderMasterRecords],
@@ -1449,9 +1997,47 @@ $('reports-toggle').addEventListener('click',()=>{
 });
 document.querySelectorAll('[data-report-view]').forEach(button=>button.addEventListener('click',()=>openReport(button.dataset.reportView).catch(e=>alert(e.message))));
 $('run-report').addEventListener('click',()=>renderReport().catch(e=>alert(e.message)));
-$('report-year').addEventListener('change',()=>renderReport().catch(e=>alert(e.message)));
+$('report-format').addEventListener('change',()=>{selectedFinancialFormatId=$('report-format').value;renderReport().catch(e=>alert(e.message));});
+$('report-year').addEventListener('change',()=>{fillReportPeriodRange('report-year','report-period-from','report-period-to');renderReport().catch(e=>alert(e.message));});
+$('report-period-from').addEventListener('change',()=>renderReport().catch(e=>alert(e.message)));
+$('report-period-to').addEventListener('change',()=>renderReport().catch(e=>alert(e.message)));
+$('report-compare-year').addEventListener('change',()=>{fillReportPeriodRange('report-compare-year','report-compare-period-from','report-compare-period-to');renderReport().catch(e=>alert(e.message));});
+$('report-compare-period-from').addEventListener('change',()=>renderReport().catch(e=>alert(e.message)));
+$('report-compare-period-to').addEventListener('change',()=>renderReport().catch(e=>alert(e.message)));
 $('report-division').addEventListener('change',()=>renderReport().catch(e=>alert(e.message)));
+$('alert-close').addEventListener('click',()=>alert(''));
 $('refresh').addEventListener('click',()=>load().catch(e=>alert(e.message)));
+async function createExampleOrg(){
+  if(!window.confirm('Create or reset Example (PTY) LTD using the Template Organisation setup and approved sample transactions? Existing EXAMPLE data will be deleted.'))return;
+  try{
+    const r=await api('setup/example-org',{method:'POST',body:JSON.stringify({})});
+    boot=await api('setup/bootstrap');
+    state.orgId=r.organisation?.organisation_id||state.orgId;
+    storeCurrentOrg();
+    selectedLedgerFamilyCode='gl';
+    selectedTransactionTypeId='';
+    selectedReport='financial_statement';
+    resetScreenState();
+    await load();
+    show('dashboard');
+    alert(`Example organisation ready. Created ${r.fiscal_years} financial years, ${r.fiscal_periods} periods, ${r.journals} journals and ${r.lines} journal lines.`);
+  }catch(e){
+    alert(e.message);
+  }
+}
+document.querySelectorAll('.create-example-org').forEach(button=>button.addEventListener('click',createExampleOrg));
+$('init-schema').addEventListener('click',async()=>{
+  if(!window.confirm('Initialise or repair the ERP database schema now?'))return;
+  try{
+    await api('setup/schema',{method:'POST',body:JSON.stringify({})});
+    await load();
+    show('organisations');
+    $('init-template-result').hidden=false;
+    $('init-template-result').textContent='Schema initialised.';
+  }catch(e){
+    alert(e.message);
+  }
+});
 $('reset-erp').addEventListener('click',async()=>{
   if(!window.confirm('Reset this tenant ERP data? This deletes ERP organisations, divisions, fiscal years, ledger accounts, master data, journals, and custom setup. It will not reseed defaults.'))return;
   try{
@@ -1470,6 +2056,7 @@ $('init-template-org').addEventListener('click',async()=>{
     state.orgId=r.organisation?.organisation_id||state.orgId;
     storeCurrentOrg();
     await load();
+    await ensureTaxTypes(true);
     show('organisations');
     $('init-template-result').hidden=false;
     $('init-template-result').textContent='Template organisation initialised.';
@@ -1482,7 +2069,7 @@ $('organisation-select').addEventListener('change',async e=>{
   storeCurrentOrg();
   selectedLedgerFamilyCode='gl';
   selectedTransactionTypeId='';
-  selectedReport='income';
+  selectedReport='financial_statement';
   resetScreenState();
   await load();
   show('dashboard');
@@ -1494,6 +2081,7 @@ function openNewOrganisation(){
   $('org-delete-panel').hidden=true;
   $('organisation-form').reset();
   $('org-id').value='';
+  resetOrgOpenAIFields();
   const template=boot.organisations.find(o=>o.is_template);
   $('org-copy-source').value=template?.organisation_id||'';
   $('org-copy-target').value='';
@@ -1504,6 +2092,7 @@ $('new-org').addEventListener('click',openNewOrganisation);
 async function saveOrganisationForm(){
   const r=await api('organisations/save',{method:'POST',body:JSON.stringify({organisation_id:$('org-id').value,organisation_code:$('org-code').value,organisation_name:$('org-name').value,base_currency_code:$('org-currency').value,is_template:$('org-template').checked})});
   if(r.organisation?.organisation_id)$('org-id').value=r.organisation.organisation_id;
+  if(r.organisation?.organisation_id)await saveOrgOpenAISetting(r.organisation.organisation_id);
   return r.organisation;
 }
 $('organisation-form').addEventListener('submit',async e=>{
@@ -1533,8 +2122,22 @@ function openOrgCopyPanel(){
   $('org-copy-source').value=template?.organisation_id||'';
   $('org-copy-target').value=targetId;
 }
+function ensureDeleteTransactionsOption(){
+  if(document.getElementById('delete-transactions'))return;
+  const fiscalOption=document.getElementById('delete-fiscal-years')?.closest('label');
+  if(!fiscalOption)return;
+  const label=document.createElement('label');
+  label.className='check';
+  const checkbox=document.createElement('input');
+  checkbox.type='checkbox';
+  checkbox.id='delete-transactions';
+  label.appendChild(checkbox);
+  label.appendChild(document.createTextNode(' Transactions and journals'));
+  fiscalOption.insertAdjacentElement('afterend',label);
+}
 function openOrgDeletePanel(){
   const targetId=selectedOrganisationId();
+  ensureDeleteTransactionsOption();
   $('org-delete-panel').hidden=false;
   $('org-copy-panel').hidden=true;
   $('org-delete-result').hidden=true;
@@ -1552,10 +2155,12 @@ $('run-org-copy').addEventListener('click',async()=>{
     divisions:$('copy-divisions').checked,
     countries:$('copy-countries').checked,
     currencies:$('copy-currencies').checked,
+    tax_types:$('copy-tax-types').checked,
     fiscal_years:$('copy-fiscal-years').checked,
     ledger_families:$('copy-ledger-families').checked,
     ledger_types:$('copy-ledger-types').checked,
     chart_of_accounts:$('copy-chart').checked,
+    financial_statement_formats:$('copy-financial-formats').checked,
     transaction_groups:$('copy-transaction-groups').checked,
     transaction_types:$('copy-transaction-types').checked,
     posting_rules:$('copy-posting-rules').checked,
@@ -1576,14 +2181,18 @@ $('run-org-copy').addEventListener('click',async()=>{
 $('run-org-delete').addEventListener('click',async()=>{
   const orgId=$('org-delete-target').value;
   if(!orgId)return alert('Select an organisation first');
+  ensureDeleteTransactionsOption();
   const options={
     divisions:$('delete-divisions').checked,
     countries:$('delete-countries').checked,
     currencies:$('delete-currencies').checked,
+    tax_types:$('delete-tax-types').checked,
     fiscal_years:$('delete-fiscal-years').checked,
+    transactions:$('delete-transactions').checked,
     ledger_families:$('delete-ledger-families').checked,
     ledger_types:$('delete-ledger-types').checked,
     chart_of_accounts:$('delete-chart').checked,
+    financial_statement_formats:$('delete-financial-formats').checked,
     transaction_groups:$('delete-transaction-groups').checked,
     transaction_types:$('delete-transaction-types').checked,
     posting_rules:$('delete-posting-rules').checked,
@@ -1593,7 +2202,9 @@ $('run-org-delete').addEventListener('click',async()=>{
   if(!Object.values(options).some(Boolean))return alert('Select at least one data option to delete');
   const org=boot.organisations.find(o=>o.organisation_id===orgId);
   const name=org?`${org.organisation_code} - ${org.organisation_name}`:'the selected organisation';
-  if(!window.confirm(`Delete the selected data from ${name}? This cannot be undone.`))return;
+  const deletesTransactions=options.transactions||options.fiscal_years||options.divisions||options.chart_of_accounts||options.ledger_types||options.ledger_families;
+  const transactionWarning=deletesTransactions?' Captured transactions/journals will also be deleted.':'';
+  if(!window.confirm(`Delete the selected data from ${name}?${transactionWarning} This cannot be undone.`))return;
   const r=await api('organisations/delete-data',{method:'POST',body:JSON.stringify({organisation_id:orgId,options})});
   state.orgId=orgId;
   storeCurrentOrg();
@@ -1659,19 +2270,69 @@ $('fiscal-period-form').addEventListener('submit',async e=>{
 $('account-form-family').addEventListener('change',()=>{
   let detail={};
   try{detail=collectAccountDetail();}catch{}
-  selectedLedgerFamilyCode=$('account-form-family').value;
   fillAccountTypes();
+  updateAccountLegalEntityRequirement();
   renderAccountDetailFields(detail);
 });
 $('add-account').addEventListener('click',()=>openAccountEditor());
 $('new-account').addEventListener('click',()=>openAccountEditor());
+$('intake-account-document').addEventListener('click',()=>openDocumentIntake('ledger_account'));
+$('close-intake').addEventListener('click',closeDocumentIntake);
+$('analyse-intake').addEventListener('click',async()=>{
+  const targetKind=$('intake-target-kind').value;
+  const input=$('intake-file');
+  const file=input.files&&input.files[0];
+  if(targetKind!=='legal_entity')return alert('Only legal entity intake is implemented in this step.');
+  if(!file)return alert('Choose a source document first.');
+  try{
+    if(file.size>10*1024*1024)throw new Error('Document must be 10MB or smaller');
+    $('intake-status').textContent='Analysing document...';
+    $('intake-review').hidden=true;
+    const dataUrl=await readFileDataUrl(file);
+    const result=await api('intake/analyse',{method:'POST',body:JSON.stringify({
+      organisation_id:state.orgId,
+      target_kind:targetKind,
+      file_name:file.name,
+      data_url:dataUrl
+    })});
+    populateIntakeReview(result.intake);
+  }catch(error){
+    $('intake-status').textContent='';
+    alert(error.message);
+  }
+});
+['intake-entity-type','intake-legal-name','intake-known-name','intake-effective-from','intake-effective-to'].forEach(id=>$(id).addEventListener('input',syncIntakeFieldsFromJson));
+$('intake-review').addEventListener('submit',async e=>{
+  e.preventDefault();
+  try{
+    syncIntakeFieldsFromJson();
+    const draft=JSON.parse($('intake-json').value||'{}');
+    if(!draft.legal_entity?.legal_name||!draft.legal_entity?.known_name)throw new Error('Legal name and known name are required');
+    $('intake-status').textContent='Creating legal entity...';
+    const saved=await api('intake/confirm',{method:'POST',body:JSON.stringify({
+      intake_id:$('intake-id').value,
+      extracted_json:JSON.stringify(draft)
+    })});
+    selectedLegalEntity=saved.legal_entity?.legal_entity_id||selectedLegalEntity;
+    closeDocumentIntake();
+    await ensureLegalEntities(true);
+    renderLegalEntities();
+    fillLegalEntitySelects();
+    if(saved.legal_entity)await openLegalEntityEditor(saved.legal_entity);
+  }catch(error){
+    alert(error.message);
+  }
+});
+$('upload-account-document').addEventListener('click',()=>$('account-document-file').click());
+$('account-document-file').addEventListener('change',()=>uploadEntityDocument('account'));
 $('account-form').addEventListener('submit',async e=>{
   e.preventDefault();
-  const family=$('account-form-family').value;
+  const family=selectedLedgerFamilyCode||$('account-form-family').value;
+  $('account-form-family').value=family;
   let additionalData;
   try{additionalData=collectAccountDetail();}
   catch(error){alert(error.message);return;}
-  await api('accounts/save',{method:'POST',body:JSON.stringify({
+  const saved=await api('accounts/save',{method:'POST',body:JSON.stringify({
     ledger_account_id:$('account-id').value,
     organisation_id:state.orgId,
     owner_division_id:$('account-division').value,
@@ -1684,15 +2345,20 @@ $('account-form').addEventListener('submit',async e=>{
     required_subledger_family_code:$('account-subledger-family').value,
     additional_data:JSON.stringify(additionalData)
   })});
+  $('account-id').value=saved.account?.ledger_account_id||$('account-id').value;
   loadedAccountFamilies.delete(family);
   await loadAccountsForFamily(family);
   renderAccounts();
   fillAccountSelects();
+  await loadEntityDocuments('account');
   $('account-form').hidden=true;
   invalidateDashboard();
 });
 $('add-legal-entity').addEventListener('click',resetLegalEntityForm);
 $('new-legal-entity').addEventListener('click',resetLegalEntityForm);
+$('intake-legal-entity-document').addEventListener('click',()=>openDocumentIntake('legal_entity'));
+$('upload-legal-entity-document').addEventListener('click',()=>$('legal-entity-document-file').click());
+$('legal-entity-document-file').addEventListener('change',()=>uploadEntityDocument('legalEntity'));
 $('add-legal-identification').addEventListener('click',()=>addLegalIdentification());
 $('add-legal-address').addEventListener('click',()=>addLegalAddress());
 $('add-legal-relationship').addEventListener('click',()=>addLegalRelationship());
@@ -1711,7 +2377,7 @@ $('legal-entity-form').addEventListener('submit',async e=>{
     alert(error.message);
     return;
   }
-  await api('legal-entities/save',{method:'POST',body:JSON.stringify({
+  const saved=await api('legal-entities/save',{method:'POST',body:JSON.stringify({
     legal_entity_id:$('legal-entity-id').value,
     organisation_id:state.orgId,
     entity_type:$('legal-entity-type').value,
@@ -1725,29 +2391,117 @@ $('legal-entity-form').addEventListener('submit',async e=>{
     addresses:JSON.stringify(addresses),
     relationships:JSON.stringify(relationships)
   })});
+  selectedLegalEntity=saved.legal_entity?.legal_entity_id||selectedLegalEntity;
+  $('legal-entity-id').value=selectedLegalEntity||'';
   await ensureLegalEntities(true);
   renderLegalEntities();
   fillLegalEntitySelects();
+  await loadEntityDocuments('legalEntity');
 });
 $('master-type-select').addEventListener('change',()=>{renderMasterTypes();loadMasterRecords().catch(e=>alert(e.message));});
 $('master-type-form').addEventListener('submit',async e=>{e.preventDefault();await api('masterdata/save-type',{method:'POST',body:JSON.stringify({master_data_type_id:$('master-type-id').value,organisation_id:state.orgId,ledger_family_code:$('master-family').value,type_code:$('master-type-code').value,type_name:$('master-type-name').value,schema_json:$('master-schema').value,ui_schema_json:$('master-ui-schema').value})});await ensureMasterTypes(true);renderMasterTypes();await loadMasterRecords();});
-$('new-master').addEventListener('click',()=>{$('master-record-form').reset();$('master-record-id').value='';selectedMasterRecord=null;$('master-data').value='{}';});
-$('master-record-form').addEventListener('submit',async e=>{e.preventDefault();await api('masterdata/save',{method:'POST',body:JSON.stringify({master_data_record_id:$('master-record-id').value,organisation_id:state.orgId,master_data_type_id:$('master-type-select').value,owner_division_id:$('master-division').value,ledger_account_id:$('master-ledger-account').value,record_code:$('master-code').value,display_name:$('master-display').value,additional_data:$('master-data').value})});await loadMasterRecords();});
+$('new-master').addEventListener('click',()=>{$('master-record-form').reset();$('master-record-id').value='';selectedMasterRecord=null;$('master-data').value='{}';loadEntityDocuments('master').catch(e=>alert(e.message));});
+$('upload-master-document').addEventListener('click',()=>$('master-document-file').click());
+$('master-document-file').addEventListener('change',()=>uploadEntityDocument('master'));
+$('master-record-form').addEventListener('submit',async e=>{e.preventDefault();const saved=await api('masterdata/save',{method:'POST',body:JSON.stringify({master_data_record_id:$('master-record-id').value,organisation_id:state.orgId,master_data_type_id:$('master-type-select').value,owner_division_id:$('master-division').value,ledger_account_id:$('master-ledger-account').value,record_code:$('master-code').value,display_name:$('master-display').value,additional_data:$('master-data').value})});selectedMasterRecord=saved.record?.master_data_record_id||selectedMasterRecord;$('master-record-id').value=selectedMasterRecord||'';await loadMasterRecords();await loadEntityDocuments('master');});
 document.querySelectorAll('[data-master-action]').forEach(b=>b.addEventListener('click',async()=>{if(!selectedMasterRecord)return alert('Select a master record first');await api('masterdata/workflow',{method:'POST',body:JSON.stringify({master_data_record_id:selectedMasterRecord,action:b.dataset.masterAction})});await loadMasterRecords();}));
 $('journal-date').value=today();
 option($('journal-period'),[],null,null);
 $('add-journal-line').addEventListener('click',()=>addJournalLine());
-$('add-journal').addEventListener('click',()=>{$('journal-form').hidden=false;$('journal-form').reset();$('journal-id').value='';selectedJournal=null;$('journal-type').value=selectedTransactionTypeId||'';$('journal-date').value=today();renderJournalLines();setJournalEditable(true);});
-$('new-journal').addEventListener('click',()=>{$('journal-form').hidden=false;$('journal-form').reset();$('journal-id').value='';selectedJournal=null;$('journal-type').value=selectedTransactionTypeId||'';$('journal-date').value=today();renderJournalLines();setJournalEditable(true);});
+function openNewJournal(){
+  $('journal-form').hidden=false;
+  $('journal-form').reset();
+  $('journal-id').value='';
+  selectedJournal=null;
+  $('journal-type').value=selectedTransactionTypeId||'';
+  $('journal-date').value=today();
+  syncJournalPeriodToDate();
+  renderJournalLines(defaultJournalLinesForType($('journal-type').value));
+  setJournalEditable(true);
+  loadEntityDocuments('journal').catch(e=>alert(e.message));
+}
+$('add-journal').addEventListener('click',openNewJournal);
+$('new-journal').addEventListener('click',openNewJournal);
+$('journal-date').addEventListener('change',syncJournalPeriodToDate);
+$('journal-type').addEventListener('change',()=>{
+  if(!$('journal-id').value)renderJournalLines(defaultJournalLinesForType($('journal-type').value));
+});
+$('intake-journal-document').addEventListener('click',()=>openDocumentIntake('journal'));
+$('upload-journal-document').addEventListener('click',()=>$('journal-document-file').click());
+$('journal-document-file').addEventListener('change',()=>uploadEntityDocument('journal'));
 $('journal-form').addEventListener('submit',async e=>{
   e.preventDefault();
-  const lines=[...document.querySelectorAll('.journal-line')].map(row=>({division_id:row.querySelector('.line-division').value,gl_account_id:row.querySelector('.line-gl').value,subledger_account_id:row.querySelector('.line-sub').value,description:row.querySelector('.line-description').value,debit_amount:row.querySelector('.line-debit').value,credit_amount:row.querySelector('.line-credit').value,currency_code:currentOrg()?.base_currency_code||'ZAR'}));
-  await api('journals/save',{method:'POST',body:JSON.stringify({journal_id:$('journal-id').value,organisation_id:state.orgId,transaction_type_id:$('journal-type').value,fiscal_period_id:$('journal-period').value,source_division_id:$('journal-division').value,journal_date:$('journal-date').value,description:$('journal-description').value,currency_code:currentOrg()?.base_currency_code||'ZAR',lines})});
-  await loadJournalsForTransactionType($('journal-type').value||selectedTransactionTypeId);
-  renderJournals();
-  invalidateDashboard();
+  const saveButton=$('journal-save');
+  saveButton.disabled=true;
+  try{
+    const organisationId=currentOrganisationId();
+    const transactionTypeId=$('journal-type').value;
+    const fiscalPeriodId=$('journal-period').value;
+    const sourceDivisionId=$('journal-division').value;
+    const missing=[
+      [organisationId,'organisation'],
+      [transactionTypeId,'transaction type'],
+      [fiscalPeriodId,'fiscal period'],
+      [sourceDivisionId,'source division']
+    ].filter(([value])=>!value).map(([,label])=>label);
+    if(missing.length)throw new Error(`Choose ${missing.join(', ')} before saving`);
+    const lines=[...document.querySelectorAll('.journal-line:not(.journal-line-head)')].map(row=>{
+      const side=row.querySelector('.line-drcr').value;
+      const amount=row.querySelector('.line-amount').value;
+      return {
+        division_id:row.querySelector('.line-division').value,
+        gl_account_id:row.querySelector('.line-gl').value,
+        subledger_account_id:row.querySelector('.line-sub').value,
+        description:row.querySelector('.line-description').value,
+        debit_amount:side==='debit'?amount:'',
+        credit_amount:side==='credit'?amount:'',
+        currency_code:currentOrg()?.base_currency_code||'ZAR'
+      };
+    });
+    if(lines.some(line=>!line.gl_account_id))throw new Error('Choose a GL account for every journal line');
+    const invalidLineIndex=lines.findIndex(line=>{
+      const debit=Number(line.debit_amount)||0;
+      const credit=Number(line.credit_amount)||0;
+      return (debit>0&&credit>0)||(debit<=0&&credit<=0);
+    });
+    if(invalidLineIndex>=0)throw new Error(`Line ${invalidLineIndex+1} needs either a debit or a credit amount`);
+    const saved=await api('journals/save',{method:'POST',body:JSON.stringify({journal_id:$('journal-id').value,organisation_id:organisationId,transaction_type_id:transactionTypeId,fiscal_period_id:fiscalPeriodId,source_division_id:sourceDivisionId,journal_date:$('journal-date').value,description:$('journal-description').value,currency_code:currentOrg()?.base_currency_code||'ZAR',lines})});
+    const debitTotal=lines.reduce((sum,line)=>sum+(Number(line.debit_amount)||0),0);
+    const creditTotal=lines.reduce((sum,line)=>sum+(Number(line.credit_amount)||0),0);
+    selectedJournal=saved.journal?.journal_id||selectedJournal;
+    $('journal-id').value=selectedJournal||'';
+    state.orgId=organisationId;
+    await loadJournalsForTransactionType(transactionTypeId||selectedTransactionTypeId);
+    if(saved.journal&&!state.journals.some(journal=>journal.journal_id===saved.journal.journal_id)){
+      state.journals=[{
+        ...saved.journal,
+        transaction_type_name:labelForTransactionType(transactionTypeId),
+        debit_total:debitTotal.toFixed(2),
+        credit_total:creditTotal.toFixed(2)
+      },...state.journals];
+    }
+    $('journal-form').hidden=true;
+    renderJournals();
+    invalidateDashboard();
+    alert('Draft saved.');
+  }catch(error){
+    alert(error.message);
+  }finally{
+    saveButton.disabled=false;
+  }
 });
-document.querySelectorAll('[data-journal-action]').forEach(b=>b.addEventListener('click',async()=>{if(!$('journal-id').value)return alert('Select or save a journal first');await api('journals/workflow',{method:'POST',body:JSON.stringify({journal_id:$('journal-id').value,action:b.dataset.journalAction})});await loadJournalsForTransactionType($('journal-type').value||selectedTransactionTypeId);renderJournals();invalidateDashboard();}));
+document.querySelectorAll('[data-journal-action]').forEach(b=>b.addEventListener('click',async()=>{
+  try{
+    if(!$('journal-id').value)return alert('Select or save a journal first');
+    await api('journals/workflow',{method:'POST',body:JSON.stringify({journal_id:$('journal-id').value,action:b.dataset.journalAction})});
+    await loadJournalsForTransactionType($('journal-type').value||selectedTransactionTypeId);
+    renderJournals();
+    invalidateDashboard();
+    alert(`${pretty(b.dataset.journalAction)} complete.`);
+  }catch(error){
+    alert(error.message);
+  }
+}));
 $('currency-form').addEventListener('submit',async e=>{e.preventDefault();await api('currencies/save',{method:'POST',body:JSON.stringify({organisation_id:state.orgId,currency_code:$('currency-code').value,currency_name:$('currency-name').value,decimal_places:$('currency-decimals').value})});$('currency-form').hidden=true;await ensureCurrencies(true);renderCurrencies();});
 function openNewCurrency(){
   $('currency-form').hidden=false;
@@ -1772,19 +2526,65 @@ function openNewLedgerFamily(){
   $('ledger-type-form').hidden=true;
   $('ledger-family-form').reset();
   $('ledger-family-code').readOnly=false;
+  $('ledger-family-legal-entity').checked=false;
   $('ledger-family-schema').value='{}';
   $('ledger-family-active').checked=true;
 }
 $('add-currency').addEventListener('click',openNewCurrency);
 $('new-currency').addEventListener('click',openNewCurrency);
+$('add-tax-type').addEventListener('click',openNewTaxType);
+$('new-tax-type').addEventListener('click',openNewTaxType);
+$('add-tax-rate').addEventListener('click',()=>addTaxRateLine());
+$('tax-type-form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  await api('tax-types/save',{method:'POST',body:JSON.stringify({
+    tax_type_id:$('tax-type-id').value,
+    organisation_id:state.orgId,
+    tax_type_code:$('tax-type-code').value,
+    tax_type_description:$('tax-type-description').value,
+    tax_direction:$('tax-type-direction').value,
+    is_active:$('tax-type-active').checked,
+    rates:collectTaxRateLines()
+  })});
+  $('tax-type-form').hidden=true;
+  await ensureTaxTypes(true);
+  renderTaxTypes();
+});
 $('add-country').addEventListener('click',openNewCountry);
 $('new-country').addEventListener('click',openNewCountry);
 $('country-form').addEventListener('submit',async e=>{e.preventDefault();await api('countries/save',{method:'POST',body:JSON.stringify({organisation_id:state.orgId,country_code:$('country-code').value,alpha3_code:$('country-alpha3').value,numeric_code:$('country-numeric').value,country_name:$('country-name').value,official_name:$('country-official').value,region:$('country-region').value,subregion:$('country-subregion').value,default_currency_code:$('country-currency').value,calling_code:$('country-calling-code').value,postal_code_required:$('country-postal-required').checked,administrative_level_label:$('country-admin-label').value})});$('country-form').hidden=true;await ensureCountries(true);renderCountries();});
 $('add-ledger-family').addEventListener('click',openNewLedgerFamily);
 $('new-ledger-family').addEventListener('click',openNewLedgerFamily);
-$('ledger-family-form').addEventListener('submit',async e=>{e.preventDefault();await api('ledger-families/save',{method:'POST',body:JSON.stringify({organisation_id:state.orgId,ledger_family_code:$('ledger-family-code').value,family_name:$('ledger-family-name').value,requires_standard_account_type:$('ledger-family-standard-type').checked,schema_json:$('ledger-family-schema').value,is_active:$('ledger-family-active').checked})});$('ledger-family-form').hidden=true;await loadMenuData(true);await ensureLedgerTypes(true);renderLedgerFamilies();});
+$('ledger-family-form').addEventListener('submit',async e=>{e.preventDefault();await api('ledger-families/save',{method:'POST',body:JSON.stringify({organisation_id:state.orgId,ledger_family_code:$('ledger-family-code').value,family_name:$('ledger-family-name').value,requires_standard_account_type:$('ledger-family-standard-type').checked,requires_legal_entity:$('ledger-family-legal-entity').checked,schema_json:$('ledger-family-schema').value,is_active:$('ledger-family-active').checked})});$('ledger-family-form').hidden=true;await loadMenuData(true);await ensureLedgerTypes(true);renderLedgerFamilies();});
 $('new-ledger-type').addEventListener('click',()=>openNewLedgerType($('ledger-type-family').value||'gl'));
 $('ledger-type-form').addEventListener('submit',async e=>{e.preventDefault();await api('ledger-types/save',{method:'POST',body:JSON.stringify({account_type_id:$('ledger-type-id').value,organisation_id:state.orgId,ledger_family_code:$('ledger-type-family').value,account_type_code:$('ledger-type-code').value,account_type_name:$('ledger-type-name').value,is_required:$('ledger-type-required').checked,is_active:$('ledger-type-active').checked})});$('ledger-type-form').hidden=true;await ensureLedgerTypes(true);renderLedgerFamilies();});
+$('add-financial-format').addEventListener('click',openNewFinancialFormat);
+$('new-financial-format').addEventListener('click',openNewFinancialFormat);
+$('add-financial-line').addEventListener('click',()=>addFinancialFormatLine({sort_order:(document.querySelectorAll('.financial-line:not(.financial-line-head)').length+1)*100,line_type:'account_group',is_active:true}));
+$('financial-format-form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  await api('financial-formats/save',{method:'POST',body:JSON.stringify({
+    financial_statement_format_id:$('financial-format-id').value,
+    organisation_id:state.orgId,
+    format_code:$('financial-format-code').value,
+    format_name:$('financial-format-name').value,
+    statement_type:$('financial-format-type').value,
+    is_active:$('financial-format-active').checked,
+    lines:collectFinancialFormatLines()
+  })});
+  $('financial-format-form').hidden=true;
+  await ensureFinancialFormats(true);
+  renderFinancialFormats();
+});
+$('delete-financial-format').addEventListener('click',async()=>{
+  const id=$('financial-format-id').value;
+  if(!id)return alert('Select a financial statement format first');
+  if(!window.confirm('Delete this financial statement format?'))return;
+  await api('financial-formats/delete',{method:'POST',body:JSON.stringify({financial_statement_format_id:id})});
+  $('financial-format-form').hidden=true;
+  await ensureFinancialFormats(true);
+  renderFinancialFormats();
+});
 $('add-transaction-group').addEventListener('click',openNewTransactionGroup);
 $('new-transaction-group').addEventListener('click',openNewTransactionGroup);
 $('transaction-group-form').addEventListener('submit',async e=>{e.preventDefault();await api('transaction-groups/save',{method:'POST',body:JSON.stringify({transaction_group_id:$('transaction-group-id').value,organisation_id:state.orgId,group_code:$('transaction-group-code').value,group_name:$('transaction-group-name').value,sort_order:$('transaction-group-sort').value,is_active:$('transaction-group-active').checked})});$('transaction-group-form').hidden=true;await ensureTransactionSetup(true);renderTransactionGroups();});
@@ -1860,11 +2660,15 @@ $('role-form').addEventListener('submit',async e=>{
 });
 function patchDynamicSelects(){
   option($('journal-type'),state.transactionTypes,'transaction_type_id',t=>`${t.group_name}: ${t.type_name}`,'Manual / none');
-  option($('journal-period'),state.periods.filter(p=>['open','soft_closed'].includes(p.status)),'fiscal_period_id',p=>`${p.period_code} (${p.status})`);
+  const selectedPeriod=$('journal-period')?.value||'';
+  option($('journal-period'),state.periods,'fiscal_period_id',p=>`${p.period_code} (${p.status})`);
+  if(selectedPeriod)$('journal-period').value=selectedPeriod;
+  if(!$('journal-period').value)syncJournalPeriodToDate();
 }
 const originalRenderAll=renderAll;
 renderAll=function(){originalRenderAll();patchDynamicSelects();};
 setupLegalEntityTabs();
 addPanelCloseButtons();
+syncRequiredMarkers();
 load().catch(e=>alert(e.message));
 })();

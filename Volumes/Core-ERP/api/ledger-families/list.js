@@ -9,7 +9,7 @@ module.exports=async ctx=>{
   if(!orgId)return ctx.send(400,{error:'organisation_id is required'});
   const r=await ctx.broker('core_erp','query',{
     text:`SELECT *
-          FROM erp_organisation_ledger_family
+          FROM erp_ledger_family
           WHERE tenant_id=$1
           AND organisation_id=$2
           ORDER BY ledger_family_code`,

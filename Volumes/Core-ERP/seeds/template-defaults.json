@@ -1,0 +1,6730 @@
+{
+  "glTypes": [
+    "asset",
+    "liability",
+    "equity",
+    "revenue",
+    "expense"
+  ],
+  "workflowStates": [
+    "draft",
+    "submitted",
+    "approved",
+    "rejected",
+    "blocked",
+    "archived",
+    "deleted",
+    "reversed"
+  ],
+  "ledgerTypeSeeds": [
+    [
+      "gl",
+      "asset",
+      "Asset",
+      true
+    ],
+    [
+      "gl",
+      "liability",
+      "Liability",
+      true
+    ],
+    [
+      "gl",
+      "equity",
+      "Equity",
+      true
+    ],
+    [
+      "gl",
+      "revenue",
+      "Revenue",
+      true
+    ],
+    [
+      "gl",
+      "expense",
+      "Expense",
+      true
+    ],
+    [
+      "bank",
+      "current_account",
+      "Current account",
+      false
+    ],
+    [
+      "bank",
+      "savings_account",
+      "Savings account",
+      false
+    ],
+    [
+      "bank",
+      "cash_account",
+      "Cash account",
+      false
+    ],
+    [
+      "bank",
+      "credit_card",
+      "Credit card",
+      false
+    ],
+    [
+      "customer",
+      "trade_customer",
+      "Trade customer",
+      false
+    ],
+    [
+      "customer",
+      "cash_customer",
+      "Cash customer",
+      false
+    ],
+    [
+      "customer",
+      "intercompany_customer",
+      "Intercompany customer",
+      false
+    ],
+    [
+      "vendor",
+      "trade_vendor",
+      "Trade vendor",
+      false
+    ],
+    [
+      "vendor",
+      "service_provider",
+      "Service provider",
+      false
+    ],
+    [
+      "vendor",
+      "intercompany_vendor",
+      "Intercompany vendor",
+      false
+    ],
+    [
+      "employee",
+      "permanent_employee",
+      "Permanent employee",
+      false
+    ],
+    [
+      "employee",
+      "contractor",
+      "Contractor",
+      false
+    ],
+    [
+      "cash_location",
+      "point_of_sale",
+      "Point of Sale",
+      false
+    ],
+    [
+      "cash_location",
+      "management_safe",
+      "Management Safe",
+      false
+    ],
+    [
+      "cash_location",
+      "cash_in_transit",
+      "Cash in Transit",
+      false
+    ],
+    [
+      "cash_location",
+      "temporary_cash_box",
+      "Temporary Cash Box",
+      false
+    ],
+    [
+      "cash_location",
+      "undeposited_cash",
+      "Undeposited Cash",
+      false
+    ],
+    [
+      "cash_location",
+      "change_float",
+      "Change Float",
+      false
+    ],
+    [
+      "cash_location",
+      "petty_cash",
+      "Petty Cash",
+      false
+    ],
+    [
+      "asset",
+      "fixed_asset",
+      "Fixed Asset",
+      false
+    ],
+    [
+      "asset",
+      "right_of_use_asset",
+      "Right-of-use Asset",
+      false
+    ],
+    [
+      "asset",
+      "intangible_asset",
+      "Intangible Asset",
+      false
+    ],
+    [
+      "asset",
+      "investment_property",
+      "Investment Property",
+      false
+    ],
+    [
+      "asset",
+      "asset_under_construction",
+      "Asset Under Construction",
+      false
+    ],
+    [
+      "asset",
+      "low_value_asset",
+      "Low-value Asset",
+      false
+    ],
+    [
+      "asset",
+      "leased_asset",
+      "Leased Asset",
+      false
+    ],
+    [
+      "asset",
+      "inventory_asset",
+      "Inventory Asset",
+      false
+    ],
+    [
+      "asset",
+      "biological_asset",
+      "Biological Asset",
+      false
+    ],
+    [
+      "asset",
+      "financial_asset",
+      "Financial Asset",
+      false
+    ],
+    [
+      "project",
+      "capital_project",
+      "Capital project",
+      false
+    ],
+    [
+      "project",
+      "operational_project",
+      "Operational project",
+      false
+    ],
+    [
+      "contract",
+      "customer_contract",
+      "Customer contract",
+      false
+    ],
+    [
+      "contract",
+      "supplier_contract",
+      "Supplier contract",
+      false
+    ],
+    [
+      "loan",
+      "loan_account",
+      "Loan account",
+      false
+    ],
+    [
+      "loan",
+      "intercompany_loan",
+      "Intercompany loan",
+      false
+    ]
+  ],
+  "currencies": [
+    [
+      "USD",
+      "US Dollar",
+      2,
+      true
+    ],
+    [
+      "GBP",
+      "Pound Sterling",
+      2,
+      true
+    ],
+    [
+      "EUR",
+      "Euro",
+      2,
+      true
+    ],
+    [
+      "ZAR",
+      "South African Rand",
+      2,
+      true
+    ]
+  ],
+  "taxTypeSeeds": [
+    {
+      "code": "VOS",
+      "description": "Output VAT - standard-rated supplies",
+      "direction": "output",
+      "rates": [
+        {
+          "rate": 10,
+          "valid_from": "1991-09-30",
+          "valid_to": "1993-04-06"
+        },
+        {
+          "rate": 14,
+          "valid_from": "1993-04-07",
+          "valid_to": "2018-03-31"
+        },
+        {
+          "rate": 15,
+          "valid_from": "2018-04-01",
+          "valid_to": null
+        }
+      ]
+    },
+    {
+      "code": "VOZ",
+      "description": "Output VAT - zero-rated supplies",
+      "direction": "output",
+      "rates": [
+        {
+          "rate": 0,
+          "valid_from": "1991-09-30",
+          "valid_to": null
+        }
+      ]
+    },
+    {
+      "code": "VIS",
+      "description": "Input VAT - claimable standard-rated purchases",
+      "direction": "input",
+      "rates": [
+        {
+          "rate": 10,
+          "valid_from": "1991-09-30",
+          "valid_to": "1993-04-06"
+        },
+        {
+          "rate": 14,
+          "valid_from": "1993-04-07",
+          "valid_to": "2018-03-31"
+        },
+        {
+          "rate": 15,
+          "valid_from": "2018-04-01",
+          "valid_to": null
+        }
+      ]
+    },
+    {
+      "code": "VIZ",
+      "description": "Input VAT - zero-rated purchases",
+      "direction": "input",
+      "rates": [
+        {
+          "rate": 0,
+          "valid_from": "1991-09-30",
+          "valid_to": null
+        }
+      ]
+    },
+    {
+      "code": "VE",
+      "description": "Exempt or non-taxable supply - no VAT return amount",
+      "direction": "none",
+      "rates": [
+        {
+          "rate": 0,
+          "valid_from": "1991-09-30",
+          "valid_to": null
+        }
+      ]
+    },
+    {
+      "code": "VID",
+      "description": "Input VAT denied or non-claimable",
+      "direction": "none",
+      "rates": [
+        {
+          "rate": 0,
+          "valid_from": "1991-09-30",
+          "valid_to": null
+        }
+      ]
+    }
+  ],
+  "countries": [
+    [
+      "AF",
+      "AFG",
+      "004",
+      "Afghanistan",
+      "Islamic Republic of Afghanistan",
+      "Asia",
+      "Southern Asia",
+      "AFN",
+      "+93",
+      false,
+      "Region"
+    ],
+    [
+      "AX",
+      "ALA",
+      "248",
+      "Åland Islands",
+      "Åland Islands",
+      "Europe",
+      "Northern Europe",
+      "EUR",
+      "+35818",
+      false,
+      "Region"
+    ],
+    [
+      "AL",
+      "ALB",
+      "008",
+      "Albania",
+      "Republic of Albania",
+      "Europe",
+      "Southeast Europe",
+      "ALL",
+      "+355",
+      false,
+      "Region"
+    ],
+    [
+      "DZ",
+      "DZA",
+      "012",
+      "Algeria",
+      "People's Democratic Republic of Algeria",
+      "Africa",
+      "Northern Africa",
+      "DZD",
+      "+213",
+      true,
+      "Region"
+    ],
+    [
+      "AS",
+      "ASM",
+      "016",
+      "American Samoa",
+      "American Samoa",
+      "Oceania",
+      "Polynesia",
+      "USD",
+      "+1684",
+      false,
+      "Region"
+    ],
+    [
+      "AD",
+      "AND",
+      "020",
+      "Andorra",
+      "Principality of Andorra",
+      "Europe",
+      "Southern Europe",
+      "EUR",
+      "+376",
+      true,
+      "Region"
+    ],
+    [
+      "AO",
+      "AGO",
+      "024",
+      "Angola",
+      "Republic of Angola",
+      "Africa",
+      "Middle Africa",
+      "AOA",
+      "+244",
+      false,
+      "Region"
+    ],
+    [
+      "AI",
+      "AIA",
+      "660",
+      "Anguilla",
+      "Anguilla",
+      "Americas",
+      "Caribbean",
+      "XCD",
+      "+1264",
+      false,
+      "Region"
+    ],
+    [
+      "AQ",
+      "ATA",
+      "010",
+      "Antarctica",
+      "Antarctica",
+      "Antarctic",
+      null,
+      null,
+      null,
+      false,
+      "Region"
+    ],
+    [
+      "AG",
+      "ATG",
+      "028",
+      "Antigua and Barbuda",
+      "Antigua and Barbuda",
+      "Americas",
+      "Caribbean",
+      "XCD",
+      "+1268",
+      false,
+      "Region"
+    ],
+    [
+      "AR",
+      "ARG",
+      "032",
+      "Argentina",
+      "Argentine Republic",
+      "Americas",
+      "South America",
+      "ARS",
+      "+54",
+      true,
+      "Province"
+    ],
+    [
+      "AM",
+      "ARM",
+      "051",
+      "Armenia",
+      "Republic of Armenia",
+      "Asia",
+      "Western Asia",
+      "AMD",
+      "+374",
+      true,
+      "Region"
+    ],
+    [
+      "AW",
+      "ABW",
+      "533",
+      "Aruba",
+      "Aruba",
+      "Americas",
+      "Caribbean",
+      "AWG",
+      "+297",
+      false,
+      "Region"
+    ],
+    [
+      "AU",
+      "AUS",
+      "036",
+      "Australia",
+      "Commonwealth of Australia",
+      "Oceania",
+      "Australia and New Zealand",
+      "AUD",
+      "+61",
+      true,
+      "State/Territory"
+    ],
+    [
+      "AT",
+      "AUT",
+      "040",
+      "Austria",
+      "Republic of Austria",
+      "Europe",
+      "Central Europe",
+      "EUR",
+      "+43",
+      true,
+      "State"
+    ],
+    [
+      "AZ",
+      "AZE",
+      "031",
+      "Azerbaijan",
+      "Republic of Azerbaijan",
+      "Asia",
+      "Western Asia",
+      "AZN",
+      "+994",
+      true,
+      "Region"
+    ],
+    [
+      "BS",
+      "BHS",
+      "044",
+      "Bahamas",
+      "Commonwealth of the Bahamas",
+      "Americas",
+      "Caribbean",
+      "BSD",
+      "+1242",
+      false,
+      "Region"
+    ],
+    [
+      "BH",
+      "BHR",
+      "048",
+      "Bahrain",
+      "Kingdom of Bahrain",
+      "Asia",
+      "Western Asia",
+      "BHD",
+      "+973",
+      true,
+      "Region"
+    ],
+    [
+      "BD",
+      "BGD",
+      "050",
+      "Bangladesh",
+      "People's Republic of Bangladesh",
+      "Asia",
+      "Southern Asia",
+      "BDT",
+      "+880",
+      true,
+      "Region"
+    ],
+    [
+      "BB",
+      "BRB",
+      "052",
+      "Barbados",
+      "Barbados",
+      "Americas",
+      "Caribbean",
+      "BBD",
+      "+1246",
+      true,
+      "Region"
+    ],
+    [
+      "BY",
+      "BLR",
+      "112",
+      "Belarus",
+      "Republic of Belarus",
+      "Europe",
+      "Eastern Europe",
+      "BYN",
+      "+375",
+      true,
+      "Region"
+    ],
+    [
+      "BE",
+      "BEL",
+      "056",
+      "Belgium",
+      "Kingdom of Belgium",
+      "Europe",
+      "Western Europe",
+      "EUR",
+      "+32",
+      true,
+      "Region"
+    ],
+    [
+      "BZ",
+      "BLZ",
+      "084",
+      "Belize",
+      "Belize",
+      "Americas",
+      "Central America",
+      "BZD",
+      "+501",
+      false,
+      "Region"
+    ],
+    [
+      "BJ",
+      "BEN",
+      "204",
+      "Benin",
+      "Republic of Benin",
+      "Africa",
+      "Western Africa",
+      "XOF",
+      "+229",
+      false,
+      "Region"
+    ],
+    [
+      "BM",
+      "BMU",
+      "060",
+      "Bermuda",
+      "Bermuda",
+      "Americas",
+      "North America",
+      "BMD",
+      "+1441",
+      true,
+      "Region"
+    ],
+    [
+      "BT",
+      "BTN",
+      "064",
+      "Bhutan",
+      "Kingdom of Bhutan",
+      "Asia",
+      "Southern Asia",
+      "BTN",
+      "+975",
+      false,
+      "Region"
+    ],
+    [
+      "BO",
+      "BOL",
+      "068",
+      "Bolivia",
+      "Plurinational State of Bolivia",
+      "Americas",
+      "South America",
+      "BOB",
+      "+591",
+      false,
+      "Region"
+    ],
+    [
+      "BQ",
+      "BES",
+      "535",
+      "Caribbean Netherlands",
+      "Bonaire, Sint Eustatius and Saba",
+      "Americas",
+      "Caribbean",
+      "USD",
+      "+599",
+      false,
+      "Region"
+    ],
+    [
+      "BA",
+      "BIH",
+      "070",
+      "Bosnia and Herzegovina",
+      "Bosnia and Herzegovina",
+      "Europe",
+      "Southeast Europe",
+      "BAM",
+      "+387",
+      true,
+      "Region"
+    ],
+    [
+      "BW",
+      "BWA",
+      "072",
+      "Botswana",
+      "Republic of Botswana",
+      "Africa",
+      "Southern Africa",
+      "BWP",
+      "+267",
+      false,
+      "Region"
+    ],
+    [
+      "BV",
+      "BVT",
+      "074",
+      "Bouvet Island",
+      "Bouvet Island",
+      "Antarctic",
+      null,
+      null,
+      "+47",
+      false,
+      "Region"
+    ],
+    [
+      "BR",
+      "BRA",
+      "076",
+      "Brazil",
+      "Federative Republic of Brazil",
+      "Americas",
+      "South America",
+      "BRL",
+      "+55",
+      true,
+      "State"
+    ],
+    [
+      "IO",
+      "IOT",
+      "086",
+      "British Indian Ocean Territory",
+      "British Indian Ocean Territory",
+      "Africa",
+      "Eastern Africa",
+      "USD",
+      "+246",
+      false,
+      "Region"
+    ],
+    [
+      "BN",
+      "BRN",
+      "096",
+      "Brunei",
+      "Nation of Brunei, Abode of Peace",
+      "Asia",
+      "South-Eastern Asia",
+      "BND",
+      "+673",
+      true,
+      "Region"
+    ],
+    [
+      "BG",
+      "BGR",
+      "100",
+      "Bulgaria",
+      "Republic of Bulgaria",
+      "Europe",
+      "Southeast Europe",
+      "BGN",
+      "+359",
+      true,
+      "Region"
+    ],
+    [
+      "BF",
+      "BFA",
+      "854",
+      "Burkina Faso",
+      "Burkina Faso",
+      "Africa",
+      "Western Africa",
+      "XOF",
+      "+226",
+      false,
+      "Region"
+    ],
+    [
+      "BI",
+      "BDI",
+      "108",
+      "Burundi",
+      "Republic of Burundi",
+      "Africa",
+      "Eastern Africa",
+      "BIF",
+      "+257",
+      false,
+      "Region"
+    ],
+    [
+      "CV",
+      "CPV",
+      "132",
+      "Cape Verde",
+      "Republic of Cabo Verde",
+      "Africa",
+      "Western Africa",
+      "CVE",
+      "+238",
+      true,
+      "Region"
+    ],
+    [
+      "KH",
+      "KHM",
+      "116",
+      "Cambodia",
+      "Kingdom of Cambodia",
+      "Asia",
+      "South-Eastern Asia",
+      "KHR",
+      "+855",
+      true,
+      "Region"
+    ],
+    [
+      "CM",
+      "CMR",
+      "120",
+      "Cameroon",
+      "Republic of Cameroon",
+      "Africa",
+      "Middle Africa",
+      "XAF",
+      "+237",
+      false,
+      "Region"
+    ],
+    [
+      "CA",
+      "CAN",
+      "124",
+      "Canada",
+      "Canada",
+      "Americas",
+      "North America",
+      "CAD",
+      "+1",
+      true,
+      "Province/Territory"
+    ],
+    [
+      "KY",
+      "CYM",
+      "136",
+      "Cayman Islands",
+      "Cayman Islands",
+      "Americas",
+      "Caribbean",
+      "KYD",
+      "+1345",
+      false,
+      "Region"
+    ],
+    [
+      "CF",
+      "CAF",
+      "140",
+      "Central African Republic",
+      "Central African Republic",
+      "Africa",
+      "Middle Africa",
+      "XAF",
+      "+236",
+      false,
+      "Region"
+    ],
+    [
+      "TD",
+      "TCD",
+      "148",
+      "Chad",
+      "Republic of Chad",
+      "Africa",
+      "Middle Africa",
+      "XAF",
+      "+235",
+      false,
+      "Region"
+    ],
+    [
+      "CL",
+      "CHL",
+      "152",
+      "Chile",
+      "Republic of Chile",
+      "Americas",
+      "South America",
+      "CLP",
+      "+56",
+      true,
+      "Region"
+    ],
+    [
+      "CN",
+      "CHN",
+      "156",
+      "China",
+      "People's Republic of China",
+      "Asia",
+      "Eastern Asia",
+      "CNY",
+      "+86",
+      true,
+      "Province"
+    ],
+    [
+      "CX",
+      "CXR",
+      "162",
+      "Christmas Island",
+      "Territory of Christmas Island",
+      "Oceania",
+      "Australia and New Zealand",
+      "AUD",
+      "+61",
+      true,
+      "Region"
+    ],
+    [
+      "CC",
+      "CCK",
+      "166",
+      "Cocos (Keeling) Islands",
+      "Territory of the Cocos (Keeling) Islands",
+      "Oceania",
+      "Australia and New Zealand",
+      "AUD",
+      "+61",
+      false,
+      "Region"
+    ],
+    [
+      "CO",
+      "COL",
+      "170",
+      "Colombia",
+      "Republic of Colombia",
+      "Americas",
+      "South America",
+      "COP",
+      "+57",
+      false,
+      "Department"
+    ],
+    [
+      "KM",
+      "COM",
+      "174",
+      "Comoros",
+      "Union of the Comoros",
+      "Africa",
+      "Eastern Africa",
+      "KMF",
+      "+269",
+      false,
+      "Region"
+    ],
+    [
+      "CD",
+      "COD",
+      "180",
+      "DR Congo",
+      "Democratic Republic of the Congo",
+      "Africa",
+      "Middle Africa",
+      "CDF",
+      "+243",
+      false,
+      "Region"
+    ],
+    [
+      "CG",
+      "COG",
+      "178",
+      "Republic of the Congo",
+      "Republic of the Congo",
+      "Africa",
+      "Middle Africa",
+      "XAF",
+      "+242",
+      false,
+      "Region"
+    ],
+    [
+      "CK",
+      "COK",
+      "184",
+      "Cook Islands",
+      "Cook Islands",
+      "Oceania",
+      "Polynesia",
+      "CKD",
+      "+682",
+      false,
+      "Region"
+    ],
+    [
+      "CR",
+      "CRI",
+      "188",
+      "Costa Rica",
+      "Republic of Costa Rica",
+      "Americas",
+      "Central America",
+      "CRC",
+      "+506",
+      true,
+      "Region"
+    ],
+    [
+      "CI",
+      "CIV",
+      "384",
+      "Ivory Coast",
+      "Republic of Côte d'Ivoire",
+      "Africa",
+      "Western Africa",
+      "XOF",
+      "+225",
+      false,
+      "Region"
+    ],
+    [
+      "HR",
+      "HRV",
+      "191",
+      "Croatia",
+      "Republic of Croatia",
+      "Europe",
+      "Southeast Europe",
+      "HRK",
+      "+385",
+      true,
+      "Region"
+    ],
+    [
+      "CU",
+      "CUB",
+      "192",
+      "Cuba",
+      "Republic of Cuba",
+      "Americas",
+      "Caribbean",
+      "CUC",
+      "+53",
+      true,
+      "Region"
+    ],
+    [
+      "CW",
+      "CUW",
+      "531",
+      "Curaçao",
+      "Country of Curaçao",
+      "Americas",
+      "Caribbean",
+      "ANG",
+      "+599",
+      false,
+      "Region"
+    ],
+    [
+      "CY",
+      "CYP",
+      "196",
+      "Cyprus",
+      "Republic of Cyprus",
+      "Europe",
+      "Southern Europe",
+      "EUR",
+      "+357",
+      true,
+      "Region"
+    ],
+    [
+      "CZ",
+      "CZE",
+      "203",
+      "Czechia",
+      "Czech Republic",
+      "Europe",
+      "Central Europe",
+      "CZK",
+      "+420",
+      true,
+      "Region"
+    ],
+    [
+      "DK",
+      "DNK",
+      "208",
+      "Denmark",
+      "Kingdom of Denmark",
+      "Europe",
+      "Northern Europe",
+      "DKK",
+      "+45",
+      true,
+      "Region"
+    ],
+    [
+      "DJ",
+      "DJI",
+      "262",
+      "Djibouti",
+      "Republic of Djibouti",
+      "Africa",
+      "Eastern Africa",
+      "DJF",
+      "+253",
+      false,
+      "Region"
+    ],
+    [
+      "DM",
+      "DMA",
+      "212",
+      "Dominica",
+      "Commonwealth of Dominica",
+      "Americas",
+      "Caribbean",
+      "XCD",
+      "+1767",
+      false,
+      "Region"
+    ],
+    [
+      "DO",
+      "DOM",
+      "214",
+      "Dominican Republic",
+      "Dominican Republic",
+      "Americas",
+      "Caribbean",
+      "DOP",
+      "+1",
+      true,
+      "Region"
+    ],
+    [
+      "EC",
+      "ECU",
+      "218",
+      "Ecuador",
+      "Republic of Ecuador",
+      "Americas",
+      "South America",
+      "USD",
+      "+593",
+      true,
+      "Region"
+    ],
+    [
+      "EG",
+      "EGY",
+      "818",
+      "Egypt",
+      "Arab Republic of Egypt",
+      "Africa",
+      "Northern Africa",
+      "EGP",
+      "+20",
+      true,
+      "Region"
+    ],
+    [
+      "SV",
+      "SLV",
+      "222",
+      "El Salvador",
+      "Republic of El Salvador",
+      "Americas",
+      "Central America",
+      "USD",
+      "+503",
+      true,
+      "Region"
+    ],
+    [
+      "GQ",
+      "GNQ",
+      "226",
+      "Equatorial Guinea",
+      "Republic of Equatorial Guinea",
+      "Africa",
+      "Middle Africa",
+      "XAF",
+      "+240",
+      false,
+      "Region"
+    ],
+    [
+      "ER",
+      "ERI",
+      "232",
+      "Eritrea",
+      "State of Eritrea",
+      "Africa",
+      "Eastern Africa",
+      "ERN",
+      "+291",
+      false,
+      "Region"
+    ],
+    [
+      "EE",
+      "EST",
+      "233",
+      "Estonia",
+      "Republic of Estonia",
+      "Europe",
+      "Northern Europe",
+      "EUR",
+      "+372",
+      true,
+      "Region"
+    ],
+    [
+      "SZ",
+      "SWZ",
+      "748",
+      "Eswatini",
+      "Kingdom of Eswatini",
+      "Africa",
+      "Southern Africa",
+      "SZL",
+      "+268",
+      true,
+      "Region"
+    ],
+    [
+      "ET",
+      "ETH",
+      "231",
+      "Ethiopia",
+      "Federal Democratic Republic of Ethiopia",
+      "Africa",
+      "Eastern Africa",
+      "ETB",
+      "+251",
+      true,
+      "Region"
+    ],
+    [
+      "FK",
+      "FLK",
+      "238",
+      "Falkland Islands",
+      "Falkland Islands",
+      "Americas",
+      "South America",
+      "FKP",
+      "+500",
+      false,
+      "Region"
+    ],
+    [
+      "FO",
+      "FRO",
+      "234",
+      "Faroe Islands",
+      "Faroe Islands",
+      "Europe",
+      "Northern Europe",
+      "DKK",
+      "+298",
+      true,
+      "Region"
+    ],
+    [
+      "FJ",
+      "FJI",
+      "242",
+      "Fiji",
+      "Republic of Fiji",
+      "Oceania",
+      "Melanesia",
+      "FJD",
+      "+679",
+      false,
+      "Region"
+    ],
+    [
+      "FI",
+      "FIN",
+      "246",
+      "Finland",
+      "Republic of Finland",
+      "Europe",
+      "Northern Europe",
+      "EUR",
+      "+358",
+      true,
+      "Region"
+    ],
+    [
+      "FR",
+      "FRA",
+      "250",
+      "France",
+      "French Republic",
+      "Europe",
+      "Western Europe",
+      "EUR",
+      "+33",
+      true,
+      "Region"
+    ],
+    [
+      "GF",
+      "GUF",
+      "254",
+      "French Guiana",
+      "Guiana",
+      "Americas",
+      "South America",
+      "EUR",
+      "+594",
+      true,
+      "Region"
+    ],
+    [
+      "PF",
+      "PYF",
+      "258",
+      "French Polynesia",
+      "French Polynesia",
+      "Oceania",
+      "Polynesia",
+      "XPF",
+      "+689",
+      true,
+      "Region"
+    ],
+    [
+      "TF",
+      "ATF",
+      "260",
+      "French Southern and Antarctic Lands",
+      "Territory of the French Southern and Antarctic Lands",
+      "Antarctic",
+      null,
+      "EUR",
+      "+262",
+      false,
+      "Region"
+    ],
+    [
+      "GA",
+      "GAB",
+      "266",
+      "Gabon",
+      "Gabonese Republic",
+      "Africa",
+      "Middle Africa",
+      "XAF",
+      "+241",
+      false,
+      "Region"
+    ],
+    [
+      "GM",
+      "GMB",
+      "270",
+      "Gambia",
+      "Republic of the Gambia",
+      "Africa",
+      "Western Africa",
+      "GMD",
+      "+220",
+      false,
+      "Region"
+    ],
+    [
+      "GE",
+      "GEO",
+      "268",
+      "Georgia",
+      "Georgia",
+      "Asia",
+      "Western Asia",
+      "GEL",
+      "+995",
+      true,
+      "Region"
+    ],
+    [
+      "DE",
+      "DEU",
+      "276",
+      "Germany",
+      "Federal Republic of Germany",
+      "Europe",
+      "Western Europe",
+      "EUR",
+      "+49",
+      true,
+      "State"
+    ],
+    [
+      "GH",
+      "GHA",
+      "288",
+      "Ghana",
+      "Republic of Ghana",
+      "Africa",
+      "Western Africa",
+      "GHS",
+      "+233",
+      false,
+      "Region"
+    ],
+    [
+      "GI",
+      "GIB",
+      "292",
+      "Gibraltar",
+      "Gibraltar",
+      "Europe",
+      "Southern Europe",
+      "GIP",
+      "+350",
+      false,
+      "Region"
+    ],
+    [
+      "GR",
+      "GRC",
+      "300",
+      "Greece",
+      "Hellenic Republic",
+      "Europe",
+      "Southern Europe",
+      "EUR",
+      "+30",
+      true,
+      "Region"
+    ],
+    [
+      "GL",
+      "GRL",
+      "304",
+      "Greenland",
+      "Greenland",
+      "Americas",
+      "North America",
+      "DKK",
+      "+299",
+      true,
+      "Region"
+    ],
+    [
+      "GD",
+      "GRD",
+      "308",
+      "Grenada",
+      "Grenada",
+      "Americas",
+      "Caribbean",
+      "XCD",
+      "+1473",
+      false,
+      "Region"
+    ],
+    [
+      "GP",
+      "GLP",
+      "312",
+      "Guadeloupe",
+      "Guadeloupe",
+      "Americas",
+      "Caribbean",
+      "EUR",
+      "+590",
+      true,
+      "Region"
+    ],
+    [
+      "GU",
+      "GUM",
+      "316",
+      "Guam",
+      "Guam",
+      "Oceania",
+      "Micronesia",
+      "USD",
+      "+1671",
+      true,
+      "Region"
+    ],
+    [
+      "GT",
+      "GTM",
+      "320",
+      "Guatemala",
+      "Republic of Guatemala",
+      "Americas",
+      "Central America",
+      "GTQ",
+      "+502",
+      true,
+      "Region"
+    ],
+    [
+      "GG",
+      "GGY",
+      "831",
+      "Guernsey",
+      "Bailiwick of Guernsey",
+      "Europe",
+      "Northern Europe",
+      "GBP",
+      "+44",
+      true,
+      "Region"
+    ],
+    [
+      "GN",
+      "GIN",
+      "324",
+      "Guinea",
+      "Republic of Guinea",
+      "Africa",
+      "Western Africa",
+      "GNF",
+      "+224",
+      false,
+      "Region"
+    ],
+    [
+      "GW",
+      "GNB",
+      "624",
+      "Guinea-Bissau",
+      "Republic of Guinea-Bissau",
+      "Africa",
+      "Western Africa",
+      "XOF",
+      "+245",
+      true,
+      "Region"
+    ],
+    [
+      "GY",
+      "GUY",
+      "328",
+      "Guyana",
+      "Co-operative Republic of Guyana",
+      "Americas",
+      "South America",
+      "GYD",
+      "+592",
+      false,
+      "Region"
+    ],
+    [
+      "HT",
+      "HTI",
+      "332",
+      "Haiti",
+      "Republic of Haiti",
+      "Americas",
+      "Caribbean",
+      "HTG",
+      "+509",
+      true,
+      "Region"
+    ],
+    [
+      "HM",
+      "HMD",
+      "334",
+      "Heard Island and McDonald Islands",
+      "Heard Island and McDonald Islands",
+      "Antarctic",
+      null,
+      null,
+      null,
+      false,
+      "Region"
+    ],
+    [
+      "VA",
+      "VAT",
+      "336",
+      "Vatican City",
+      "Vatican City State",
+      "Europe",
+      "Southern Europe",
+      "EUR",
+      "+3",
+      false,
+      "Region"
+    ],
+    [
+      "HN",
+      "HND",
+      "340",
+      "Honduras",
+      "Republic of Honduras",
+      "Americas",
+      "Central America",
+      "HNL",
+      "+504",
+      true,
+      "Region"
+    ],
+    [
+      "HK",
+      "HKG",
+      "344",
+      "Hong Kong",
+      "Hong Kong Special Administrative Region of the People's Republic of China",
+      "Asia",
+      "Eastern Asia",
+      "HKD",
+      "+852",
+      false,
+      "Region"
+    ],
+    [
+      "HU",
+      "HUN",
+      "348",
+      "Hungary",
+      "Hungary",
+      "Europe",
+      "Central Europe",
+      "HUF",
+      "+36",
+      true,
+      "Region"
+    ],
+    [
+      "IS",
+      "ISL",
+      "352",
+      "Iceland",
+      "Iceland",
+      "Europe",
+      "Northern Europe",
+      "ISK",
+      "+354",
+      true,
+      "Region"
+    ],
+    [
+      "IN",
+      "IND",
+      "356",
+      "India",
+      "Republic of India",
+      "Asia",
+      "Southern Asia",
+      "INR",
+      "+91",
+      true,
+      "State"
+    ],
+    [
+      "ID",
+      "IDN",
+      "360",
+      "Indonesia",
+      "Republic of Indonesia",
+      "Asia",
+      "South-Eastern Asia",
+      "IDR",
+      "+62",
+      true,
+      "Province"
+    ],
+    [
+      "IR",
+      "IRN",
+      "364",
+      "Iran",
+      "Islamic Republic of Iran",
+      "Asia",
+      "Southern Asia",
+      "IRR",
+      "+98",
+      true,
+      "Region"
+    ],
+    [
+      "IQ",
+      "IRQ",
+      "368",
+      "Iraq",
+      "Republic of Iraq",
+      "Asia",
+      "Western Asia",
+      "IQD",
+      "+964",
+      true,
+      "Region"
+    ],
+    [
+      "IE",
+      "IRL",
+      "372",
+      "Ireland",
+      "Republic of Ireland",
+      "Europe",
+      "Northern Europe",
+      "EUR",
+      "+353",
+      false,
+      "County"
+    ],
+    [
+      "IM",
+      "IMN",
+      "833",
+      "Isle of Man",
+      "Isle of Man",
+      "Europe",
+      "Northern Europe",
+      "GBP",
+      "+44",
+      true,
+      "Region"
+    ],
+    [
+      "IL",
+      "ISR",
+      "376",
+      "Israel",
+      "State of Israel",
+      "Asia",
+      "Western Asia",
+      "ILS",
+      "+972",
+      true,
+      "Region"
+    ],
+    [
+      "IT",
+      "ITA",
+      "380",
+      "Italy",
+      "Italian Republic",
+      "Europe",
+      "Southern Europe",
+      "EUR",
+      "+39",
+      true,
+      "Region"
+    ],
+    [
+      "JM",
+      "JAM",
+      "388",
+      "Jamaica",
+      "Jamaica",
+      "Americas",
+      "Caribbean",
+      "JMD",
+      "+1876",
+      false,
+      "Region"
+    ],
+    [
+      "JP",
+      "JPN",
+      "392",
+      "Japan",
+      "Japan",
+      "Asia",
+      "Eastern Asia",
+      "JPY",
+      "+81",
+      true,
+      "Prefecture"
+    ],
+    [
+      "JE",
+      "JEY",
+      "832",
+      "Jersey",
+      "Bailiwick of Jersey",
+      "Europe",
+      "Northern Europe",
+      "GBP",
+      "+44",
+      true,
+      "Region"
+    ],
+    [
+      "JO",
+      "JOR",
+      "400",
+      "Jordan",
+      "Hashemite Kingdom of Jordan",
+      "Asia",
+      "Western Asia",
+      "JOD",
+      "+962",
+      true,
+      "Region"
+    ],
+    [
+      "KZ",
+      "KAZ",
+      "398",
+      "Kazakhstan",
+      "Republic of Kazakhstan",
+      "Asia",
+      "Central Asia",
+      "KZT",
+      "+7",
+      true,
+      "Region"
+    ],
+    [
+      "KE",
+      "KEN",
+      "404",
+      "Kenya",
+      "Republic of Kenya",
+      "Africa",
+      "Eastern Africa",
+      "KES",
+      "+254",
+      true,
+      "Region"
+    ],
+    [
+      "KI",
+      "KIR",
+      "296",
+      "Kiribati",
+      "Independent and Sovereign Republic of Kiribati",
+      "Oceania",
+      "Micronesia",
+      "AUD",
+      "+686",
+      false,
+      "Region"
+    ],
+    [
+      "KP",
+      "PRK",
+      "408",
+      "North Korea",
+      "Democratic People's Republic of Korea",
+      "Asia",
+      "Eastern Asia",
+      "KPW",
+      "+850",
+      true,
+      "Region"
+    ],
+    [
+      "KR",
+      "KOR",
+      "410",
+      "South Korea",
+      "Republic of Korea",
+      "Asia",
+      "Eastern Asia",
+      "KRW",
+      "+82",
+      true,
+      "Region"
+    ],
+    [
+      "KW",
+      "KWT",
+      "414",
+      "Kuwait",
+      "State of Kuwait",
+      "Asia",
+      "Western Asia",
+      "KWD",
+      "+965",
+      true,
+      "Region"
+    ],
+    [
+      "KG",
+      "KGZ",
+      "417",
+      "Kyrgyzstan",
+      "Kyrgyz Republic",
+      "Asia",
+      "Central Asia",
+      "KGS",
+      "+996",
+      true,
+      "Region"
+    ],
+    [
+      "LA",
+      "LAO",
+      "418",
+      "Laos",
+      "Lao People's Democratic Republic",
+      "Asia",
+      "South-Eastern Asia",
+      "LAK",
+      "+856",
+      true,
+      "Region"
+    ],
+    [
+      "LV",
+      "LVA",
+      "428",
+      "Latvia",
+      "Republic of Latvia",
+      "Europe",
+      "Northern Europe",
+      "EUR",
+      "+371",
+      true,
+      "Region"
+    ],
+    [
+      "LB",
+      "LBN",
+      "422",
+      "Lebanon",
+      "Lebanese Republic",
+      "Asia",
+      "Western Asia",
+      "LBP",
+      "+961",
+      true,
+      "Region"
+    ],
+    [
+      "LS",
+      "LSO",
+      "426",
+      "Lesotho",
+      "Kingdom of Lesotho",
+      "Africa",
+      "Southern Africa",
+      "LSL",
+      "+266",
+      true,
+      "Region"
+    ],
+    [
+      "LR",
+      "LBR",
+      "430",
+      "Liberia",
+      "Republic of Liberia",
+      "Africa",
+      "Western Africa",
+      "LRD",
+      "+231",
+      true,
+      "Region"
+    ],
+    [
+      "LY",
+      "LBY",
+      "434",
+      "Libya",
+      "State of Libya",
+      "Africa",
+      "Northern Africa",
+      "LYD",
+      "+218",
+      false,
+      "Region"
+    ],
+    [
+      "LI",
+      "LIE",
+      "438",
+      "Liechtenstein",
+      "Principality of Liechtenstein",
+      "Europe",
+      "Western Europe",
+      "CHF",
+      "+423",
+      true,
+      "Region"
+    ],
+    [
+      "LT",
+      "LTU",
+      "440",
+      "Lithuania",
+      "Republic of Lithuania",
+      "Europe",
+      "Northern Europe",
+      "EUR",
+      "+370",
+      true,
+      "Region"
+    ],
+    [
+      "LU",
+      "LUX",
+      "442",
+      "Luxembourg",
+      "Grand Duchy of Luxembourg",
+      "Europe",
+      "Western Europe",
+      "EUR",
+      "+352",
+      true,
+      "Region"
+    ],
+    [
+      "MO",
+      "MAC",
+      "446",
+      "Macau",
+      "Macao Special Administrative Region of the People's Republic of China",
+      "Asia",
+      "Eastern Asia",
+      "MOP",
+      "+853",
+      false,
+      "Region"
+    ],
+    [
+      "MK",
+      "MKD",
+      "807",
+      "North Macedonia",
+      "Republic of North Macedonia",
+      "Europe",
+      "Southeast Europe",
+      "MKD",
+      "+389",
+      true,
+      "Region"
+    ],
+    [
+      "MG",
+      "MDG",
+      "450",
+      "Madagascar",
+      "Republic of Madagascar",
+      "Africa",
+      "Eastern Africa",
+      "MGA",
+      "+261",
+      true,
+      "Region"
+    ],
+    [
+      "MW",
+      "MWI",
+      "454",
+      "Malawi",
+      "Republic of Malawi",
+      "Africa",
+      "Eastern Africa",
+      "MWK",
+      "+265",
+      false,
+      "Region"
+    ],
+    [
+      "MY",
+      "MYS",
+      "458",
+      "Malaysia",
+      "Malaysia",
+      "Asia",
+      "South-Eastern Asia",
+      "MYR",
+      "+60",
+      true,
+      "State"
+    ],
+    [
+      "MV",
+      "MDV",
+      "462",
+      "Maldives",
+      "Republic of the Maldives",
+      "Asia",
+      "Southern Asia",
+      "MVR",
+      "+960",
+      true,
+      "Region"
+    ],
+    [
+      "ML",
+      "MLI",
+      "466",
+      "Mali",
+      "Republic of Mali",
+      "Africa",
+      "Western Africa",
+      "XOF",
+      "+223",
+      false,
+      "Region"
+    ],
+    [
+      "MT",
+      "MLT",
+      "470",
+      "Malta",
+      "Republic of Malta",
+      "Europe",
+      "Southern Europe",
+      "EUR",
+      "+356",
+      true,
+      "Region"
+    ],
+    [
+      "MH",
+      "MHL",
+      "584",
+      "Marshall Islands",
+      "Republic of the Marshall Islands",
+      "Oceania",
+      "Micronesia",
+      "USD",
+      "+692",
+      false,
+      "Region"
+    ],
+    [
+      "MQ",
+      "MTQ",
+      "474",
+      "Martinique",
+      "Martinique",
+      "Americas",
+      "Caribbean",
+      "EUR",
+      "+596",
+      true,
+      "Region"
+    ],
+    [
+      "MR",
+      "MRT",
+      "478",
+      "Mauritania",
+      "Islamic Republic of Mauritania",
+      "Africa",
+      "Western Africa",
+      "MRU",
+      "+222",
+      false,
+      "Region"
+    ],
+    [
+      "MU",
+      "MUS",
+      "480",
+      "Mauritius",
+      "Republic of Mauritius",
+      "Africa",
+      "Eastern Africa",
+      "MUR",
+      "+230",
+      false,
+      "Region"
+    ],
+    [
+      "YT",
+      "MYT",
+      "175",
+      "Mayotte",
+      "Department of Mayotte",
+      "Africa",
+      "Eastern Africa",
+      "EUR",
+      "+262",
+      true,
+      "Region"
+    ],
+    [
+      "MX",
+      "MEX",
+      "484",
+      "Mexico",
+      "United Mexican States",
+      "Americas",
+      "North America",
+      "MXN",
+      "+52",
+      true,
+      "State"
+    ],
+    [
+      "FM",
+      "FSM",
+      "583",
+      "Micronesia",
+      "Federated States of Micronesia",
+      "Oceania",
+      "Micronesia",
+      "USD",
+      "+691",
+      true,
+      "Region"
+    ],
+    [
+      "MD",
+      "MDA",
+      "498",
+      "Moldova",
+      "Republic of Moldova",
+      "Europe",
+      "Eastern Europe",
+      "MDL",
+      "+373",
+      true,
+      "Region"
+    ],
+    [
+      "MC",
+      "MCO",
+      "492",
+      "Monaco",
+      "Principality of Monaco",
+      "Europe",
+      "Western Europe",
+      "EUR",
+      "+377",
+      true,
+      "Region"
+    ],
+    [
+      "MN",
+      "MNG",
+      "496",
+      "Mongolia",
+      "Mongolia",
+      "Asia",
+      "Eastern Asia",
+      "MNT",
+      "+976",
+      true,
+      "Region"
+    ],
+    [
+      "ME",
+      "MNE",
+      "499",
+      "Montenegro",
+      "Montenegro",
+      "Europe",
+      "Southeast Europe",
+      "EUR",
+      "+382",
+      true,
+      "Region"
+    ],
+    [
+      "MS",
+      "MSR",
+      "500",
+      "Montserrat",
+      "Montserrat",
+      "Americas",
+      "Caribbean",
+      "XCD",
+      "+1664",
+      false,
+      "Region"
+    ],
+    [
+      "MA",
+      "MAR",
+      "504",
+      "Morocco",
+      "Kingdom of Morocco",
+      "Africa",
+      "Northern Africa",
+      "MAD",
+      "+212",
+      true,
+      "Region"
+    ],
+    [
+      "MZ",
+      "MOZ",
+      "508",
+      "Mozambique",
+      "Republic of Mozambique",
+      "Africa",
+      "Eastern Africa",
+      "MZN",
+      "+258",
+      true,
+      "Region"
+    ],
+    [
+      "MM",
+      "MMR",
+      "104",
+      "Myanmar",
+      "Republic of the Union of Myanmar",
+      "Asia",
+      "South-Eastern Asia",
+      "MMK",
+      "+95",
+      true,
+      "Region"
+    ],
+    [
+      "NA",
+      "NAM",
+      "516",
+      "Namibia",
+      "Republic of Namibia",
+      "Africa",
+      "Southern Africa",
+      "NAD",
+      "+264",
+      false,
+      "Region"
+    ],
+    [
+      "NR",
+      "NRU",
+      "520",
+      "Nauru",
+      "Republic of Nauru",
+      "Oceania",
+      "Micronesia",
+      "AUD",
+      "+674",
+      false,
+      "Region"
+    ],
+    [
+      "NP",
+      "NPL",
+      "524",
+      "Nepal",
+      "Federal Democratic Republic of Nepal",
+      "Asia",
+      "Southern Asia",
+      "NPR",
+      "+977",
+      true,
+      "Region"
+    ],
+    [
+      "NL",
+      "NLD",
+      "528",
+      "Netherlands",
+      "Kingdom of the Netherlands",
+      "Europe",
+      "Western Europe",
+      "EUR",
+      "+31",
+      true,
+      "Province"
+    ],
+    [
+      "NC",
+      "NCL",
+      "540",
+      "New Caledonia",
+      "New Caledonia",
+      "Oceania",
+      "Melanesia",
+      "XPF",
+      "+687",
+      true,
+      "Region"
+    ],
+    [
+      "NZ",
+      "NZL",
+      "554",
+      "New Zealand",
+      "New Zealand",
+      "Oceania",
+      "Australia and New Zealand",
+      "NZD",
+      "+64",
+      true,
+      "Region"
+    ],
+    [
+      "NI",
+      "NIC",
+      "558",
+      "Nicaragua",
+      "Republic of Nicaragua",
+      "Americas",
+      "Central America",
+      "NIO",
+      "+505",
+      true,
+      "Region"
+    ],
+    [
+      "NE",
+      "NER",
+      "562",
+      "Niger",
+      "Republic of Niger",
+      "Africa",
+      "Western Africa",
+      "XOF",
+      "+227",
+      true,
+      "Region"
+    ],
+    [
+      "NG",
+      "NGA",
+      "566",
+      "Nigeria",
+      "Federal Republic of Nigeria",
+      "Africa",
+      "Western Africa",
+      "NGN",
+      "+234",
+      true,
+      "State"
+    ],
+    [
+      "NU",
+      "NIU",
+      "570",
+      "Niue",
+      "Niue",
+      "Oceania",
+      "Polynesia",
+      "NZD",
+      "+683",
+      false,
+      "Region"
+    ],
+    [
+      "NF",
+      "NFK",
+      "574",
+      "Norfolk Island",
+      "Territory of Norfolk Island",
+      "Oceania",
+      "Australia and New Zealand",
+      "AUD",
+      "+672",
+      false,
+      "Region"
+    ],
+    [
+      "MP",
+      "MNP",
+      "580",
+      "Northern Mariana Islands",
+      "Commonwealth of the Northern Mariana Islands",
+      "Oceania",
+      "Micronesia",
+      "USD",
+      "+1670",
+      false,
+      "Region"
+    ],
+    [
+      "NO",
+      "NOR",
+      "578",
+      "Norway",
+      "Kingdom of Norway",
+      "Europe",
+      "Northern Europe",
+      "NOK",
+      "+47",
+      true,
+      "Region"
+    ],
+    [
+      "OM",
+      "OMN",
+      "512",
+      "Oman",
+      "Sultanate of Oman",
+      "Asia",
+      "Western Asia",
+      "OMR",
+      "+968",
+      true,
+      "Region"
+    ],
+    [
+      "PK",
+      "PAK",
+      "586",
+      "Pakistan",
+      "Islamic Republic of Pakistan",
+      "Asia",
+      "Southern Asia",
+      "PKR",
+      "+92",
+      true,
+      "Province"
+    ],
+    [
+      "PW",
+      "PLW",
+      "585",
+      "Palau",
+      "Republic of Palau",
+      "Oceania",
+      "Micronesia",
+      "USD",
+      "+680",
+      true,
+      "Region"
+    ],
+    [
+      "PS",
+      "PSE",
+      "275",
+      "Palestine",
+      "State of Palestine",
+      "Asia",
+      "Western Asia",
+      "EGP",
+      "+970",
+      false,
+      "Region"
+    ],
+    [
+      "PA",
+      "PAN",
+      "591",
+      "Panama",
+      "Republic of Panama",
+      "Americas",
+      "Central America",
+      "PAB",
+      "+507",
+      false,
+      "Region"
+    ],
+    [
+      "PG",
+      "PNG",
+      "598",
+      "Papua New Guinea",
+      "Independent State of Papua New Guinea",
+      "Oceania",
+      "Melanesia",
+      "PGK",
+      "+675",
+      true,
+      "Region"
+    ],
+    [
+      "PY",
+      "PRY",
+      "600",
+      "Paraguay",
+      "Republic of Paraguay",
+      "Americas",
+      "South America",
+      "PYG",
+      "+595",
+      true,
+      "Region"
+    ],
+    [
+      "PE",
+      "PER",
+      "604",
+      "Peru",
+      "Republic of Peru",
+      "Americas",
+      "South America",
+      "PEN",
+      "+51",
+      true,
+      "Region"
+    ],
+    [
+      "PH",
+      "PHL",
+      "608",
+      "Philippines",
+      "Republic of the Philippines",
+      "Asia",
+      "South-Eastern Asia",
+      "PHP",
+      "+63",
+      true,
+      "Region"
+    ],
+    [
+      "PN",
+      "PCN",
+      "612",
+      "Pitcairn Islands",
+      "Pitcairn Group of Islands",
+      "Oceania",
+      "Polynesia",
+      "NZD",
+      "+64",
+      false,
+      "Region"
+    ],
+    [
+      "PL",
+      "POL",
+      "616",
+      "Poland",
+      "Republic of Poland",
+      "Europe",
+      "Central Europe",
+      "PLN",
+      "+48",
+      true,
+      "Region"
+    ],
+    [
+      "PT",
+      "PRT",
+      "620",
+      "Portugal",
+      "Portuguese Republic",
+      "Europe",
+      "Southern Europe",
+      "EUR",
+      "+351",
+      true,
+      "District"
+    ],
+    [
+      "PR",
+      "PRI",
+      "630",
+      "Puerto Rico",
+      "Commonwealth of Puerto Rico",
+      "Americas",
+      "Caribbean",
+      "USD",
+      "+1",
+      true,
+      "Region"
+    ],
+    [
+      "QA",
+      "QAT",
+      "634",
+      "Qatar",
+      "State of Qatar",
+      "Asia",
+      "Western Asia",
+      "QAR",
+      "+974",
+      false,
+      "Region"
+    ],
+    [
+      "RE",
+      "REU",
+      "638",
+      "Réunion",
+      "Réunion Island",
+      "Africa",
+      "Eastern Africa",
+      "EUR",
+      "+262",
+      true,
+      "Region"
+    ],
+    [
+      "RO",
+      "ROU",
+      "642",
+      "Romania",
+      "Romania",
+      "Europe",
+      "Southeast Europe",
+      "RON",
+      "+40",
+      true,
+      "Region"
+    ],
+    [
+      "RU",
+      "RUS",
+      "643",
+      "Russia",
+      "Russian Federation",
+      "Europe",
+      "Eastern Europe",
+      "RUB",
+      "+7",
+      true,
+      "Federal subject"
+    ],
+    [
+      "RW",
+      "RWA",
+      "646",
+      "Rwanda",
+      "Republic of Rwanda",
+      "Africa",
+      "Eastern Africa",
+      "RWF",
+      "+250",
+      false,
+      "Region"
+    ],
+    [
+      "BL",
+      "BLM",
+      "652",
+      "Saint Barthélemy",
+      "Collectivity of Saint Barthélemy",
+      "Americas",
+      "Caribbean",
+      "EUR",
+      "+590",
+      true,
+      "Region"
+    ],
+    [
+      "SH",
+      "SHN",
+      "654",
+      "Saint Helena, Ascension and Tristan da Cunha",
+      "Saint Helena, Ascension and Tristan da Cunha",
+      "Africa",
+      "Western Africa",
+      "GBP",
+      "+2",
+      true,
+      "Region"
+    ],
+    [
+      "KN",
+      "KNA",
+      "659",
+      "Saint Kitts and Nevis",
+      "Federation of Saint Christopher and Nevis",
+      "Americas",
+      "Caribbean",
+      "XCD",
+      "+1869",
+      false,
+      "Region"
+    ],
+    [
+      "LC",
+      "LCA",
+      "662",
+      "Saint Lucia",
+      "Saint Lucia",
+      "Americas",
+      "Caribbean",
+      "XCD",
+      "+1758",
+      false,
+      "Region"
+    ],
+    [
+      "MF",
+      "MAF",
+      "663",
+      "Saint Martin",
+      "Saint Martin",
+      "Americas",
+      "Caribbean",
+      "EUR",
+      "+590",
+      true,
+      "Region"
+    ],
+    [
+      "PM",
+      "SPM",
+      "666",
+      "Saint Pierre and Miquelon",
+      "Saint Pierre and Miquelon",
+      "Americas",
+      "North America",
+      "EUR",
+      "+508",
+      true,
+      "Region"
+    ],
+    [
+      "VC",
+      "VCT",
+      "670",
+      "Saint Vincent and the Grenadines",
+      "Saint Vincent and the Grenadines",
+      "Americas",
+      "Caribbean",
+      "XCD",
+      "+1784",
+      false,
+      "Region"
+    ],
+    [
+      "WS",
+      "WSM",
+      "882",
+      "Samoa",
+      "Independent State of Samoa",
+      "Oceania",
+      "Polynesia",
+      "WST",
+      "+685",
+      false,
+      "Region"
+    ],
+    [
+      "SM",
+      "SMR",
+      "674",
+      "San Marino",
+      "Republic of San Marino",
+      "Europe",
+      "Southern Europe",
+      "EUR",
+      "+378",
+      true,
+      "Region"
+    ],
+    [
+      "ST",
+      "STP",
+      "678",
+      "São Tomé and Príncipe",
+      "Democratic Republic of São Tomé and Príncipe",
+      "Africa",
+      "Middle Africa",
+      "STN",
+      "+239",
+      false,
+      "Region"
+    ],
+    [
+      "SA",
+      "SAU",
+      "682",
+      "Saudi Arabia",
+      "Kingdom of Saudi Arabia",
+      "Asia",
+      "Western Asia",
+      "SAR",
+      "+966",
+      true,
+      "Region"
+    ],
+    [
+      "SN",
+      "SEN",
+      "686",
+      "Senegal",
+      "Republic of Senegal",
+      "Africa",
+      "Western Africa",
+      "XOF",
+      "+221",
+      true,
+      "Region"
+    ],
+    [
+      "RS",
+      "SRB",
+      "688",
+      "Serbia",
+      "Republic of Serbia",
+      "Europe",
+      "Southeast Europe",
+      "RSD",
+      "+381",
+      true,
+      "Region"
+    ],
+    [
+      "SC",
+      "SYC",
+      "690",
+      "Seychelles",
+      "Republic of Seychelles",
+      "Africa",
+      "Eastern Africa",
+      "SCR",
+      "+248",
+      false,
+      "Region"
+    ],
+    [
+      "SL",
+      "SLE",
+      "694",
+      "Sierra Leone",
+      "Republic of Sierra Leone",
+      "Africa",
+      "Western Africa",
+      "SLL",
+      "+232",
+      false,
+      "Region"
+    ],
+    [
+      "SG",
+      "SGP",
+      "702",
+      "Singapore",
+      "Republic of Singapore",
+      "Asia",
+      "South-Eastern Asia",
+      "SGD",
+      "+65",
+      true,
+      "Region"
+    ],
+    [
+      "SX",
+      "SXM",
+      "534",
+      "Sint Maarten",
+      "Sint Maarten",
+      "Americas",
+      "Caribbean",
+      "ANG",
+      "+1721",
+      false,
+      "Region"
+    ],
+    [
+      "SK",
+      "SVK",
+      "703",
+      "Slovakia",
+      "Slovak Republic",
+      "Europe",
+      "Central Europe",
+      "EUR",
+      "+421",
+      true,
+      "Region"
+    ],
+    [
+      "SI",
+      "SVN",
+      "705",
+      "Slovenia",
+      "Republic of Slovenia",
+      "Europe",
+      "Central Europe",
+      "EUR",
+      "+386",
+      true,
+      "Region"
+    ],
+    [
+      "SB",
+      "SLB",
+      "090",
+      "Solomon Islands",
+      "Solomon Islands",
+      "Oceania",
+      "Melanesia",
+      "SBD",
+      "+677",
+      false,
+      "Region"
+    ],
+    [
+      "SO",
+      "SOM",
+      "706",
+      "Somalia",
+      "Federal Republic of Somalia",
+      "Africa",
+      "Eastern Africa",
+      "SOS",
+      "+252",
+      true,
+      "Region"
+    ],
+    [
+      "ZA",
+      "ZAF",
+      "710",
+      "South Africa",
+      "Republic of South Africa",
+      "Africa",
+      "Southern Africa",
+      "ZAR",
+      "+27",
+      true,
+      "Province"
+    ],
+    [
+      "GS",
+      "SGS",
+      "239",
+      "South Georgia",
+      "South Georgia and the South Sandwich Islands",
+      "Antarctic",
+      null,
+      "SHP",
+      "+500",
+      false,
+      "Region"
+    ],
+    [
+      "SS",
+      "SSD",
+      "728",
+      "South Sudan",
+      "Republic of South Sudan",
+      "Africa",
+      "Middle Africa",
+      "SSP",
+      "+211",
+      false,
+      "Region"
+    ],
+    [
+      "ES",
+      "ESP",
+      "724",
+      "Spain",
+      "Kingdom of Spain",
+      "Europe",
+      "Southern Europe",
+      "EUR",
+      "+34",
+      true,
+      "Autonomous community"
+    ],
+    [
+      "LK",
+      "LKA",
+      "144",
+      "Sri Lanka",
+      "Democratic Socialist Republic of Sri Lanka",
+      "Asia",
+      "Southern Asia",
+      "LKR",
+      "+94",
+      true,
+      "Region"
+    ],
+    [
+      "SD",
+      "SDN",
+      "729",
+      "Sudan",
+      "Republic of the Sudan",
+      "Africa",
+      "Northern Africa",
+      "SDG",
+      "+249",
+      true,
+      "Region"
+    ],
+    [
+      "SR",
+      "SUR",
+      "740",
+      "Suriname",
+      "Republic of Suriname",
+      "Americas",
+      "South America",
+      "SRD",
+      "+597",
+      false,
+      "Region"
+    ],
+    [
+      "SJ",
+      "SJM",
+      "744",
+      "Svalbard and Jan Mayen",
+      "Svalbard og Jan Mayen",
+      "Europe",
+      "Northern Europe",
+      "NOK",
+      "+4779",
+      false,
+      "Region"
+    ],
+    [
+      "SE",
+      "SWE",
+      "752",
+      "Sweden",
+      "Kingdom of Sweden",
+      "Europe",
+      "Northern Europe",
+      "SEK",
+      "+46",
+      true,
+      "Region"
+    ],
+    [
+      "CH",
+      "CHE",
+      "756",
+      "Switzerland",
+      "Swiss Confederation",
+      "Europe",
+      "Western Europe",
+      "CHF",
+      "+41",
+      true,
+      "Canton"
+    ],
+    [
+      "SY",
+      "SYR",
+      "760",
+      "Syria",
+      "Syrian Arab Republic",
+      "Asia",
+      "Western Asia",
+      "SYP",
+      "+963",
+      false,
+      "Region"
+    ],
+    [
+      "TW",
+      "TWN",
+      "158",
+      "Taiwan",
+      "Republic of China (Taiwan)",
+      "Asia",
+      "Eastern Asia",
+      "TWD",
+      "+886",
+      true,
+      "Region"
+    ],
+    [
+      "TJ",
+      "TJK",
+      "762",
+      "Tajikistan",
+      "Republic of Tajikistan",
+      "Asia",
+      "Central Asia",
+      "TJS",
+      "+992",
+      true,
+      "Region"
+    ],
+    [
+      "TZ",
+      "TZA",
+      "834",
+      "Tanzania",
+      "United Republic of Tanzania",
+      "Africa",
+      "Eastern Africa",
+      "TZS",
+      "+255",
+      false,
+      "Region"
+    ],
+    [
+      "TH",
+      "THA",
+      "764",
+      "Thailand",
+      "Kingdom of Thailand",
+      "Asia",
+      "South-Eastern Asia",
+      "THB",
+      "+66",
+      true,
+      "Province"
+    ],
+    [
+      "TL",
+      "TLS",
+      "626",
+      "Timor-Leste",
+      "Democratic Republic of Timor-Leste",
+      "Asia",
+      "South-Eastern Asia",
+      "USD",
+      "+670",
+      false,
+      "Region"
+    ],
+    [
+      "TG",
+      "TGO",
+      "768",
+      "Togo",
+      "Togolese Republic",
+      "Africa",
+      "Western Africa",
+      "XOF",
+      "+228",
+      false,
+      "Region"
+    ],
+    [
+      "TK",
+      "TKL",
+      "772",
+      "Tokelau",
+      "Tokelau",
+      "Oceania",
+      "Polynesia",
+      "NZD",
+      "+690",
+      false,
+      "Region"
+    ],
+    [
+      "TO",
+      "TON",
+      "776",
+      "Tonga",
+      "Kingdom of Tonga",
+      "Oceania",
+      "Polynesia",
+      "TOP",
+      "+676",
+      false,
+      "Region"
+    ],
+    [
+      "TT",
+      "TTO",
+      "780",
+      "Trinidad and Tobago",
+      "Republic of Trinidad and Tobago",
+      "Americas",
+      "Caribbean",
+      "TTD",
+      "+1868",
+      false,
+      "Region"
+    ],
+    [
+      "TN",
+      "TUN",
+      "788",
+      "Tunisia",
+      "Tunisian Republic",
+      "Africa",
+      "Northern Africa",
+      "TND",
+      "+216",
+      true,
+      "Region"
+    ],
+    [
+      "TR",
+      "TUR",
+      "792",
+      "Turkey",
+      "Republic of Turkey",
+      "Asia",
+      "Western Asia",
+      "TRY",
+      "+90",
+      true,
+      "Province"
+    ],
+    [
+      "TM",
+      "TKM",
+      "795",
+      "Turkmenistan",
+      "Turkmenistan",
+      "Asia",
+      "Central Asia",
+      "TMT",
+      "+993",
+      true,
+      "Region"
+    ],
+    [
+      "TC",
+      "TCA",
+      "796",
+      "Turks and Caicos Islands",
+      "Turks and Caicos Islands",
+      "Americas",
+      "Caribbean",
+      "USD",
+      "+1649",
+      true,
+      "Region"
+    ],
+    [
+      "TV",
+      "TUV",
+      "798",
+      "Tuvalu",
+      "Tuvalu",
+      "Oceania",
+      "Polynesia",
+      "AUD",
+      "+688",
+      false,
+      "Region"
+    ],
+    [
+      "UG",
+      "UGA",
+      "800",
+      "Uganda",
+      "Republic of Uganda",
+      "Africa",
+      "Eastern Africa",
+      "UGX",
+      "+256",
+      false,
+      "Region"
+    ],
+    [
+      "UA",
+      "UKR",
+      "804",
+      "Ukraine",
+      "Ukraine",
+      "Europe",
+      "Eastern Europe",
+      "UAH",
+      "+380",
+      true,
+      "Oblast"
+    ],
+    [
+      "AE",
+      "ARE",
+      "784",
+      "United Arab Emirates",
+      "United Arab Emirates",
+      "Asia",
+      "Western Asia",
+      "AED",
+      "+971",
+      false,
+      "Region"
+    ],
+    [
+      "GB",
+      "GBR",
+      "826",
+      "United Kingdom",
+      "United Kingdom of Great Britain and Northern Ireland",
+      "Europe",
+      "Northern Europe",
+      "GBP",
+      "+44",
+      true,
+      "Country"
+    ],
+    [
+      "UM",
+      "UMI",
+      "581",
+      "United States Minor Outlying Islands",
+      "United States Minor Outlying Islands",
+      "Americas",
+      "North America",
+      "USD",
+      "+268",
+      false,
+      "Region"
+    ],
+    [
+      "US",
+      "USA",
+      "840",
+      "United States",
+      "United States of America",
+      "Americas",
+      "North America",
+      "USD",
+      "+1",
+      true,
+      "State"
+    ],
+    [
+      "UY",
+      "URY",
+      "858",
+      "Uruguay",
+      "Oriental Republic of Uruguay",
+      "Americas",
+      "South America",
+      "UYU",
+      "+598",
+      true,
+      "Region"
+    ],
+    [
+      "UZ",
+      "UZB",
+      "860",
+      "Uzbekistan",
+      "Republic of Uzbekistan",
+      "Asia",
+      "Central Asia",
+      "UZS",
+      "+998",
+      true,
+      "Region"
+    ],
+    [
+      "VU",
+      "VUT",
+      "548",
+      "Vanuatu",
+      "Republic of Vanuatu",
+      "Oceania",
+      "Melanesia",
+      "VUV",
+      "+678",
+      false,
+      "Region"
+    ],
+    [
+      "VE",
+      "VEN",
+      "862",
+      "Venezuela",
+      "Bolivarian Republic of Venezuela",
+      "Americas",
+      "South America",
+      "VES",
+      "+58",
+      true,
+      "Region"
+    ],
+    [
+      "VN",
+      "VNM",
+      "704",
+      "Vietnam",
+      "Socialist Republic of Vietnam",
+      "Asia",
+      "South-Eastern Asia",
+      "VND",
+      "+84",
+      true,
+      "Region"
+    ],
+    [
+      "VG",
+      "VGB",
+      "092",
+      "British Virgin Islands",
+      "Virgin Islands",
+      "Americas",
+      "Caribbean",
+      "USD",
+      "+1284",
+      false,
+      "Region"
+    ],
+    [
+      "VI",
+      "VIR",
+      "850",
+      "United States Virgin Islands",
+      "Virgin Islands of the United States",
+      "Americas",
+      "Caribbean",
+      "USD",
+      "+1340",
+      false,
+      "Region"
+    ],
+    [
+      "WF",
+      "WLF",
+      "876",
+      "Wallis and Futuna",
+      "Territory of the Wallis and Futuna Islands",
+      "Oceania",
+      "Polynesia",
+      "XPF",
+      "+681",
+      true,
+      "Region"
+    ],
+    [
+      "EH",
+      "ESH",
+      "732",
+      "Western Sahara",
+      "Sahrawi Arab Democratic Republic",
+      "Africa",
+      "Northern Africa",
+      "DZD",
+      "+2",
+      false,
+      "Region"
+    ],
+    [
+      "YE",
+      "YEM",
+      "887",
+      "Yemen",
+      "Republic of Yemen",
+      "Asia",
+      "Western Asia",
+      "YER",
+      "+967",
+      false,
+      "Region"
+    ],
+    [
+      "ZM",
+      "ZMB",
+      "894",
+      "Zambia",
+      "Republic of Zambia",
+      "Africa",
+      "Eastern Africa",
+      "ZMW",
+      "+260",
+      true,
+      "Region"
+    ],
+    [
+      "ZW",
+      "ZWE",
+      "716",
+      "Zimbabwe",
+      "Republic of Zimbabwe",
+      "Africa",
+      "Southern Africa",
+      "ZWL",
+      "+263",
+      false,
+      "Region"
+    ]
+  ],
+  "ledgerFamilies": [
+    [
+      "gl",
+      "General ledger",
+      true,
+      false
+    ],
+    [
+      "bank",
+      "Bank account",
+      false,
+      true
+    ],
+    [
+      "customer",
+      "Customer account",
+      false,
+      true
+    ],
+    [
+      "vendor",
+      "Vendor account",
+      false,
+      true
+    ],
+    [
+      "employee",
+      "Employee",
+      false,
+      false
+    ],
+    [
+      "cash_location",
+      "Cash Location",
+      false,
+      false
+    ],
+    [
+      "asset",
+      "Asset",
+      false,
+      false
+    ],
+    [
+      "project",
+      "Project",
+      false,
+      false
+    ],
+    [
+      "contract",
+      "Contract",
+      false,
+      true
+    ],
+    [
+      "loan",
+      "Loan account",
+      false,
+      true
+    ]
+  ],
+  "financialStatementFormatSeeds": [
+    {
+      "code": "income_standard",
+      "name": "Income Statement - Standard",
+      "statementType": "income",
+      "lines": [
+        [
+          "REV",
+          "Revenue",
+          "account_group",
+          null,
+          100,
+          {
+            "accounts": [
+              "4000"
+            ]
+          }
+        ],
+        [
+          "COS",
+          "Cost of Sales",
+          "account_group",
+          null,
+          200,
+          {
+            "accounts": [
+              "5000",
+              "5050",
+              "5600"
+            ]
+          }
+        ],
+        [
+          "GP",
+          "Gross Profit",
+          "formula",
+          null,
+          300,
+          {
+            "formula": {
+              "add": [
+                "REV"
+              ],
+              "subtract": [
+                "COS"
+              ]
+            }
+          }
+        ],
+        [
+          "OPEX",
+          "Operating Expenses",
+          "header",
+          null,
+          400
+        ],
+        [
+          "BANK",
+          "Bank Charges",
+          "account_group",
+          "OPEX",
+          410,
+          {
+            "accounts": [
+              "5100"
+            ]
+          }
+        ],
+        [
+          "PAYROLL",
+          "Payroll Expense",
+          "account_group",
+          "OPEX",
+          420,
+          {
+            "accounts": [
+              "5200"
+            ]
+          }
+        ],
+        [
+          "DEPN",
+          "Depreciation Expense",
+          "account_group",
+          "OPEX",
+          430,
+          {
+            "accounts": [
+              "5300"
+            ]
+          }
+        ],
+        [
+          "CASH_SHORT",
+          "Cash Shortages",
+          "account_group",
+          "OPEX",
+          440,
+          {
+            "accounts": [
+              "5190"
+            ]
+          }
+        ],
+        [
+          "OTHER",
+          "Other Income / Expense",
+          "header",
+          null,
+          500
+        ],
+        [
+          "OTHERINC",
+          "Other Income",
+          "account_group",
+          "OTHER",
+          510,
+          {
+            "accounts": [
+              "4100",
+              "4190"
+            ]
+          }
+        ],
+        [
+          "INTEREST",
+          "Interest Expense",
+          "account_group",
+          "OTHER",
+          520,
+          {
+            "accounts": [
+              "5500"
+            ]
+          }
+        ],
+        [
+          "TAX",
+          "Tax Expense",
+          "account_group",
+          null,
+          600,
+          {
+            "accounts": [
+              "5400"
+            ]
+          }
+        ],
+        [
+          "NET",
+          "Net Income",
+          "formula",
+          null,
+          700,
+          {
+            "formula": {
+              "add": [
+                "GP",
+                "OTHERINC"
+              ],
+              "subtract": [
+                "BANK",
+                "PAYROLL",
+                "DEPN",
+                "CASH_SHORT",
+                "INTEREST",
+                "TAX"
+              ]
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "code": "income_management",
+      "name": "Income Statement - Management",
+      "statementType": "income",
+      "lines": [
+        [
+          "REV",
+          "Sales and Other Revenue",
+          "account_group",
+          null,
+          100,
+          {
+            "accounts": [
+              "4000",
+              "4100",
+              "4190"
+            ]
+          }
+        ],
+        [
+          "DIRECT",
+          "Direct Costs",
+          "account_group",
+          null,
+          200,
+          {
+            "accounts": [
+              "5000",
+              "5050",
+              "5600"
+            ]
+          }
+        ],
+        [
+          "CONTRIB",
+          "Contribution Margin",
+          "formula",
+          null,
+          300,
+          {
+            "formula": {
+              "add": [
+                "REV"
+              ],
+              "subtract": [
+                "DIRECT"
+              ]
+            }
+          }
+        ],
+        [
+          "OPERATING",
+          "Operating Costs",
+          "account_group",
+          null,
+          400,
+          {
+            "accounts": [
+              "5100",
+              "5190",
+              "5200",
+              "5300"
+            ]
+          }
+        ],
+        [
+          "EBIT",
+          "Operating Profit",
+          "formula",
+          null,
+          500,
+          {
+            "formula": {
+              "add": [
+                "CONTRIB"
+              ],
+              "subtract": [
+                "OPERATING"
+              ]
+            }
+          }
+        ],
+        [
+          "FINANCE",
+          "Finance Costs",
+          "account_group",
+          null,
+          600,
+          {
+            "accounts": [
+              "5500"
+            ]
+          }
+        ],
+        [
+          "TAX",
+          "Tax Expense",
+          "account_group",
+          null,
+          700,
+          {
+            "accounts": [
+              "5400"
+            ]
+          }
+        ],
+        [
+          "NET",
+          "Management Net Income",
+          "formula",
+          null,
+          800,
+          {
+            "formula": {
+              "add": [
+                "EBIT"
+              ],
+              "subtract": [
+                "FINANCE",
+                "TAX"
+              ]
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "code": "balance_standard",
+      "name": "Balance Sheet - Standard",
+      "statementType": "balance",
+      "lines": [
+        [
+          "CA",
+          "Current Assets",
+          "account_group",
+          null,
+          100,
+          {
+            "accounts": [
+              "1000",
+              "1010",
+              "1100",
+              "1200",
+              "2200"
+            ]
+          }
+        ],
+        [
+          "NCA",
+          "Non-Current Assets",
+          "account_group",
+          null,
+          200,
+          {
+            "accounts": [
+              "1300",
+              "1350"
+            ]
+          }
+        ],
+        [
+          "TA",
+          "Total Assets",
+          "formula",
+          null,
+          300,
+          {
+            "formula": {
+              "add": [
+                "CA",
+                "NCA"
+              ]
+            }
+          }
+        ],
+        [
+          "CL",
+          "Current Liabilities",
+          "account_group",
+          null,
+          400,
+          {
+            "accounts": [
+              "1150",
+              "2000",
+              "2050",
+              "2100",
+              "2250",
+              "2300",
+              "2400",
+              "2999"
+            ]
+          }
+        ],
+        [
+          "NCL",
+          "Non-Current Liabilities",
+          "account_group",
+          null,
+          500,
+          {
+            "accounts": [
+              "2500"
+            ]
+          }
+        ],
+        [
+          "TL",
+          "Total Liabilities",
+          "formula",
+          null,
+          600,
+          {
+            "formula": {
+              "add": [
+                "CL",
+                "NCL"
+              ]
+            }
+          }
+        ],
+        [
+          "EQ",
+          "Equity",
+          "account_group",
+          null,
+          700,
+          {
+            "accounts": [
+              "3000",
+              "3100",
+              "3200"
+            ]
+          }
+        ],
+        [
+          "TLE",
+          "Total Liabilities and Equity",
+          "formula",
+          null,
+          800,
+          {
+            "formula": {
+              "add": [
+                "TL",
+                "EQ"
+              ]
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "code": "balance_ifrs",
+      "name": "Balance Sheet - IFRS",
+      "statementType": "balance",
+      "lines": [
+        [
+          "ASSETS",
+          "Assets",
+          "header",
+          null,
+          100
+        ],
+        [
+          "CURRENT_ASSETS",
+          "Current Assets",
+          "account_group",
+          "ASSETS",
+          110,
+          {
+            "accounts": [
+              "1000",
+              "1010",
+              "1100",
+              "1200",
+              "2200"
+            ]
+          }
+        ],
+        [
+          "NON_CURRENT_ASSETS",
+          "Non-Current Assets",
+          "account_group",
+          "ASSETS",
+          120,
+          {
+            "accounts": [
+              "1300",
+              "1350"
+            ]
+          }
+        ],
+        [
+          "TOTAL_ASSETS",
+          "Total Assets",
+          "formula",
+          "ASSETS",
+          190,
+          {
+            "formula": {
+              "add": [
+                "CURRENT_ASSETS",
+                "NON_CURRENT_ASSETS"
+              ]
+            }
+          }
+        ],
+        [
+          "EQUITY_LIAB",
+          "Equity and Liabilities",
+          "header",
+          null,
+          200
+        ],
+        [
+          "EQUITY",
+          "Equity",
+          "account_group",
+          "EQUITY_LIAB",
+          210,
+          {
+            "accounts": [
+              "3000",
+              "3100",
+              "3200"
+            ]
+          }
+        ],
+        [
+          "CURRENT_LIAB",
+          "Current Liabilities",
+          "account_group",
+          "EQUITY_LIAB",
+          220,
+          {
+            "accounts": [
+              "1150",
+              "2000",
+              "2050",
+              "2100",
+              "2250",
+              "2300",
+              "2400",
+              "2999"
+            ]
+          }
+        ],
+        [
+          "NON_CURRENT_LIAB",
+          "Non-Current Liabilities",
+          "account_group",
+          "EQUITY_LIAB",
+          230,
+          {
+            "accounts": [
+              "2500"
+            ]
+          }
+        ],
+        [
+          "TOTAL_EQUITY_LIAB",
+          "Total Equity and Liabilities",
+          "formula",
+          "EQUITY_LIAB",
+          290,
+          {
+            "formula": {
+              "add": [
+                "EQUITY",
+                "CURRENT_LIAB",
+                "NON_CURRENT_LIAB"
+              ]
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "code": "balance_bank_covenant",
+      "name": "Balance Sheet - Bank Covenant",
+      "statementType": "balance",
+      "lines": [
+        [
+          "CASH",
+          "Cash and Bank",
+          "account_group",
+          null,
+          100,
+          {
+            "accounts": [
+              "1000",
+              "1010"
+            ]
+          }
+        ],
+        [
+          "WORKING_ASSETS",
+          "Working Capital Assets",
+          "account_group",
+          null,
+          200,
+          {
+            "accounts": [
+              "1100",
+              "1200",
+              "2200"
+            ]
+          }
+        ],
+        [
+          "FIXED_ASSETS",
+          "Fixed Assets",
+          "account_group",
+          null,
+          300,
+          {
+            "accounts": [
+              "1300",
+              "1350"
+            ]
+          }
+        ],
+        [
+          "TOTAL_ASSETS",
+          "Total Assets",
+          "formula",
+          null,
+          400,
+          {
+            "formula": {
+              "add": [
+                "CASH",
+                "WORKING_ASSETS",
+                "FIXED_ASSETS"
+              ]
+            }
+          }
+        ],
+        [
+          "TRADE_LIAB",
+          "Trade and Accrued Liabilities",
+          "account_group",
+          null,
+          500,
+          {
+            "accounts": [
+              "1150",
+              "2000",
+              "2050",
+              "2100",
+              "2250",
+              "2300",
+              "2400",
+              "2999"
+            ]
+          }
+        ],
+        [
+          "DEBT",
+          "Debt",
+          "account_group",
+          null,
+          600,
+          {
+            "accounts": [
+              "2500"
+            ]
+          }
+        ],
+        [
+          "EQUITY",
+          "Equity",
+          "account_group",
+          null,
+          700,
+          {
+            "accounts": [
+              "3000",
+              "3100",
+              "3200"
+            ]
+          }
+        ],
+        [
+          "TOTAL_FUNDING",
+          "Total Funding",
+          "formula",
+          null,
+          800,
+          {
+            "formula": {
+              "add": [
+                "TRADE_LIAB",
+                "DEBT",
+                "EQUITY"
+              ]
+            }
+          }
+        ],
+        [
+          "NET_DEBT",
+          "Net Debt",
+          "formula",
+          null,
+          900,
+          {
+            "formula": {
+              "add": [
+                "DEBT"
+              ],
+              "subtract": [
+                "CASH"
+              ]
+            }
+          }
+        ]
+      ]
+    }
+  ],
+  "ledgerFamilySchemas": {
+    "asset": {
+      "type": "object",
+      "tabs": [
+        {
+          "label": "General",
+          "fields": [
+            "assetTag",
+            "assetCategory",
+            "serialNumber"
+          ]
+        },
+        {
+          "label": "Dates",
+          "fields": [
+            "purchaseDate",
+            "commissionDate"
+          ]
+        },
+        {
+          "label": "Assignment",
+          "fields": [
+            "custodian",
+            "location"
+          ]
+        },
+        {
+          "label": "Depreciation",
+          "fields": [
+            "depreciationMethod",
+            "usefulLifeMonths",
+            "residualValue"
+          ]
+        }
+      ],
+      "properties": {
+        "assetTag": {
+          "type": "string",
+          "title": "Asset Tag"
+        },
+        "assetCategory": {
+          "type": "string",
+          "title": "Asset Category"
+        },
+        "serialNumber": {
+          "type": "string",
+          "title": "Serial Number"
+        },
+        "purchaseDate": {
+          "type": "string",
+          "title": "Purchase Date",
+          "format": "date"
+        },
+        "commissionDate": {
+          "type": "string",
+          "title": "Commission Date",
+          "format": "date"
+        },
+        "custodian": {
+          "type": "string",
+          "title": "Custodian"
+        },
+        "location": {
+          "type": "string",
+          "title": "Location"
+        },
+        "depreciationMethod": {
+          "type": "string",
+          "title": "Depreciation Method"
+        },
+        "usefulLifeMonths": {
+          "type": "number",
+          "title": "Useful Life Months"
+        },
+        "residualValue": {
+          "type": "number",
+          "title": "Residual Value"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "bank": {
+      "type": "object",
+      "tabs": [
+        {
+          "label": "Bank",
+          "fields": [
+            "bankName",
+            "branchName",
+            "branchCode"
+          ]
+        },
+        {
+          "label": "Account",
+          "fields": [
+            "accountNumber",
+            "accountName",
+            "accountType",
+            "currencyCode"
+          ]
+        },
+        {
+          "label": "International",
+          "fields": [
+            "swiftCode",
+            "iban"
+          ]
+        }
+      ],
+      "properties": {
+        "bankName": {
+          "type": "string",
+          "title": "Bank Name"
+        },
+        "branchName": {
+          "type": "string",
+          "title": "Branch Name"
+        },
+        "branchCode": {
+          "type": "string",
+          "title": "Branch Code"
+        },
+        "accountNumber": {
+          "type": "string",
+          "title": "Account Number"
+        },
+        "accountName": {
+          "type": "string",
+          "title": "Account Name"
+        },
+        "accountType": {
+          "type": "string",
+          "title": "Account Type"
+        },
+        "swiftCode": {
+          "type": "string",
+          "title": "SWIFT Code"
+        },
+        "iban": {
+          "type": "string",
+          "title": "IBAN"
+        },
+        "currencyCode": {
+          "type": "string",
+          "title": "Currency Code"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "contract": {
+      "type": "object",
+      "tabs": [
+        {
+          "label": "General",
+          "fields": [
+            "contractNumber",
+            "contractType",
+            "counterpartyName"
+          ]
+        },
+        {
+          "label": "Dates",
+          "fields": [
+            "startDate",
+            "endDate",
+            "renewalDate"
+          ]
+        },
+        {
+          "label": "Value",
+          "fields": [
+            "contractValue",
+            "currencyCode",
+            "responsiblePerson"
+          ]
+        }
+      ],
+      "properties": {
+        "contractNumber": {
+          "type": "string",
+          "title": "Contract Number"
+        },
+        "contractType": {
+          "type": "string",
+          "title": "Contract Type"
+        },
+        "counterpartyName": {
+          "type": "string",
+          "title": "Counterparty Name"
+        },
+        "startDate": {
+          "type": "string",
+          "title": "Start Date",
+          "format": "date"
+        },
+        "endDate": {
+          "type": "string",
+          "title": "End Date",
+          "format": "date"
+        },
+        "renewalDate": {
+          "type": "string",
+          "title": "Renewal Date",
+          "format": "date"
+        },
+        "contractValue": {
+          "type": "number",
+          "title": "Contract Value"
+        },
+        "currencyCode": {
+          "type": "string",
+          "title": "Currency Code"
+        },
+        "responsiblePerson": {
+          "type": "string",
+          "title": "Responsible Person"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "loan": {
+      "type": "object",
+      "tabs": [
+        {
+          "label": "General",
+          "fields": [
+            "loanNumber",
+            "loanType",
+            "counterpartyRole"
+          ]
+        },
+        {
+          "label": "Dates",
+          "fields": [
+            "startDate",
+            "maturityDate"
+          ]
+        },
+        {
+          "label": "Terms",
+          "fields": [
+            "principalAmount",
+            "interestRate",
+            "currencyCode"
+          ]
+        }
+      ],
+      "properties": {
+        "loanNumber": {
+          "type": "string",
+          "title": "Loan Number"
+        },
+        "loanType": {
+          "type": "string",
+          "title": "Loan Type"
+        },
+        "counterpartyRole": {
+          "type": "string",
+          "title": "Counterparty Role"
+        },
+        "startDate": {
+          "type": "string",
+          "title": "Start Date",
+          "format": "date"
+        },
+        "maturityDate": {
+          "type": "string",
+          "title": "Maturity Date",
+          "format": "date"
+        },
+        "principalAmount": {
+          "type": "number",
+          "title": "Principal Amount"
+        },
+        "interestRate": {
+          "type": "number",
+          "title": "Interest Rate"
+        },
+        "currencyCode": {
+          "type": "string",
+          "title": "Currency Code"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "customer": {
+      "type": "object",
+      "tabs": [
+        {
+          "label": "General",
+          "fields": [
+            "customerType",
+            "registrationNumber",
+            "taxNumber"
+          ]
+        },
+        {
+          "label": "Contact",
+          "fields": [
+            "email",
+            "phone",
+            "billingAddress"
+          ]
+        },
+        {
+          "label": "Credit",
+          "fields": [
+            "paymentTerms",
+            "creditLimit",
+            "currencyCode"
+          ]
+        }
+      ],
+      "properties": {
+        "customerType": {
+          "type": "string",
+          "title": "Customer Type"
+        },
+        "registrationNumber": {
+          "type": "string",
+          "title": "Registration Number"
+        },
+        "taxNumber": {
+          "type": "string",
+          "title": "Tax Number"
+        },
+        "email": {
+          "type": "string",
+          "title": "Email",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "title": "Phone"
+        },
+        "billingAddress": {
+          "type": "string",
+          "title": "Billing Address",
+          "format": "textarea"
+        },
+        "paymentTerms": {
+          "type": "string",
+          "title": "Payment Terms"
+        },
+        "creditLimit": {
+          "type": "number",
+          "title": "Credit Limit"
+        },
+        "currencyCode": {
+          "type": "string",
+          "title": "Currency Code"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "employee": {
+      "type": "object",
+      "tabs": [
+        {
+          "label": "Personal",
+          "fields": [
+            "employeeNumber",
+            "firstName",
+            "lastName",
+            "idNumber"
+          ]
+        },
+        {
+          "label": "Contact",
+          "fields": [
+            "email",
+            "phone"
+          ]
+        },
+        {
+          "label": "Employment",
+          "fields": [
+            "jobTitle",
+            "department",
+            "startDate",
+            "endDate"
+          ]
+        }
+      ],
+      "properties": {
+        "employeeNumber": {
+          "type": "string",
+          "title": "Employee Number"
+        },
+        "firstName": {
+          "type": "string",
+          "title": "First Name"
+        },
+        "lastName": {
+          "type": "string",
+          "title": "Last Name"
+        },
+        "idNumber": {
+          "type": "string",
+          "title": "ID Number"
+        },
+        "email": {
+          "type": "string",
+          "title": "Email",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "title": "Phone"
+        },
+        "jobTitle": {
+          "type": "string",
+          "title": "Job Title"
+        },
+        "department": {
+          "type": "string",
+          "title": "Department"
+        },
+        "startDate": {
+          "type": "string",
+          "title": "Start Date",
+          "format": "date"
+        },
+        "endDate": {
+          "type": "string",
+          "title": "End Date",
+          "format": "date"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "cash_location": {
+      "type": "object",
+      "tabs": [
+        {
+          "label": "General",
+          "fields": [
+            "locationName",
+            "locationCode",
+            "responsiblePerson"
+          ]
+        },
+        {
+          "label": "Operation",
+          "fields": [
+            "siteName",
+            "reconciliationFrequency",
+            "currencyCode"
+          ]
+        },
+        {
+          "label": "Control",
+          "fields": [
+            "activeFrom",
+            "activeTo",
+            "notes"
+          ]
+        }
+      ],
+      "properties": {
+        "locationName": {
+          "type": "string",
+          "title": "Location Name"
+        },
+        "locationCode": {
+          "type": "string",
+          "title": "Location Code"
+        },
+        "responsiblePerson": {
+          "type": "string",
+          "title": "Responsible Person"
+        },
+        "siteName": {
+          "type": "string",
+          "title": "Site Name"
+        },
+        "reconciliationFrequency": {
+          "type": "string",
+          "title": "Reconciliation Frequency"
+        },
+        "currencyCode": {
+          "type": "string",
+          "title": "Currency Code"
+        },
+        "activeFrom": {
+          "type": "string",
+          "title": "Active From",
+          "format": "date"
+        },
+        "activeTo": {
+          "type": "string",
+          "title": "Active To",
+          "format": "date"
+        },
+        "notes": {
+          "type": "string",
+          "title": "Notes",
+          "format": "textarea"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "gl": {
+      "type": "object",
+      "tabs": [
+        {
+          "label": "Reporting",
+          "fields": [
+            "reportingCategory",
+            "cashFlowCategory",
+            "taxCategory"
+          ]
+        },
+        {
+          "label": "Controls",
+          "fields": [
+            "reconciliationRequired",
+            "budgetControl"
+          ]
+        }
+      ],
+      "properties": {
+        "reportingCategory": {
+          "type": "string",
+          "title": "Reporting Category"
+        },
+        "cashFlowCategory": {
+          "type": "string",
+          "title": "Cash Flow Category"
+        },
+        "taxCategory": {
+          "type": "string",
+          "title": "Tax Category"
+        },
+        "reconciliationRequired": {
+          "type": "boolean",
+          "title": "Reconciliation Required"
+        },
+        "budgetControl": {
+          "type": "boolean",
+          "title": "Budget Control"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "project": {
+      "type": "object",
+      "tabs": [
+        {
+          "label": "General",
+          "fields": [
+            "projectCode",
+            "projectType",
+            "projectManager",
+            "status"
+          ]
+        },
+        {
+          "label": "Dates",
+          "fields": [
+            "startDate",
+            "endDate"
+          ]
+        },
+        {
+          "label": "Budget",
+          "fields": [
+            "budgetAmount",
+            "currencyCode"
+          ]
+        }
+      ],
+      "properties": {
+        "projectCode": {
+          "type": "string",
+          "title": "Project Code"
+        },
+        "projectType": {
+          "type": "string",
+          "title": "Project Type"
+        },
+        "projectManager": {
+          "type": "string",
+          "title": "Project Manager"
+        },
+        "startDate": {
+          "type": "string",
+          "title": "Start Date",
+          "format": "date"
+        },
+        "endDate": {
+          "type": "string",
+          "title": "End Date",
+          "format": "date"
+        },
+        "budgetAmount": {
+          "type": "number",
+          "title": "Budget Amount"
+        },
+        "currencyCode": {
+          "type": "string",
+          "title": "Currency Code"
+        },
+        "status": {
+          "type": "string",
+          "title": "Status"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "vendor": {
+      "type": "object",
+      "tabs": [
+        {
+          "label": "General",
+          "fields": [
+            "vendorType",
+            "registrationNumber",
+            "taxNumber"
+          ]
+        },
+        {
+          "label": "Contact",
+          "fields": [
+            "email",
+            "phone"
+          ]
+        },
+        {
+          "label": "Payment",
+          "fields": [
+            "paymentTerms",
+            "bankAccountName",
+            "bankAccountNumber",
+            "currencyCode"
+          ]
+        }
+      ],
+      "properties": {
+        "vendorType": {
+          "type": "string",
+          "title": "Vendor Type"
+        },
+        "registrationNumber": {
+          "type": "string",
+          "title": "Registration Number"
+        },
+        "taxNumber": {
+          "type": "string",
+          "title": "Tax Number"
+        },
+        "email": {
+          "type": "string",
+          "title": "Email",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "title": "Phone"
+        },
+        "paymentTerms": {
+          "type": "string",
+          "title": "Payment Terms"
+        },
+        "bankAccountName": {
+          "type": "string",
+          "title": "Bank Account Name"
+        },
+        "bankAccountNumber": {
+          "type": "string",
+          "title": "Bank Account Number"
+        },
+        "currencyCode": {
+          "type": "string",
+          "title": "Currency Code"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    }
+  },
+  "roleSeeds": [
+    [
+      "erp_admin",
+      "ERP Administrator",
+      "Full administrator role seeded for the template organisation.",
+      true
+    ],
+    [
+      "organisation_finance_manager",
+      "Organisation Finance Manager",
+      "Whole-organisation finance manager role.",
+      false
+    ],
+    [
+      "organisation_finance_clerk",
+      "Organisation Finance Clerk",
+      "Whole-organisation finance capture role.",
+      false
+    ],
+    [
+      "organisation_approver",
+      "Organisation Approver",
+      "Whole-organisation transaction approval role.",
+      false
+    ],
+    [
+      "organisation_master_data_manager",
+      "Organisation Master Data Manager",
+      "Whole-organisation master data management role.",
+      false
+    ],
+    [
+      "organisation_reporting_user",
+      "Organisation Reporting User",
+      "Whole-organisation read-only reporting role.",
+      false
+    ],
+    [
+      "organisation_auditor",
+      "Organisation Auditor",
+      "Whole-organisation audit read-only role.",
+      false
+    ],
+    [
+      "organisation_sales_user",
+      "Organisation Sales User",
+      "Whole-organisation sales transaction role.",
+      false
+    ],
+    [
+      "organisation_procurement_user",
+      "Organisation Procurement User",
+      "Whole-organisation procurement transaction role.",
+      false
+    ]
+  ],
+  "rolePermissionSeeds": [
+    [
+      "erp_admin",
+      "master_data",
+      "*",
+      "view"
+    ],
+    [
+      "erp_admin",
+      "master_data",
+      "*",
+      "*"
+    ],
+    [
+      "erp_admin",
+      "transaction",
+      "*",
+      "view"
+    ],
+    [
+      "erp_admin",
+      "transaction",
+      "*",
+      "*"
+    ],
+    [
+      "organisation_finance_manager",
+      "master_data",
+      "*",
+      "view"
+    ],
+    [
+      "organisation_finance_manager",
+      "master_data",
+      "*",
+      "*"
+    ],
+    [
+      "organisation_finance_manager",
+      "transaction",
+      "*",
+      "view"
+    ],
+    [
+      "organisation_finance_manager",
+      "transaction",
+      "*",
+      "*"
+    ],
+    [
+      "organisation_finance_clerk",
+      "master_data",
+      "*",
+      "view"
+    ],
+    [
+      "organisation_finance_clerk",
+      "master_data",
+      "*",
+      "approved"
+    ],
+    [
+      "organisation_finance_clerk",
+      "transaction",
+      "*",
+      "view"
+    ],
+    [
+      "organisation_finance_clerk",
+      "transaction",
+      "*",
+      "draft"
+    ],
+    [
+      "organisation_finance_clerk",
+      "transaction",
+      "*",
+      "submitted"
+    ],
+    [
+      "organisation_approver",
+      "master_data",
+      "*",
+      "view"
+    ],
+    [
+      "organisation_approver",
+      "master_data",
+      "*",
+      "approved"
+    ],
+    [
+      "organisation_approver",
+      "transaction",
+      "*",
+      "view"
+    ],
+    [
+      "organisation_approver",
+      "transaction",
+      "*",
+      "submitted"
+    ],
+    [
+      "organisation_approver",
+      "transaction",
+      "*",
+      "approved"
+    ],
+    [
+      "organisation_approver",
+      "transaction",
+      "*",
+      "rejected"
+    ],
+    [
+      "organisation_master_data_manager",
+      "master_data",
+      "*",
+      "view"
+    ],
+    [
+      "organisation_master_data_manager",
+      "master_data",
+      "*",
+      "*"
+    ],
+    [
+      "organisation_master_data_manager",
+      "transaction",
+      "*",
+      "view"
+    ],
+    [
+      "organisation_reporting_user",
+      "master_data",
+      "*",
+      "view"
+    ],
+    [
+      "organisation_reporting_user",
+      "transaction",
+      "*",
+      "view"
+    ],
+    [
+      "organisation_auditor",
+      "master_data",
+      "*",
+      "view"
+    ],
+    [
+      "organisation_auditor",
+      "transaction",
+      "*",
+      "view"
+    ],
+    [
+      "organisation_sales_user",
+      "master_data",
+      "customer",
+      "view"
+    ],
+    [
+      "organisation_sales_user",
+      "master_data",
+      "customer",
+      "approved"
+    ],
+    [
+      "organisation_sales_user",
+      "master_data",
+      "project",
+      "view"
+    ],
+    [
+      "organisation_sales_user",
+      "master_data",
+      "project",
+      "approved"
+    ],
+    [
+      "organisation_sales_user",
+      "master_data",
+      "contract",
+      "view"
+    ],
+    [
+      "organisation_sales_user",
+      "master_data",
+      "contract",
+      "approved"
+    ],
+    [
+      "organisation_sales_user",
+      "master_data",
+      "cash_location",
+      "view"
+    ],
+    [
+      "organisation_sales_user",
+      "master_data",
+      "cash_location",
+      "approved"
+    ],
+    [
+      "organisation_sales_user",
+      "transaction",
+      "sales",
+      "view"
+    ],
+    [
+      "organisation_sales_user",
+      "transaction",
+      "sales",
+      "draft"
+    ],
+    [
+      "organisation_sales_user",
+      "transaction",
+      "sales",
+      "submitted"
+    ],
+    [
+      "organisation_procurement_user",
+      "master_data",
+      "vendor",
+      "view"
+    ],
+    [
+      "organisation_procurement_user",
+      "master_data",
+      "vendor",
+      "approved"
+    ],
+    [
+      "organisation_procurement_user",
+      "master_data",
+      "asset",
+      "view"
+    ],
+    [
+      "organisation_procurement_user",
+      "master_data",
+      "asset",
+      "approved"
+    ],
+    [
+      "organisation_procurement_user",
+      "master_data",
+      "project",
+      "view"
+    ],
+    [
+      "organisation_procurement_user",
+      "master_data",
+      "project",
+      "approved"
+    ],
+    [
+      "organisation_procurement_user",
+      "master_data",
+      "contract",
+      "view"
+    ],
+    [
+      "organisation_procurement_user",
+      "master_data",
+      "contract",
+      "approved"
+    ],
+    [
+      "organisation_procurement_user",
+      "master_data",
+      "cash_location",
+      "view"
+    ],
+    [
+      "organisation_procurement_user",
+      "master_data",
+      "cash_location",
+      "approved"
+    ],
+    [
+      "organisation_procurement_user",
+      "transaction",
+      "purchasing",
+      "view"
+    ],
+    [
+      "organisation_procurement_user",
+      "transaction",
+      "purchasing",
+      "draft"
+    ],
+    [
+      "organisation_procurement_user",
+      "transaction",
+      "purchasing",
+      "submitted"
+    ],
+    [
+      "organisation_procurement_user",
+      "transaction",
+      "assets",
+      "view"
+    ],
+    [
+      "organisation_procurement_user",
+      "transaction",
+      "assets",
+      "draft"
+    ],
+    [
+      "organisation_procurement_user",
+      "transaction",
+      "assets",
+      "submitted"
+    ]
+  ],
+  "transactionGroups": [
+    [
+      "sales",
+      "Sales",
+      10
+    ],
+    [
+      "purchasing",
+      "Purchasing",
+      20
+    ],
+    [
+      "banking",
+      "Banking",
+      30
+    ],
+    [
+      "cash_management",
+      "Cash Management",
+      35
+    ],
+    [
+      "tax",
+      "Tax",
+      40
+    ],
+    [
+      "payroll",
+      "Payroll",
+      50
+    ],
+    [
+      "inventory",
+      "Inventory",
+      60
+    ],
+    [
+      "assets",
+      "Assets",
+      70
+    ],
+    [
+      "loans",
+      "Loans",
+      80
+    ],
+    [
+      "owner",
+      "Owner",
+      85
+    ],
+    [
+      "intercompany",
+      "Intercompany",
+      90
+    ],
+    [
+      "journal",
+      "Journals",
+      100
+    ]
+  ],
+  "transactionTypes": [
+    [
+      "manual_journal",
+      "journal",
+      "Manual journal",
+      "General journal capture.",
+      100
+    ],
+    [
+      "cash_sale",
+      "sales",
+      "Cash sale",
+      "Immediate sale settled through till or cash on hand.",
+      110
+    ],
+    [
+      "customer_invoice",
+      "sales",
+      "Customer invoice",
+      "Sale on account through accounts receivable.",
+      120
+    ],
+    [
+      "customer_payment",
+      "sales",
+      "Customer bank payment",
+      "Customer receipt deposited into a bank account.",
+      130
+    ],
+    [
+      "customer_cash_payment",
+      "sales",
+      "Customer cash payment",
+      "Customer receipt into a till or cash location.",
+      135
+    ],
+    [
+      "supplier_invoice",
+      "purchasing",
+      "Purchase on account",
+      "Supplier purchase through accounts payable.",
+      210
+    ],
+    [
+      "supplier_payment",
+      "purchasing",
+      "Supplier bank payment",
+      "Supplier payment from a bank account.",
+      220
+    ],
+    [
+      "supplier_cash_payment",
+      "purchasing",
+      "Supplier cash payment",
+      "Supplier payment from cash on hand.",
+      225
+    ],
+    [
+      "bank_charge",
+      "banking",
+      "Bank charge",
+      "Bank fee or service charge.",
+      310
+    ],
+    [
+      "bank_receipt_other",
+      "banking",
+      "Other bank receipt",
+      "Non-customer receipt into a bank account.",
+      315
+    ],
+    [
+      "bank_deposit",
+      "banking",
+      "Cash deposit to bank",
+      "Transfer from cash on hand or undeposited cash into a bank account.",
+      320
+    ],
+    [
+      "bank_withdrawal",
+      "banking",
+      "Cash withdrawal from bank",
+      "Transfer from a bank account into cash on hand.",
+      330
+    ],
+    [
+      "pos_cash_to_safe",
+      "cash_management",
+      "POS cash transfer to safe",
+      "Move counted cash from a point-of-sale till to the management safe.",
+      350
+    ],
+    [
+      "safe_cash_to_pos",
+      "cash_management",
+      "Safe cash transfer to POS",
+      "Issue a till float or cash top-up from the management safe to point of sale.",
+      360
+    ],
+    [
+      "cash_deposit_to_bank",
+      "cash_management",
+      "Cash deposit to bank",
+      "Bank physical cash from the safe or undeposited cash location.",
+      370
+    ],
+    [
+      "cash_withdrawal_from_bank",
+      "cash_management",
+      "Cash withdrawal from bank",
+      "Withdraw bank cash into the safe or another cash location.",
+      380
+    ],
+    [
+      "petty_cash_issue",
+      "cash_management",
+      "Petty cash issue",
+      "Issue petty cash from the safe.",
+      390
+    ],
+    [
+      "petty_cash_replenishment",
+      "cash_management",
+      "Petty cash replenishment",
+      "Replenish petty cash from the safe or bank clearing.",
+      400
+    ],
+    [
+      "petty_cash_expense",
+      "cash_management",
+      "Petty cash expense",
+      "Record an expense paid from petty cash.",
+      410
+    ],
+    [
+      "till_cash_over",
+      "cash_management",
+      "Till cash over",
+      "Record a point-of-sale cash count surplus.",
+      420
+    ],
+    [
+      "till_cash_short",
+      "cash_management",
+      "Till cash short",
+      "Record a point-of-sale cash count shortage.",
+      430
+    ],
+    [
+      "safe_cash_over",
+      "cash_management",
+      "Safe cash over",
+      "Record a safe cash count surplus.",
+      440
+    ],
+    [
+      "safe_cash_short",
+      "cash_management",
+      "Safe cash short",
+      "Record a safe cash count shortage.",
+      450
+    ],
+    [
+      "tax_accrual",
+      "tax",
+      "Tax accrual",
+      "Tax liability accrual.",
+      410
+    ],
+    [
+      "tax_payment",
+      "tax",
+      "Tax bank payment",
+      "Payment against tax liability from a bank account.",
+      420
+    ],
+    [
+      "payroll_accrual",
+      "payroll",
+      "Payroll accrual",
+      "Payroll liability recognition.",
+      510
+    ],
+    [
+      "payroll_payment",
+      "payroll",
+      "Payroll bank payment",
+      "Payroll settlement from a bank account.",
+      520
+    ],
+    [
+      "asset_purchase_bank",
+      "assets",
+      "Asset purchase bank",
+      "Asset bought and paid immediately from a bank account.",
+      705
+    ],
+    [
+      "asset_purchase_cash",
+      "assets",
+      "Asset purchase cash",
+      "Asset bought and paid immediately from cash on hand.",
+      710
+    ],
+    [
+      "asset_purchase_account",
+      "assets",
+      "Asset purchase on account",
+      "Asset bought through accounts payable.",
+      720
+    ],
+    [
+      "depreciation",
+      "assets",
+      "Depreciation",
+      "Periodic depreciation posting.",
+      730
+    ],
+    [
+      "loan_received",
+      "loans",
+      "Loan received",
+      "Loan funding received into a bank account.",
+      810
+    ],
+    [
+      "loan_repayment_principal",
+      "loans",
+      "Loan principal bank repayment",
+      "Principal repayment from a bank account.",
+      820
+    ],
+    [
+      "loan_interest_payment",
+      "loans",
+      "Loan interest bank payment",
+      "Interest repayment from a bank account.",
+      830
+    ],
+    [
+      "owner_deposit",
+      "owner",
+      "Owner deposit",
+      "Owner contribution received into a bank account.",
+      910
+    ],
+    [
+      "owner_withdrawal",
+      "owner",
+      "Owner withdrawal",
+      "Owner draw paid from a bank account.",
+      920
+    ]
+  ],
+  "postingRuleSeeds": [
+    [
+      "manual_journal",
+      1,
+      "debit",
+      "2999",
+      false,
+      null,
+      "Manual journal debit"
+    ],
+    [
+      "manual_journal",
+      2,
+      "credit",
+      "2999",
+      false,
+      null,
+      "Manual journal credit"
+    ],
+    [
+      "cash_sale",
+      1,
+      "debit",
+      "1000",
+      true,
+      "cash_location",
+      "Cash received"
+    ],
+    [
+      "cash_sale",
+      2,
+      "credit",
+      "4000",
+      false,
+      null,
+      "Sales revenue"
+    ],
+    [
+      "customer_invoice",
+      1,
+      "debit",
+      "1100",
+      true,
+      "customer",
+      "Customer receivable"
+    ],
+    [
+      "customer_invoice",
+      2,
+      "credit",
+      "4000",
+      false,
+      null,
+      "Sales revenue"
+    ],
+    [
+      "customer_payment",
+      1,
+      "debit",
+      "1010",
+      true,
+      "bank",
+      "Customer payment deposited"
+    ],
+    [
+      "customer_payment",
+      2,
+      "credit",
+      "1100",
+      true,
+      "customer",
+      "Customer receivable settlement"
+    ],
+    [
+      "customer_cash_payment",
+      1,
+      "debit",
+      "1000",
+      true,
+      "cash_location",
+      "Customer cash received"
+    ],
+    [
+      "customer_cash_payment",
+      2,
+      "credit",
+      "1100",
+      true,
+      "customer",
+      "Customer receivable settlement"
+    ],
+    [
+      "supplier_invoice",
+      1,
+      "debit",
+      "5600",
+      false,
+      null,
+      "Purchase expense"
+    ],
+    [
+      "supplier_invoice",
+      2,
+      "credit",
+      "2000",
+      true,
+      "vendor",
+      "Vendor payable"
+    ],
+    [
+      "supplier_payment",
+      1,
+      "debit",
+      "2000",
+      true,
+      "vendor",
+      "Vendor payable settlement"
+    ],
+    [
+      "supplier_payment",
+      2,
+      "credit",
+      "1010",
+      true,
+      "bank",
+      "Bank payment"
+    ],
+    [
+      "supplier_cash_payment",
+      1,
+      "debit",
+      "2000",
+      true,
+      "vendor",
+      "Vendor payable settlement"
+    ],
+    [
+      "supplier_cash_payment",
+      2,
+      "credit",
+      "1000",
+      true,
+      "cash_location",
+      "Cash paid"
+    ],
+    [
+      "bank_charge",
+      1,
+      "debit",
+      "5100",
+      false,
+      null,
+      "Bank charge expense"
+    ],
+    [
+      "bank_charge",
+      2,
+      "credit",
+      "1010",
+      true,
+      "bank",
+      "Bank account"
+    ],
+    [
+      "bank_receipt_other",
+      1,
+      "debit",
+      "1010",
+      true,
+      "bank",
+      "Bank receipt"
+    ],
+    [
+      "bank_receipt_other",
+      2,
+      "credit",
+      "4100",
+      false,
+      null,
+      "Other income"
+    ],
+    [
+      "bank_deposit",
+      1,
+      "debit",
+      "1010",
+      true,
+      "bank",
+      "Bank account"
+    ],
+    [
+      "bank_deposit",
+      2,
+      "credit",
+      "1000",
+      true,
+      "cash_location",
+      "Cash deposited"
+    ],
+    [
+      "bank_withdrawal",
+      1,
+      "debit",
+      "1000",
+      true,
+      "cash_location",
+      "Cash withdrawn"
+    ],
+    [
+      "bank_withdrawal",
+      2,
+      "credit",
+      "1010",
+      true,
+      "bank",
+      "Bank account"
+    ],
+    [
+      "pos_cash_to_safe",
+      1,
+      "debit",
+      "1000",
+      true,
+      "cash_location",
+      "Safe cash received"
+    ],
+    [
+      "pos_cash_to_safe",
+      2,
+      "credit",
+      "1000",
+      true,
+      "cash_location",
+      "POS cash removed"
+    ],
+    [
+      "safe_cash_to_pos",
+      1,
+      "debit",
+      "1000",
+      true,
+      "cash_location",
+      "POS float issued"
+    ],
+    [
+      "safe_cash_to_pos",
+      2,
+      "credit",
+      "1000",
+      true,
+      "cash_location",
+      "Safe cash issued"
+    ],
+    [
+      "cash_deposit_to_bank",
+      1,
+      "debit",
+      "1010",
+      true,
+      "bank",
+      "Bank deposit"
+    ],
+    [
+      "cash_deposit_to_bank",
+      2,
+      "credit",
+      "1000",
+      true,
+      "cash_location",
+      "Cash banked"
+    ],
+    [
+      "cash_withdrawal_from_bank",
+      1,
+      "debit",
+      "1000",
+      true,
+      "cash_location",
+      "Cash received from bank"
+    ],
+    [
+      "cash_withdrawal_from_bank",
+      2,
+      "credit",
+      "1010",
+      true,
+      "bank",
+      "Bank withdrawal"
+    ],
+    [
+      "petty_cash_issue",
+      1,
+      "debit",
+      "1000",
+      true,
+      "cash_location",
+      "Petty cash issued"
+    ],
+    [
+      "petty_cash_issue",
+      2,
+      "credit",
+      "1000",
+      true,
+      "cash_location",
+      "Safe cash issued"
+    ],
+    [
+      "petty_cash_replenishment",
+      1,
+      "debit",
+      "1000",
+      true,
+      "cash_location",
+      "Petty cash replenished"
+    ],
+    [
+      "petty_cash_replenishment",
+      2,
+      "credit",
+      "1000",
+      true,
+      "cash_location",
+      "Cash source"
+    ],
+    [
+      "petty_cash_expense",
+      1,
+      "debit",
+      "5600",
+      false,
+      null,
+      "Petty cash expense"
+    ],
+    [
+      "petty_cash_expense",
+      2,
+      "credit",
+      "1000",
+      true,
+      "cash_location",
+      "Petty cash paid"
+    ],
+    [
+      "till_cash_over",
+      1,
+      "debit",
+      "1000",
+      true,
+      "cash_location",
+      "Till cash surplus"
+    ],
+    [
+      "till_cash_over",
+      2,
+      "credit",
+      "4190",
+      false,
+      null,
+      "Cash over income"
+    ],
+    [
+      "till_cash_short",
+      1,
+      "debit",
+      "5190",
+      false,
+      null,
+      "Cash short expense"
+    ],
+    [
+      "till_cash_short",
+      2,
+      "credit",
+      "1000",
+      true,
+      "cash_location",
+      "Till cash shortage"
+    ],
+    [
+      "safe_cash_over",
+      1,
+      "debit",
+      "1000",
+      true,
+      "cash_location",
+      "Safe cash surplus"
+    ],
+    [
+      "safe_cash_over",
+      2,
+      "credit",
+      "4190",
+      false,
+      null,
+      "Cash over income"
+    ],
+    [
+      "safe_cash_short",
+      1,
+      "debit",
+      "5190",
+      false,
+      null,
+      "Cash short expense"
+    ],
+    [
+      "safe_cash_short",
+      2,
+      "credit",
+      "1000",
+      true,
+      "cash_location",
+      "Safe cash shortage"
+    ],
+    [
+      "tax_accrual",
+      1,
+      "debit",
+      "5400",
+      false,
+      null,
+      "Tax expense"
+    ],
+    [
+      "tax_accrual",
+      2,
+      "credit",
+      "2400",
+      false,
+      null,
+      "Tax payable"
+    ],
+    [
+      "tax_payment",
+      1,
+      "debit",
+      "2400",
+      false,
+      null,
+      "Tax payable settlement"
+    ],
+    [
+      "tax_payment",
+      2,
+      "credit",
+      "1010",
+      true,
+      "bank",
+      "Bank payment"
+    ],
+    [
+      "payroll_accrual",
+      1,
+      "debit",
+      "5200",
+      false,
+      null,
+      "Payroll expense"
+    ],
+    [
+      "payroll_accrual",
+      2,
+      "credit",
+      "2300",
+      true,
+      "employee",
+      "Payroll liability"
+    ],
+    [
+      "payroll_payment",
+      1,
+      "debit",
+      "2300",
+      true,
+      "employee",
+      "Payroll liability settlement"
+    ],
+    [
+      "payroll_payment",
+      2,
+      "credit",
+      "1010",
+      true,
+      "bank",
+      "Bank payment"
+    ],
+    [
+      "asset_purchase_bank",
+      1,
+      "debit",
+      "1300",
+      false,
+      null,
+      "Fixed asset"
+    ],
+    [
+      "asset_purchase_bank",
+      2,
+      "credit",
+      "1010",
+      true,
+      "bank",
+      "Bank payment"
+    ],
+    [
+      "asset_purchase_cash",
+      1,
+      "debit",
+      "1300",
+      false,
+      null,
+      "Fixed asset"
+    ],
+    [
+      "asset_purchase_cash",
+      2,
+      "credit",
+      "1000",
+      true,
+      "cash_location",
+      "Cash paid"
+    ],
+    [
+      "asset_purchase_account",
+      1,
+      "debit",
+      "1300",
+      false,
+      null,
+      "Fixed asset"
+    ],
+    [
+      "asset_purchase_account",
+      2,
+      "credit",
+      "2000",
+      true,
+      "vendor",
+      "Vendor payable"
+    ],
+    [
+      "depreciation",
+      1,
+      "debit",
+      "5300",
+      false,
+      null,
+      "Depreciation expense"
+    ],
+    [
+      "depreciation",
+      2,
+      "credit",
+      "1350",
+      false,
+      null,
+      "Accumulated depreciation"
+    ],
+    [
+      "loan_received",
+      1,
+      "debit",
+      "1010",
+      true,
+      "bank",
+      "Loan proceeds received"
+    ],
+    [
+      "loan_received",
+      2,
+      "credit",
+      "2500",
+      true,
+      "loan",
+      "Loan payable"
+    ],
+    [
+      "loan_repayment_principal",
+      1,
+      "debit",
+      "2500",
+      true,
+      "loan",
+      "Loan payable principal"
+    ],
+    [
+      "loan_repayment_principal",
+      2,
+      "credit",
+      "1010",
+      true,
+      "bank",
+      "Bank payment"
+    ],
+    [
+      "loan_interest_payment",
+      1,
+      "debit",
+      "5500",
+      true,
+      "loan",
+      "Interest expense"
+    ],
+    [
+      "loan_interest_payment",
+      2,
+      "credit",
+      "1010",
+      true,
+      "bank",
+      "Bank payment"
+    ],
+    [
+      "owner_deposit",
+      1,
+      "debit",
+      "1010",
+      true,
+      "bank",
+      "Owner funds received"
+    ],
+    [
+      "owner_deposit",
+      2,
+      "credit",
+      "3000",
+      false,
+      null,
+      "Owner contribution"
+    ],
+    [
+      "owner_withdrawal",
+      1,
+      "debit",
+      "3200",
+      false,
+      null,
+      "Owner drawing"
+    ],
+    [
+      "owner_withdrawal",
+      2,
+      "credit",
+      "1010",
+      true,
+      "bank",
+      "Owner payment"
+    ]
+  ],
+  "chartTemplate": [
+    [
+      "1000",
+      "Cash",
+      "asset",
+      true,
+      "cash_location"
+    ],
+    [
+      "1010",
+      "Bank Clearing",
+      "asset",
+      true,
+      "bank"
+    ],
+    [
+      "1100",
+      "Accounts Receivable",
+      "asset",
+      true,
+      "customer"
+    ],
+    [
+      "1150",
+      "Customer Advances",
+      "liability",
+      true,
+      "customer"
+    ],
+    [
+      "1200",
+      "Inventory",
+      "asset",
+      false,
+      null
+    ],
+    [
+      "1300",
+      "Fixed Assets",
+      "asset",
+      false,
+      null
+    ],
+    [
+      "1350",
+      "Accumulated Depreciation",
+      "asset",
+      false,
+      null
+    ],
+    [
+      "2000",
+      "Accounts Payable",
+      "liability",
+      true,
+      "vendor"
+    ],
+    [
+      "2050",
+      "Accrued Expenses",
+      "liability",
+      false,
+      null
+    ],
+    [
+      "2100",
+      "VAT Output",
+      "liability",
+      false,
+      null
+    ],
+    [
+      "2200",
+      "VAT Input",
+      "asset",
+      false,
+      null
+    ],
+    [
+      "2250",
+      "VAT Control",
+      "liability",
+      false,
+      null
+    ],
+    [
+      "2300",
+      "Payroll Liability",
+      "liability",
+      true,
+      "employee"
+    ],
+    [
+      "2400",
+      "Tax Payable",
+      "liability",
+      false,
+      null
+    ],
+    [
+      "2500",
+      "Loan Payable",
+      "liability",
+      true,
+      "loan"
+    ],
+    [
+      "2999",
+      "Suspense",
+      "liability",
+      false,
+      null
+    ],
+    [
+      "3000",
+      "Owner Equity",
+      "equity",
+      false,
+      null
+    ],
+    [
+      "3100",
+      "Retained Earnings",
+      "equity",
+      false,
+      null
+    ],
+    [
+      "3200",
+      "Owner Drawings",
+      "equity",
+      false,
+      null
+    ],
+    [
+      "4000",
+      "Sales Revenue",
+      "revenue",
+      false,
+      null
+    ],
+    [
+      "4100",
+      "Other Income",
+      "revenue",
+      false,
+      null
+    ],
+    [
+      "4190",
+      "Cash Over Income",
+      "revenue",
+      false,
+      null
+    ],
+    [
+      "5000",
+      "Cost of Sales",
+      "expense",
+      false,
+      null
+    ],
+    [
+      "5050",
+      "Inventory Adjustments",
+      "expense",
+      false,
+      null
+    ],
+    [
+      "5100",
+      "Bank Charges",
+      "expense",
+      false,
+      null
+    ],
+    [
+      "5190",
+      "Cash Short Expense",
+      "expense",
+      false,
+      null
+    ],
+    [
+      "5200",
+      "Payroll Expense",
+      "expense",
+      false,
+      null
+    ],
+    [
+      "5300",
+      "Depreciation Expense",
+      "expense",
+      false,
+      null
+    ],
+    [
+      "5400",
+      "Tax Expense",
+      "expense",
+      false,
+      null
+    ],
+    [
+      "5500",
+      "Interest Expense",
+      "expense",
+      false,
+      null
+    ],
+    [
+      "5600",
+      "Purchase Expense",
+      "expense",
+      false,
+      null
+    ]
+  ],
+  "customerSchema": {
+    "type": "object",
+    "properties": {
+      "knownName": {
+        "type": "string",
+        "title": "Known name",
+        "x-searchable": true,
+        "x-reportable": true,
+        "x-listView": true
+      },
+      "legalName": {
+        "type": "string",
+        "title": "Legal name",
+        "x-searchable": true,
+        "x-reportable": true,
+        "x-listView": true
+      },
+      "registrationNumber": {
+        "type": "string",
+        "title": "Registration number",
+        "x-searchable": true
+      },
+      "taxNumber": {
+        "type": "string",
+        "title": "Tax number",
+        "x-searchable": true
+      },
+      "addressList": {
+        "type": "array",
+        "title": "Addresses",
+        "items": {
+          "type": "object"
+        }
+      },
+      "directorList": {
+        "type": "array",
+        "title": "Directors",
+        "items": {
+          "type": "object"
+        }
+      },
+      "creditLimits": {
+        "type": "array",
+        "title": "Credit limits",
+        "items": {
+          "type": "object"
+        }
+      },
+      "contacts": {
+        "type": "array",
+        "title": "Contacts",
+        "items": {
+          "type": "object"
+        }
+      }
+    },
+    "required": [
+      "knownName",
+      "legalName"
+    ],
+    "additionalProperties": false
+  },
+  "customerUiSchema": {
+    "sections": [
+      {
+        "key": "general",
+        "title": "General",
+        "fields": [
+          "knownName",
+          "legalName",
+          "registrationNumber",
+          "taxNumber"
+        ]
+      },
+      {
+        "key": "addresses",
+        "title": "Addresses",
+        "fields": [
+          "addressList"
+        ]
+      },
+      {
+        "key": "directors",
+        "title": "Directors",
+        "fields": [
+          "directorList"
+        ]
+      },
+      {
+        "key": "credit",
+        "title": "Credit",
+        "fields": [
+          "creditLimits"
+        ]
+      },
+      {
+        "key": "contacts",
+        "title": "Contacts",
+        "fields": [
+          "contacts"
+        ]
+      }
+    ]
+  }
+}

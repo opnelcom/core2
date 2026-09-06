@@ -38,6 +38,13 @@ function send(res,status,body,headers={}){ const data=Buffer.from(typeof body===
 async function body(req){ const parts=[]; let size=0; for await(const c of req){size+=c.length;if(size>maxBodyBytes)throw Object.assign(new Error('Body too large'),{status:413});parts.push(c);} const raw=Buffer.concat(parts).toString('utf8'); if(!raw)return {}; const ct=req.headers['content-type']||''; if(ct.includes('application/json')) return JSON.parse(raw); if(ct.includes('application/x-www-form-urlencoded')) return Object.fromEntries(new URLSearchParams(raw)); return {raw}; }
 function safeJoin(base,p){const f=path.normalize(path.join(base,p));return f.startsWith(base)?f:null;}
 function contentType(file){return ({'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'})[path.extname(file)]||'application/octet-stream';}
+function clearContentApiCache(){
+ if(String(config.nodeEnv||process.env.NODE_ENV||'').toLowerCase()!=='development')return;
+ const apiPrefix=apiRoot+path.sep;
+ Object.keys(require.cache).forEach(id=>{
+  if(id===apiRoot||id.startsWith(apiPrefix))delete require.cache[id];
+ });
+}
 async function broker(profile,action,payload={}){ const brokerUrl=config.dbBrokerURL||'http://core-broker:3000'; const brokerProfile=profile||payload.brokerProfile||config.dbBrokerProfile; if(!brokerProfile) throw Object.assign(new Error('DB broker profile required'),{status:500}); const profileEntry=Array.isArray(config.dbBrokerProfiles)?config.dbBrokerProfiles.find(x=>x&&x.name===brokerProfile):null; const brokerKey=payload.brokerKey||(profileEntry&&profileEntry.key)||config.dbBrokerKey; if(!brokerKey) throw Object.assign(new Error('DB broker key required'),{status:500}); const {brokerKey:_,brokerProfile:__,...brokerPayload}=payload; const r=await fetch(brokerUrl+'/api/broker/'+action,{method:'POST',headers:{'content-type':'application/json','x-core-key':brokerKey},body:JSON.stringify({brokerProfile,...brokerPayload})}); const j=await r.json(); if(!r.ok) throw Object.assign(new Error(j.error||'Broker error'),{status:r.status,details:j}); return j; }
 async function smtp(action,payload={}){ if(!payload.profile) throw Object.assign(new Error('SMTP profile required'),{status:500}); const profileKey=payload.profileKey||config.smtpProfileKey; if(!profileKey) throw Object.assign(new Error('SMTP profile key required'),{status:500}); const {profileKey:_,...mailPayload}=payload; const r=await fetch((config.smtpUrl||'http://core-smtp:3000')+'/api/mail/'+action,{method:'POST',headers:{'content-type':'application/json','x-core-key':profileKey},body:JSON.stringify(mailPayload)}); const j=await r.json(); if(!r.ok) throw Object.assign(new Error(j.error||'SMTP error'),{status:r.status}); return j; }
 function setCookie(res,name,value,opts={}){let s=`${encodeURIComponent(name)}=${encodeURIComponent(value)}`;s+=`; Path=${opts.path||'/'}`;if(opts.httpOnly!==false)s+='; HttpOnly';s+=`; SameSite=${opts.sameSite||'Lax'}`;if(opts.maxAge!==undefined)s+=`; Max-Age=${opts.maxAge}`;if(opts.secure)s+='; Secure';const old=res.getHeader('Set-Cookie');res.setHeader('Set-Cookie',old?[].concat(old,s):s);}
@@ -58,7 +65,7 @@ const server=http.createServer(async(req,res)=>{
   if(u.pathname.startsWith('/api/')){
     const rel=u.pathname.slice(5).replace(/\/+$/,'')||'index';
     const file=safeJoin(apiRoot,rel+'.js'); if(!file||!fs.existsSync(file))return send(res,404,{error:'API endpoint not found'});
-    delete require.cache[require.resolve(file)]; const handler=require(file);
+    clearContentApiCache(); const handler=require(file);
     const ctx={req,res,url:u,query:Object.fromEntries(u.searchParams),cookies:cookies(req.headers.cookie),body:await body(req),config,logger:{info:(m,x)=>log('info',m,x),warn:(m,x)=>log('warn',m,x),error:(m,x)=>log('error',m,x)},broker,smtp,send:(s,b,h)=>send(res,s,b,h),setCookie:(n,v,o)=>setCookie(res,n,v,o),clearCookie:n=>clearCookie(res,n),auth:()=>auth(ctx),signSession,crypto,requestId};
     const result=await handler(ctx); if(!res.writableEnded&&result!==undefined)send(res,200,result);
     return;

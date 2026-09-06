@@ -1,5 +1,5 @@
 'use strict';
-const {authTenant,requireAdmin,ensureSchema,seedGlobal,seedOrganisationDefaults}=require('../_shared/erp');
+const {authTenant,requireAdmin,seedOrganisationDefaults}=require('../_shared/erp');
 
 module.exports=async ctx=>{
   if(ctx.req.method!=='POST')return ctx.send(405,{error:'POST required'});
@@ -7,9 +7,6 @@ module.exports=async ctx=>{
   if(access.status)return ctx.send(access.status,access.body);
   const denied=requireAdmin(access);
   if(denied)return ctx.send(denied.status,denied.body);
-
-  await ensureSchema(ctx);
-  await seedGlobal(ctx);
 
   const existing=await ctx.broker('core_erp','query',{
     text:`SELECT organisation_id
@@ -25,6 +22,7 @@ module.exports=async ctx=>{
       `DELETE FROM erp_journal_line WHERE tenant_id=$1 AND organisation_id=$2`,
       `DELETE FROM erp_journal WHERE tenant_id=$1 AND organisation_id=$2`,
       `DELETE FROM erp_posting_rule WHERE tenant_id=$1 AND organisation_id=$2`,
+      `DELETE FROM erp_financial_statement_format WHERE tenant_id=$1 AND organisation_id=$2`,
       `DELETE FROM erp_user_role WHERE tenant_id=$1 AND organisation_id=$2`,
       `DELETE FROM erp_role_permission WHERE tenant_id=$1 AND organisation_id=$2`,
       `DELETE FROM erp_role WHERE tenant_id=$1 AND organisation_id=$2`,
@@ -41,9 +39,11 @@ module.exports=async ctx=>{
       `DELETE FROM erp_fiscal_period WHERE tenant_id=$1 AND organisation_id=$2`,
       `DELETE FROM erp_fiscal_year WHERE tenant_id=$1 AND organisation_id=$2`,
       `DELETE FROM erp_division WHERE tenant_id=$1 AND organisation_id=$2`,
-      `DELETE FROM erp_organisation_country WHERE tenant_id=$1 AND organisation_id=$2`,
-      `DELETE FROM erp_organisation_currency WHERE tenant_id=$1 AND organisation_id=$2`,
-      `DELETE FROM erp_organisation_ledger_family WHERE tenant_id=$1 AND organisation_id=$2`,
+      `DELETE FROM erp_country WHERE tenant_id=$1 AND organisation_id=$2`,
+      `DELETE FROM erp_currency WHERE tenant_id=$1 AND organisation_id=$2`,
+      `DELETE FROM erp_tax_rate WHERE tenant_id=$1 AND organisation_id=$2`,
+      `DELETE FROM erp_tax_type WHERE tenant_id=$1 AND organisation_id=$2`,
+      `DELETE FROM erp_ledger_family WHERE tenant_id=$1 AND organisation_id=$2`,
       `DELETE FROM erp_organisation WHERE tenant_id=$1 AND organisation_id=$2`
     ];
     await ctx.broker('core_erp','transaction',{

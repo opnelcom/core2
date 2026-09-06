@@ -1,8 +1,6 @@
 'use strict';
 const {authTenant,requireAdmin,clean,nullable,bool,parseJson}=require('../_shared/erp');
 
-const legalEntityRequiredFamilies=new Set(['customer','vendor','contract','loan']);
-
 module.exports=async ctx=>{
   const access=await authTenant(ctx);
   if(access.status)return ctx.send(access.status,access.body);
@@ -15,8 +13,39 @@ module.exports=async ctx=>{
   const legalEntityId=nullable(ctx.body.legal_entity_id);
   const code=clean(ctx.body.account_code);
   const name=clean(ctx.body.account_name);
-  if(!orgId||!divisionId||!family||!code||!name)return ctx.send(400,{error:'Organisation, owner division, family, code and name are required'});
-  if(legalEntityRequiredFamilies.has(family)&&!legalEntityId)return ctx.send(400,{error:`${family} accounts must be linked to a legal entity`});
+  const accountTypeId=nullable(ctx.body.account_type_id);
+  const subledgerFamily=nullable(ctx.body.required_subledger_family_code);
+  if(!orgId||!divisionId||!family||!code||!name||!accountTypeId)return ctx.send(400,{error:'Organisation, owner division, family, account type, code and name are required'});
+  const familyExists=await ctx.broker('core_erp','query',{
+    text:`SELECT requires_legal_entity FROM erp_ledger_family
+          WHERE tenant_id=$1 AND organisation_id=$2 AND ledger_family_code=$3 AND is_active=true`,
+    values:[access.tenantId,orgId,family]
+  });
+  if(!familyExists.rowCount)return ctx.send(400,{error:'Ledger family must exist and be active for this organisation'});
+  if(id){
+    const existing=await ctx.broker('core_erp','query',{
+      text:`SELECT ledger_family_code FROM erp_ledger_account
+            WHERE tenant_id=$1 AND organisation_id=$2 AND ledger_account_id=$3 AND workflow_status IN('draft','rejected','approved','blocked')`,
+      values:[access.tenantId,orgId,id]
+    });
+    if(!existing.rowCount)return ctx.send(404,{error:'Ledger account not found or cannot be edited'});
+    if(existing.rows[0].ledger_family_code!==family)return ctx.send(400,{error:'Ledger account family cannot be changed from this editor'});
+  }
+  if(familyExists.rows[0].requires_legal_entity&&!legalEntityId)return ctx.send(400,{error:`${family} accounts must be linked to a legal entity`});
+  const type=await ctx.broker('core_erp','query',{
+    text:`SELECT 1 FROM erp_ledger_account_type
+          WHERE tenant_id=$1 AND organisation_id=$2 AND account_type_id=$3 AND ledger_family_code=$4 AND is_active=true`,
+    values:[access.tenantId,orgId,accountTypeId,family]
+  });
+  if(!type.rowCount)return ctx.send(400,{error:'Account type must belong to the selected ledger family'});
+  if(subledgerFamily){
+    const requiredFamily=await ctx.broker('core_erp','query',{
+      text:`SELECT 1 FROM erp_ledger_family
+            WHERE tenant_id=$1 AND organisation_id=$2 AND ledger_family_code=$3 AND is_active=true`,
+      values:[access.tenantId,orgId,subledgerFamily]
+    });
+    if(!requiredFamily.rowCount)return ctx.send(400,{error:'Required subledger family must exist and be active for this organisation'});
+  }
   if(legalEntityId){
     const entity=await ctx.broker('core_erp','query',{
       text:`SELECT 1 FROM erp_legal_entity WHERE tenant_id=$1 AND organisation_id=$2 AND legal_entity_id=$3 AND workflow_status <> 'deleted'`,
@@ -25,8 +54,8 @@ module.exports=async ctx=>{
     if(!entity.rowCount)return ctx.send(400,{error:'Legal entity must exist in this organisation'});
   }
   const payload=[
-    access.tenantId,orgId,divisionId,family,code,name,nullable(ctx.body.account_type_id),legalEntityId,
-    bool(ctx.body.requires_subledger),nullable(ctx.body.required_subledger_family_code),
+    access.tenantId,orgId,divisionId,family,code,name,accountTypeId,legalEntityId,
+    bool(ctx.body.requires_subledger),subledgerFamily,
     parseJson(ctx.body.additional_data,{}),access.auth.email
   ];
   const text=id

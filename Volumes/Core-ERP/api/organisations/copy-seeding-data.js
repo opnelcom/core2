@@ -80,7 +80,6 @@ module.exports=async ctx=>{
   if(access.status)return ctx.send(access.status,access.body);
   const denied=requireAdmin(access);
   if(denied)return ctx.send(denied.status,denied.body);
-
   const sourceId=ctx.body.source_organisation_id;
   const targetId=ctx.body.target_organisation_id;
   const options=ctx.body.options||null;
@@ -104,6 +103,8 @@ module.exports=async ctx=>{
     transactionGroups:isEnabled(options,'transaction_groups')||isEnabled(options,'transaction_types')||isEnabled(options,'posting_rules'),
     transactionTypes:isEnabled(options,'transaction_types')||isEnabled(options,'posting_rules'),
     postingRules:isEnabled(options,'posting_rules'),
+    financialFormats:isEnabled(options,'financial_statement_formats')||isEnabled(options,'chart_of_accounts'),
+    taxTypes:isEnabled(options,'tax_types'),
     masterDataTypes:isEnabled(options,'master_data_types'),
     permissions:isEnabled(options,'permissions')
   };
@@ -118,16 +119,37 @@ module.exports=async ctx=>{
 
   const add=(name,text,values=[access.tenantId,sourceId,targetId])=>statements.push({name,text,values});
 
-  if(wants.currencies)add('currencies',`INSERT INTO erp_organisation_currency(tenant_id,organisation_id,currency_code,currency_name,decimal_places,is_active,is_seeded)
+  if(wants.currencies)add('currencies',`INSERT INTO erp_currency(tenant_id,organisation_id,currency_code,currency_name,decimal_places,is_active,is_seeded)
     SELECT tenant_id,$3,currency_code,currency_name,decimal_places,is_active,is_seeded
-    FROM erp_organisation_currency
+    FROM erp_currency
     WHERE tenant_id=$1 AND organisation_id=$2
     ON CONFLICT(tenant_id,organisation_id,currency_code) DO UPDATE
     SET currency_name=excluded.currency_name,decimal_places=excluded.decimal_places,is_active=excluded.is_active,is_seeded=excluded.is_seeded,updated_at=now()`);
 
-  if(wants.countries)add('countries',`INSERT INTO erp_organisation_country(tenant_id,organisation_id,country_code,alpha3_code,numeric_code,country_name,official_name,region,subregion,default_currency_code,calling_code,postal_code_required,administrative_level_label,is_active,is_seeded)
+  if(wants.taxTypes){
+    add('tax_types',`INSERT INTO erp_tax_type(tenant_id,organisation_id,tax_type_code,tax_type_description,tax_direction,is_active,is_seeded)
+      SELECT tenant_id,$3,tax_type_code,tax_type_description,tax_direction,is_active,is_seeded
+      FROM erp_tax_type
+      WHERE tenant_id=$1 AND organisation_id=$2
+      ON CONFLICT(tenant_id,organisation_id,tax_type_code) DO UPDATE
+      SET tax_type_description=excluded.tax_type_description,tax_direction=excluded.tax_direction,is_active=excluded.is_active,is_seeded=excluded.is_seeded,updated_at=now()`);
+    add('tax_rates',`WITH source_rates AS (
+        SELECT rate.*,tax_type.tax_type_code
+        FROM erp_tax_rate rate
+        JOIN erp_tax_type tax_type ON tax_type.tax_type_id=rate.tax_type_id
+        WHERE rate.tenant_id=$1 AND rate.organisation_id=$2
+      )
+      INSERT INTO erp_tax_rate(tenant_id,organisation_id,tax_type_id,tax_rate,valid_from,valid_to,is_active,is_seeded)
+      SELECT $1,$3,target_type.tax_type_id,source_rates.tax_rate,source_rates.valid_from,source_rates.valid_to,source_rates.is_active,source_rates.is_seeded
+      FROM source_rates
+      JOIN erp_tax_type target_type ON target_type.tenant_id=$1 AND target_type.organisation_id=$3 AND target_type.tax_type_code=source_rates.tax_type_code
+      ON CONFLICT(tax_type_id,valid_from) DO UPDATE
+      SET tax_rate=excluded.tax_rate,valid_to=excluded.valid_to,is_active=excluded.is_active,is_seeded=excluded.is_seeded,updated_at=now()`);
+  }
+
+  if(wants.countries)add('countries',`INSERT INTO erp_country(tenant_id,organisation_id,country_code,alpha3_code,numeric_code,country_name,official_name,region,subregion,default_currency_code,calling_code,postal_code_required,administrative_level_label,is_active,is_seeded)
     SELECT tenant_id,$3,country_code,alpha3_code,numeric_code,country_name,official_name,region,subregion,default_currency_code,calling_code,postal_code_required,administrative_level_label,is_active,is_seeded
-    FROM erp_organisation_country
+    FROM erp_country
     WHERE tenant_id=$1 AND organisation_id=$2
     ON CONFLICT(tenant_id,organisation_id,country_code) DO UPDATE
     SET alpha3_code=excluded.alpha3_code,numeric_code=excluded.numeric_code,country_name=excluded.country_name,official_name=excluded.official_name,region=excluded.region,subregion=excluded.subregion,default_currency_code=excluded.default_currency_code,calling_code=excluded.calling_code,postal_code_required=excluded.postal_code_required,administrative_level_label=excluded.administrative_level_label,is_active=excluded.is_active,is_seeded=excluded.is_seeded,updated_at=now()`);
@@ -153,12 +175,12 @@ module.exports=async ctx=>{
       SET period_code=excluded.period_code,start_date=excluded.start_date,end_date=excluded.end_date,status=excluded.status,updated_at=now()`);
   }
 
-  if(wants.ledgerFamilies)add('ledger_families',`INSERT INTO erp_organisation_ledger_family(tenant_id,organisation_id,ledger_family_code,family_name,requires_standard_account_type,schema_json,is_active,is_seeded)
-    SELECT tenant_id,$3,ledger_family_code,family_name,requires_standard_account_type,schema_json,is_active,is_seeded
-    FROM erp_organisation_ledger_family
+  if(wants.ledgerFamilies)add('ledger_families',`INSERT INTO erp_ledger_family(tenant_id,organisation_id,ledger_family_code,family_name,requires_standard_account_type,requires_legal_entity,schema_json,is_active,is_seeded)
+    SELECT tenant_id,$3,ledger_family_code,family_name,requires_standard_account_type,requires_legal_entity,schema_json,is_active,is_seeded
+    FROM erp_ledger_family
     WHERE tenant_id=$1 AND organisation_id=$2
     ON CONFLICT(tenant_id,organisation_id,ledger_family_code) DO UPDATE
-    SET family_name=excluded.family_name,requires_standard_account_type=excluded.requires_standard_account_type,schema_json=excluded.schema_json,is_active=excluded.is_active,is_seeded=excluded.is_seeded,updated_at=now()`);
+    SET family_name=excluded.family_name,requires_standard_account_type=excluded.requires_standard_account_type,requires_legal_entity=excluded.requires_legal_entity,schema_json=excluded.schema_json,is_active=excluded.is_active,is_seeded=excluded.is_seeded,updated_at=now()`);
 
   if(wants.ledgerTypes)add('ledger_types',`INSERT INTO erp_ledger_account_type(tenant_id,organisation_id,ledger_family_code,account_type_code,account_type_name,is_required,is_seeded,is_active)
     SELECT tenant_id,$3,ledger_family_code,account_type_code,account_type_name,is_required,is_seeded,is_active
@@ -229,6 +251,65 @@ module.exports=async ctx=>{
     JOIN erp_transaction_type target_type ON target_type.tenant_id=$1 AND target_type.organisation_id=$3 AND target_type.type_code=source_rules.type_code
     LEFT JOIN erp_ledger_account target_account ON target_account.tenant_id=$1 AND target_account.organisation_id=$3 AND target_account.ledger_family_code=source_rules.ledger_family_code AND target_account.account_code=source_rules.account_code AND target_account.workflow_status <> 'deleted'
     ON CONFLICT DO NOTHING`);
+
+  if(wants.financialFormats){
+    add('financial_statement_formats',`INSERT INTO erp_financial_statement_format(tenant_id,organisation_id,format_code,format_name,statement_type,is_active,is_seeded)
+      SELECT tenant_id,$3,format_code,format_name,statement_type,is_active,is_seeded
+      FROM erp_financial_statement_format
+      WHERE tenant_id=$1 AND organisation_id=$2
+      ON CONFLICT(tenant_id,organisation_id,format_code) DO UPDATE
+      SET format_name=excluded.format_name,statement_type=excluded.statement_type,is_active=excluded.is_active,is_seeded=excluded.is_seeded,updated_at=now()`);
+    add('cleared_financial_statement_lines',`DELETE FROM erp_financial_statement_line target_line
+      USING erp_financial_statement_format target_format, erp_financial_statement_format source_format
+      WHERE target_line.tenant_id=$1
+        AND target_line.organisation_id=$3
+        AND target_line.financial_statement_format_id=target_format.financial_statement_format_id
+        AND target_format.tenant_id=$1
+        AND target_format.organisation_id=$3
+        AND source_format.tenant_id=$1
+        AND source_format.organisation_id=$2
+        AND source_format.format_code=target_format.format_code`);
+    add('financial_statement_lines',`WITH source_lines AS (
+        SELECT l.*,f.format_code,parent.line_code parent_line_code
+        FROM erp_financial_statement_line l
+        JOIN erp_financial_statement_format f ON f.financial_statement_format_id=l.financial_statement_format_id
+        LEFT JOIN erp_financial_statement_line parent ON parent.financial_statement_line_id=l.parent_line_id
+        WHERE l.tenant_id=$1 AND l.organisation_id=$2
+      ),
+      inserted AS (
+        INSERT INTO erp_financial_statement_line(tenant_id,organisation_id,financial_statement_format_id,parent_line_id,line_code,line_label,line_type,sort_order,sign_multiplier,formula_json,is_active)
+        SELECT $1,$3,target_format.financial_statement_format_id,NULL,source_lines.line_code,source_lines.line_label,source_lines.line_type,source_lines.sort_order,source_lines.sign_multiplier,source_lines.formula_json,source_lines.is_active
+        FROM source_lines
+        JOIN erp_financial_statement_format target_format ON target_format.tenant_id=$1 AND target_format.organisation_id=$3 AND target_format.format_code=source_lines.format_code
+        ORDER BY source_lines.sort_order
+        RETURNING financial_statement_line_id,financial_statement_format_id,line_code
+      )
+      UPDATE erp_financial_statement_line child
+      SET parent_line_id=parent.financial_statement_line_id
+      FROM source_lines source_child
+      JOIN erp_financial_statement_format target_format ON target_format.tenant_id=$1 AND target_format.organisation_id=$3 AND target_format.format_code=source_child.format_code
+      JOIN erp_financial_statement_line parent ON parent.tenant_id=$1 AND parent.organisation_id=$3 AND parent.financial_statement_format_id=target_format.financial_statement_format_id AND parent.line_code=source_child.parent_line_code
+      WHERE child.tenant_id=$1
+        AND child.organisation_id=$3
+        AND child.financial_statement_format_id=target_format.financial_statement_format_id
+        AND child.line_code=source_child.line_code
+        AND source_child.parent_line_code IS NOT NULL`);
+    add('financial_statement_mappings',`WITH source_mappings AS (
+        SELECT m.*,f.format_code,l.line_code,a.account_code
+        FROM erp_financial_statement_line_account m
+        JOIN erp_financial_statement_format f ON f.financial_statement_format_id=m.financial_statement_format_id
+        JOIN erp_financial_statement_line l ON l.financial_statement_line_id=m.financial_statement_line_id
+        JOIN erp_ledger_account a ON a.ledger_account_id=m.ledger_account_id
+        WHERE m.tenant_id=$1 AND m.organisation_id=$2
+      )
+      INSERT INTO erp_financial_statement_line_account(tenant_id,organisation_id,financial_statement_format_id,financial_statement_line_id,ledger_account_id)
+      SELECT $1,$3,target_format.financial_statement_format_id,target_line.financial_statement_line_id,target_account.ledger_account_id
+      FROM source_mappings
+      JOIN erp_financial_statement_format target_format ON target_format.tenant_id=$1 AND target_format.organisation_id=$3 AND target_format.format_code=source_mappings.format_code
+      JOIN erp_financial_statement_line target_line ON target_line.tenant_id=$1 AND target_line.organisation_id=$3 AND target_line.financial_statement_format_id=target_format.financial_statement_format_id AND target_line.line_code=source_mappings.line_code
+      JOIN erp_ledger_account target_account ON target_account.tenant_id=$1 AND target_account.organisation_id=$3 AND target_account.ledger_family_code='gl' AND target_account.account_code=source_mappings.account_code AND target_account.workflow_status <> 'deleted'
+      ON CONFLICT(tenant_id,organisation_id,financial_statement_format_id,ledger_account_id) DO NOTHING`);
+  }
 
   if(wants.permissions){
     add('roles',`INSERT INTO erp_role(tenant_id,organisation_id,role_code,role_name,role_description,is_admin,is_active)

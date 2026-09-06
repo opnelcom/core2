@@ -212,6 +212,7 @@ services:
       core-broker: { condition: service_healthy }
     networks:
       - core-application
+      - core-outbound
     healthcheck:
       test: ["CMD", "node", "/app/healthcheck.js"]
       interval: 1m
