@@ -1,11 +1,16 @@
 (()=>{
 const $=id=>document.getElementById(id);
 let boot={organisations:[],currencies:[],countries:[],ledger_families:[]};
-let state={orgId:null,currencies:[],countries:[],taxTypes:[],taxRates:[],divisions:[],accounts:[],accountTypes:[],ledgerFamilies:[],ledgerTypes:[],masterTypes:[],masterRecords:[],legalEntities:[],legalEntityDetail:null,journals:[],years:[],periods:[],financialFormats:[],financialFormatLines:[],financialFormatMappings:[],transactionGroups:[],transactionTypes:[],postingRules:[],roles:[],rolePermissions:[],roleUsers:[],dashboardSummary:null};
+let state={orgId:null,navigation:{roles:[],modules:[],permissions:[],is_administrator:false},modules:[],currencies:[],countries:[],taxTypes:[],taxRates:[],divisions:[],accounts:[],accountTypes:[],ledgerFamilies:[],ledgerTypes:[],masterTypes:[],masterRecords:[],accountingObjectTypes:[],accountingDimensionTypes:[],accountingObjects:[],accountingDimensions:[],legalEntities:[],legalEntityDetail:null,journals:[],years:[],periods:[],financialFormats:[],financialFormatLines:[],financialFormatMappings:[],transactionGroups:[],transactionTypes:[],postingRules:[],roles:[],rolePermissions:[],roleUsers:[],roleModules:[],dashboardSummary:null};
 let selectedMasterRecord=null;
+let selectedAccountingObject=null;
+let selectedAccountingDimension=null;
+let accountingObjectParentOptions=[];
 let selectedJournal=null;
 let selectedLegalEntity=null;
 let selectedLedgerFamilyCode='gl';
+let selectedAccountingObjectTypeId='';
+let selectedAccountingDimensionTypeId='';
 let selectedTransactionTypeId='';
 let selectedReport='financial_statement';
 let selectedFinancialFormatId='';
@@ -14,12 +19,137 @@ let expandedFiscalYears=new Set();
 let expandedLedgerFamilies=new Set();
 let expandedTransactionGroups=new Set();
 let loadedAccountFamilies=new Set();
-let loadedSlices={menu:false,dashboard:false,divisions:false,fiscal:false,countries:false,currencies:false,taxTypes:false,ledgerTypes:false,masterTypes:false,legalEntities:false,financialFormats:false,transactions:false,permissions:false};
+let loadedSlices={menu:false,dashboard:false,divisions:false,fiscal:false,countries:false,currencies:false,taxTypes:false,ledgerTypes:false,masterTypes:false,accountingObjectTypes:false,accountingDimensionTypes:false,legalEntities:false,financialFormats:false,transactions:false,permissions:false};
 const today=()=>new Date().toISOString().slice(0,10);
 const pretty=v=>String(v||'').replaceAll('_',' ');
-const setupViews=new Set(['organisations','divisions','fiscal','countries','currencies','taxtypes','ledgerfamilies','financialformats','transactiongroups','transactiontypes','permissions']);
+const setupViews=new Set(['organisations','divisions','fiscal','countries','currencies','taxtypes','modules','ledgerfamilies','accountingobjecttypes','accountingdimensiontypes','financialformats','transactiongroups','transactiontypes','permissions']);
 const masterWorkflowOptions=['view','*','draft','submitted','approved','rejected','blocked','archived','deleted'];
 const transactionWorkflowOptions=['view','*','draft','submitted','approved','rejected','blocked','reversed','deleted'];
+
+function sanitizedModuleSvg(value){
+  if(!value)return '';
+  const parsed=new DOMParser().parseFromString(String(value),'image/svg+xml');
+  if(parsed.querySelector('parsererror')||parsed.documentElement.localName!=='svg')return '';
+  const tags=new Set(['svg','g','path','circle','rect','line','polyline','polygon','ellipse']);
+  const attrs=new Set(['viewBox','d','cx','cy','r','x','y','width','height','x1','y1','x2','y2','points','fill','stroke','stroke-width','stroke-linecap','stroke-linejoin','transform','opacity','rx','ry','aria-hidden','role']);
+  const clone=node=>{
+    if(!tags.has(node.localName))return null;
+    const clean=document.createElementNS('http://www.w3.org/2000/svg',node.localName);
+    for(const attribute of node.attributes||[]){
+      if(attrs.has(attribute.name)&&!/(?:javascript:|url\s*\()/i.test(attribute.value))clean.setAttribute(attribute.name,attribute.value);
+    }
+    for(const child of node.children||[]){const safe=clone(child);if(safe)clean.appendChild(safe);}
+    return clean;
+  };
+  return clone(parsed.documentElement)?.outerHTML||'';
+}
+function moduleIconMarkup(value){const svg=sanitizedModuleSvg(value);return svg?`<span class="module-menu-icon" aria-hidden="true">${svg}</span>`:'';}
+function renderModuleIconPreview(){
+  const preview=$('module-icon-preview');
+  if(!preview)return;
+  const svg=sanitizedModuleSvg($('module-icon-svg')?.value);
+  preview.innerHTML=svg||'<span>No valid SVG preview</span>';
+}
+function installModuleIconEditor(){
+  if($('module-icon-svg'))return;
+  const description=$('module-description')?.closest('label');
+  if(!description)return;
+  const label=document.createElement('label');
+  label.textContent='SVG icon';
+  const textarea=document.createElement('textarea');
+  textarea.id='module-icon-svg';textarea.rows=5;textarea.placeholder='<svg viewBox="0 0 24 24">...</svg>';
+  textarea.addEventListener('input',renderModuleIconPreview);
+  label.append(textarea);
+  const preview=document.createElement('div');preview.id='module-icon-preview';preview.className='module-icon-preview';
+  description.insertAdjacentElement('afterend',label);label.insertAdjacentElement('afterend',preview);
+}
+
+function panelTransparencyValue(value){
+  const number=Number(value);
+  if(!Number.isFinite(number))return 0;
+  return Math.max(0,Math.min(100,Math.round(number)));
+}
+
+function setPanelGlass(enabled,transparency=enabled?60:0){
+  const amount=enabled?panelTransparencyValue(transparency):0;
+  document.body.classList.toggle('panels-glass',amount>0);
+  document.body.style.setProperty('--panel-glass-alpha',String(1-(amount/100)));
+}
+
+const panelGlassParams=new URLSearchParams(location.search);
+setPanelGlass(panelGlassParams.get('panel_glass')==='1',panelGlassParams.get('panel_transparency')||60);
+window.addEventListener('message',event=>{
+  if(event.origin!==location.origin)return;
+  if(event.data&&event.data.type==='core-saas-panel-glass'){
+    setPanelGlass(event.data.enabled,event.data.transparency);
+  }
+});
+
+function initSidebarResize(){
+  const shell=document.querySelector('.erp-shell');
+  const handle=$('sidebar-resizer');
+  if(!shell||!handle)return;
+  const storageKey='erp.sidebarWidth';
+  const desktopQuery=window.matchMedia('(min-width:981px)');
+  const clampWidth=value=>{
+    const max=Math.min(460,Math.max(220,window.innerWidth-420));
+    return Math.max(190,Math.min(max,Math.round(value)));
+  };
+  const applyWidth=value=>{
+    if(!desktopQuery.matches)return;
+    document.documentElement.style.setProperty('--sidebar-width',`${clampWidth(value)}px`);
+  };
+  try{
+    const saved=Number(window.localStorage.getItem(storageKey));
+    if(Number.isFinite(saved))applyWidth(saved);
+  }catch{}
+  const resetWidth=()=>{
+    document.documentElement.style.removeProperty('--sidebar-width');
+    try{window.localStorage.removeItem(storageKey);}catch{}
+  };
+  handle.addEventListener('pointerdown',event=>{
+    if(!desktopQuery.matches)return;
+    event.preventDefault();
+    handle.setPointerCapture(event.pointerId);
+    document.body.classList.add('sidebar-resizing');
+    const onPointerMove=moveEvent=>applyWidth(moveEvent.clientX);
+    const onPointerUp=upEvent=>{
+      if(handle.hasPointerCapture?.(upEvent.pointerId))handle.releasePointerCapture(upEvent.pointerId);
+      document.body.classList.remove('sidebar-resizing');
+      try{
+        const width=getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width').trim();
+        window.localStorage.setItem(storageKey,String(parseInt(width,10)||250));
+      }catch{}
+      handle.removeEventListener('pointermove',onPointerMove);
+      handle.removeEventListener('pointerup',onPointerUp);
+      handle.removeEventListener('pointercancel',onPointerUp);
+    };
+    handle.addEventListener('pointermove',onPointerMove);
+    handle.addEventListener('pointerup',onPointerUp);
+    handle.addEventListener('pointercancel',onPointerUp);
+  });
+  handle.addEventListener('dblclick',resetWidth);
+  handle.addEventListener('keydown',event=>{
+    if(!desktopQuery.matches)return;
+    if(!['ArrowLeft','ArrowRight','Home'].includes(event.key))return;
+    event.preventDefault();
+    if(event.key==='Home'){resetWidth();return;}
+    const current=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'),10)||250;
+    const next=current+(event.key==='ArrowRight'?16:-16);
+    applyWidth(next);
+    try{window.localStorage.setItem(storageKey,String(clampWidth(next)));}catch{}
+  });
+  desktopQuery.addEventListener('change',event=>{
+    if(!event.matches)document.documentElement.style.removeProperty('--sidebar-width');
+    else{
+      try{
+        const saved=Number(window.localStorage.getItem(storageKey));
+        if(Number.isFinite(saved))applyWidth(saved);
+      }catch{}
+    }
+  });
+}
+
 function orgStorageKey(){
   return boot.tenant_id?`erp.currentOrg.${boot.tenant_id}`:'erp.currentOrg';
 }
@@ -84,6 +214,27 @@ function option(select,items,valueKey,labelKey,blank=''){
     select.append(o);
   });
 }
+function selectedModuleIds(id){return [...$(id).selectedOptions].map(option=>option.value);}
+function fillModuleSelect(id,selected=[]){
+  const select=$(id);if(!select)return;
+  option(select,state.modules.filter(module=>module.is_active!==false),'module_id',module=>module.module_name);
+  const wanted=new Set(selected||[]);
+  [...select.options].forEach(item=>{item.selected=wanted.has(item.value);});
+}
+function installModuleField(formId,selectId){
+  const form=$(formId);if(!form||$(selectId))return;
+  const label=document.createElement('label');
+  label.textContent='Modules';
+  const select=document.createElement('select');
+  select.id=selectId;select.multiple=true;select.required=true;select.size=5;
+  label.append(select);
+  const active=[...form.querySelectorAll('label')].find(item=>item.textContent.includes('Active'));
+  form.insertBefore(label,active||form.querySelector('.actions'));
+}
+function moduleNames(row){
+  const ids=new Set(row.module_ids||[]);
+  return state.modules.filter(module=>ids.has(module.module_id)).map(module=>module.module_name).join(', ');
+}
 function prependOption(select,value,label){
   const o=document.createElement('option');
   o.value=value;
@@ -93,6 +244,7 @@ function prependOption(select,value,label){
 function table(target,columns,rows,onClick){
   if(!rows.length){target.innerHTML='<p class="empty">No records yet.</p>';return;}
   const el=document.createElement('table');
+  el.className='data-grid';
   el.innerHTML=`<thead><tr>${columns.map(c=>`<th>${c[0]}</th>`).join('')}</tr></thead>`;
   const body=document.createElement('tbody');
   rows.forEach(row=>{
@@ -109,6 +261,7 @@ function table(target,columns,rows,onClick){
   });
   el.append(body);
   target.innerHTML='';
+  target.classList.add('grid-wrap');
   target.append(el);
 }
 function currentOrg(){return boot.organisations.find(o=>o.organisation_id===state.orgId)||boot.organisations[0];}
@@ -121,8 +274,20 @@ function setSetupExpanded(expanded){
   $('setup-toggle').classList.toggle('active',expanded&&setupViews.has(document.querySelector('.view:not([hidden])')?.id?.replace('view-','')));
 }
 function setMenuExpanded(toggleId,subnavId,expanded){
+  if(!$(toggleId)||!$(subnavId))return;
   $(subnavId).hidden=!expanded;
   $(toggleId).setAttribute('aria-expanded',expanded?'true':'false');
+}
+function collapseDynamicMenus(exceptToggleId=''){
+  [
+    ['subledger-toggle','subledger-subnav'],
+    ['object-toggle','object-subnav'],
+    ['dimension-toggle','dimension-subnav'],
+    ['transaction-toggle','transaction-subnav'],
+    ['reports-toggle','reports-subnav']
+  ].forEach(([toggleId,subnavId])=>{
+    if(toggleId!==exceptToggleId)setMenuExpanded(toggleId,subnavId,false);
+  });
 }
 function show(view){
   document.querySelectorAll('.view').forEach(v=>v.hidden=v.id!==`view-${view}`);
@@ -134,12 +299,14 @@ function show(view){
 async function openView(view){
   if(view==='dashboard'){
     show(view);
+    collapseDynamicMenus();
     renderDashboard();
     loadDashboardData().catch(e=>alert(e.message));
     return;
   }
   await ensureViewData(view);
   show(view);
+  if(view!=='reports'&&view!=='journals')collapseDynamicMenus();
 }
 function labelForFamily(code){
   const family=state.ledgerFamilies.find(row=>row.ledger_family_code===code);
@@ -153,16 +320,35 @@ function labelForTransactionType(id){
   return type?.type_name||'Transactions';
 }
 function buildDynamicMenu(){
-  const families=state.ledgerFamilies.filter(f=>f.is_active!==false);
-  $('master-subnav').innerHTML=families.map(f=>`<button type="button" class="nav subnav-item" data-ledger-family="${f.ledger_family_code}">${f.family_name}</button>`).join('');
-  $('master-subnav').querySelectorAll('[data-ledger-family]').forEach(button=>{
-    button.addEventListener('click',()=>openLedgerFamily(button.dataset.ledgerFamily).catch(e=>alert(e.message)));
+  const accessibleModules=new Set(state.navigation.modules.map(module=>module.module_id));
+  const permissions=state.navigation.permissions||[];
+  const hasMaster=permissions.some(permission=>permission.resource_kind==='master_data');
+  const hasTransactions=permissions.some(permission=>permission.resource_kind==='transaction');
+  const linked=row=>(row.module_ids||[]).some(id=>accessibleModules.has(id));
+  const masterAllowed=code=>permissions.some(permission=>permission.resource_kind==='master_data'&&(permission.resource_code==='*'||permission.resource_code===code));
+  const transactionAllowed=id=>permissions.some(permission=>permission.resource_kind==='transaction'&&(permission.resource_code==='*'||permission.resource_code===id));
+  const families=state.ledgerFamilies.filter(f=>f.is_active!==false&&linked(f)&&masterAllowed(f.ledger_family_code));
+  $('subledger-subnav').innerHTML=families.map(f=>`<button type="button" class="nav subnav-item" data-ledger-family="${f.ledger_family_code}">${f.family_name}</button>`).join('');
+  $('object-subnav').innerHTML=state.accountingObjectTypes.filter(type=>type.is_active!==false&&hasMaster&&linked(type)).map(type=>`<button type="button" class="nav subnav-item" data-accounting-master="object" data-accounting-type-id="${type.accounting_object_type_id}">${type.type_name}</button>`).join('');
+  $('dimension-subnav').innerHTML=state.accountingDimensionTypes.filter(type=>type.is_active!==false&&hasMaster&&linked(type)).map(type=>`<button type="button" class="nav subnav-item" data-accounting-master="dimension" data-accounting-type-id="${type.accounting_dimension_type_id}">${type.type_name}</button>`).join('');
+  document.querySelectorAll('[data-ledger-family]').forEach(button=>{
+    button.onclick=()=>openLedgerFamily(button.dataset.ledgerFamily).catch(e=>alert(e.message));
+  });
+  document.querySelectorAll('[data-accounting-master]').forEach(button=>{
+    button.onclick=()=>openAccountingMaster(button.dataset.accountingMaster,button.dataset.accountingTypeId).catch(e=>alert(e.message));
   });
   $('transaction-subnav').innerHTML=state.transactionGroups.filter(g=>g.is_active!==false).map(group=>{
-    const types=state.transactionTypes.filter(type=>type.transaction_group_id===group.transaction_group_id&&type.is_active!==false);
+    const types=state.transactionTypes.filter(type=>type.transaction_group_id===group.transaction_group_id&&type.is_active!==false&&linked(type)&&transactionAllowed(type.transaction_type_id));
     const expanded=expandedTransactionGroups.has(group.transaction_group_id);
     return `<div class="menu-group"><button type="button" class="nav subnav-item menu-group-toggle" aria-expanded="${expanded?'true':'false'}" data-transaction-group="${group.transaction_group_id}">${group.group_name}</button><div class="transaction-type-group" ${expanded?'':'hidden'}>${types.map(type=>`<button type="button" class="nav subnav-item subnav-depth" data-transaction-type="${type.transaction_type_id}">${type.type_name}</button>`).join('')}</div></div>`;
   }).join('');
+  $('technical-menu').querySelector('[data-view="legalentities"]').hidden=!hasMaster;
+  $('technical-menu').querySelector('[data-ledger-family="gl"]').hidden=!families.some(f=>f.ledger_family_code==='gl');
+  $('subledger-toggle').hidden=!families.some(f=>f.ledger_family_code!=='gl');
+  $('object-toggle').hidden=!$('object-subnav').children.length;
+  $('dimension-toggle').hidden=!$('dimension-subnav').children.length;
+  $('transaction-toggle').hidden=!hasTransactions||!$('transaction-subnav').querySelector('[data-transaction-type]');
+  $('reports-toggle').hidden=!(hasMaster||hasTransactions);
   $('transaction-subnav').querySelectorAll('[data-transaction-group]').forEach(button=>{
     button.addEventListener('click',()=>{
       const groupId=button.dataset.transactionGroup;
@@ -176,25 +362,125 @@ function buildDynamicMenu(){
   });
   highlightDynamicMenu();
 }
+function alternativeItem(label,attributes){return `<button type="button" class="nav subnav-item subnav-depth" ${attributes}>${label}</button>`;}
+function resourcesForModules(moduleIds,{role=null}={}){
+  const linked=row=>(row.module_ids||[]).some(id=>moduleIds.has(id));
+  const permissions=role?state.navigation.permissions.filter(permission=>permission.role_id===role.role_id):[];
+  const masterAllowed=family=>!role||permissions.some(permission=>permission.resource_kind==='master_data'&&(permission.resource_code==='*'||permission.resource_code===family.ledger_family_code));
+  const anyMaster=!role||permissions.some(permission=>permission.resource_kind==='master_data');
+  const transactionAllowed=type=>!role||permissions.some(permission=>permission.resource_kind==='transaction'&&(permission.resource_code==='*'||permission.resource_code===type.transaction_type_id));
+  return [
+    ...state.ledgerFamilies.filter(row=>row.is_active!==false&&linked(row)&&masterAllowed(row)).map(row=>alternativeItem(row.family_name,`data-ledger-family="${row.ledger_family_code}"`)),
+    ...state.accountingObjectTypes.filter(row=>row.is_active!==false&&linked(row)&&anyMaster).map(row=>alternativeItem(row.type_name,`data-accounting-master="object" data-accounting-type-id="${row.accounting_object_type_id}"`)),
+    ...state.accountingDimensionTypes.filter(row=>row.is_active!==false&&linked(row)&&anyMaster).map(row=>alternativeItem(row.type_name,`data-accounting-master="dimension" data-accounting-type-id="${row.accounting_dimension_type_id}"`)),
+    ...state.transactionTypes.filter(row=>row.is_active!==false&&linked(row)&&transactionAllowed(row)).map(row=>alternativeItem(row.type_name,`data-transaction-type="${row.transaction_type_id}"`))
+  ];
+}
+function bindAlternativeMenu(menu){
+  menu.querySelectorAll('[data-view]').forEach(button=>button.onclick=()=>openView(button.dataset.view).catch(error=>alert(error.message)));
+  menu.querySelectorAll('[data-ledger-family]').forEach(button=>button.onclick=()=>openLedgerFamily(button.dataset.ledgerFamily).catch(error=>alert(error.message)));
+  menu.querySelectorAll('[data-accounting-master]').forEach(button=>button.onclick=()=>openAccountingMaster(button.dataset.accountingMaster,button.dataset.accountingTypeId).catch(error=>alert(error.message)));
+  menu.querySelectorAll('[data-transaction-type]').forEach(button=>button.onclick=()=>openTransactionType(button.dataset.transactionType).catch(error=>alert(error.message)));
+  menu.querySelectorAll('[data-alternate-group]').forEach(heading=>{
+    const toggle=()=>{
+      const content=$(heading.getAttribute('aria-controls'));
+      const expanded=heading.getAttribute('aria-expanded')==='true';
+      heading.setAttribute('aria-expanded',expanded?'false':'true');
+      content.hidden=expanded;
+      const key=`erp.menuExpanded:${state.orgId}:${heading.dataset.menuKind}`;
+      const expandedGroups=expandedMenuGroups(heading.dataset.menuKind);
+      if(expanded)expandedGroups.delete(heading.dataset.alternateGroup);else expandedGroups.add(heading.dataset.alternateGroup);
+      localStorage.setItem(key,JSON.stringify([...expandedGroups]));
+    };
+    heading.onclick=toggle;
+    heading.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();toggle();}};
+  });
+}
+function expandedMenuGroups(kind){
+  try{return new Set(JSON.parse(localStorage.getItem(`erp.menuExpanded:${state.orgId}:${kind}`)||'[]'));}
+  catch{return new Set();}
+}
+function alternativeGroup(kind,id,label,items,iconSvg=''){
+  if(!items.length)return '';
+  const expanded=expandedMenuGroups(kind).has(id);
+  const contentId=`${kind}-menu-group-${id}`;
+  return `<div class="alternate-menu-group"><div class="alternate-menu-heading" role="button" tabindex="0" data-menu-kind="${kind}" data-alternate-group="${id}" aria-expanded="${expanded?'true':'false'}" aria-controls="${contentId}"><span class="alternate-menu-label">${moduleIconMarkup(iconSvg)}${label}</span></div><div id="${contentId}" class="alternate-menu-items" ${expanded?'':'hidden'}>${items.join('')}</div></div>`;
+}
+function buildAlternativeMenus(){
+  const hasMaster=(state.navigation.permissions||[]).some(permission=>permission.resource_kind==='master_data');
+  const common=`<button type="button" class="nav" data-view="dashboard">Dashboard</button>${hasMaster?'<button type="button" class="nav" data-view="legalentities">Legal Entities</button>':''}`;
+  $('module-menu').innerHTML=common+state.navigation.modules.map(module=>{
+    const items=resourcesForModules(new Set([module.module_id]));
+    return alternativeGroup('module',module.module_id,module.module_name,items,module.module_icon_svg);
+  }).join('');
+  $('role-menu').innerHTML=common+state.navigation.roles.map(role=>{
+    const moduleIds=new Set(role.module_ids||[]);
+    const items=resourcesForModules(moduleIds,{role});
+    return alternativeGroup('role',role.role_id,role.role_name,items);
+  }).join('');
+  bindAlternativeMenu($('module-menu'));bindAlternativeMenu($('role-menu'));
+  syncSetupAccess();
+  applyMenuMode(localStorage.getItem('erp.menuMode')||'module');
+}
+function syncSetupAccess(){
+  const allowed=state.navigation?.is_administrator===true;
+  $('sidebar-setup-footer').hidden=!allowed;
+  if(!allowed)setSetupExpanded(false);
+}
+function applyMenuMode(mode){
+  const selected=['technical','module','role'].includes(mode)?mode:'module';
+  $('technical-menu').hidden=selected!=='technical';$('module-menu').hidden=selected!=='module';$('role-menu').hidden=selected!=='role';
+  document.querySelectorAll('[data-menu-mode]').forEach(tab=>{const active=tab.dataset.menuMode===selected;tab.classList.toggle('active',active);tab.setAttribute('aria-selected',active?'true':'false');});
+  localStorage.setItem('erp.menuMode',selected);
+  highlightDynamicMenu();
+}
 function highlightDynamicMenu(){
   document.querySelectorAll('[data-ledger-family]').forEach(button=>button.classList.toggle('active',button.dataset.ledgerFamily===selectedLedgerFamilyCode&&!$('view-accounts').hidden));
+  document.querySelectorAll('[data-accounting-master]').forEach(button=>{
+    const selectedType=button.dataset.accountingMaster==='object'?selectedAccountingObjectTypeId:selectedAccountingDimensionTypeId;
+    button.classList.toggle('active',button.dataset.accountingTypeId===selectedType&&!$(`view-accounting${button.dataset.accountingMaster}s`).hidden);
+  });
   document.querySelectorAll('[data-transaction-type]').forEach(button=>button.classList.toggle('active',button.dataset.transactionType===selectedTransactionTypeId&&!$('view-journals').hidden));
   document.querySelectorAll('[data-report-view]').forEach(button=>button.classList.toggle('active',button.dataset.reportView===selectedReport&&!$('view-reports').hidden));
-  $('master-toggle').classList.toggle('active',!$('view-accounts').hidden);
+  $('subledger-toggle').classList.toggle('active',!$('view-accounts').hidden&&selectedLedgerFamilyCode&&selectedLedgerFamilyCode!=='gl');
+  $('object-toggle').classList.toggle('active',!$('view-accountingobjects').hidden);
+  $('dimension-toggle').classList.toggle('active',!$('view-accountingdimensions').hidden);
   $('transaction-toggle').classList.toggle('active',!$('view-journals').hidden);
   $('reports-toggle')?.classList.toggle('active',!$('view-reports').hidden);
+}
+async function openAccountingMaster(kind,typeId=''){
+  const view=kind==='object'?'accountingobjects':'accountingdimensions';
+  selectedLedgerFamilyCode='';
+  if(kind==='object')selectedAccountingObjectTypeId=typeId||selectedAccountingObjectTypeId;
+  else selectedAccountingDimensionTypeId=typeId||selectedAccountingDimensionTypeId;
+  selectedTransactionTypeId='';
+  await ensureViewData(view);
+  const config=accountingMasterConfig(kind);
+  if(typeId)$(`${config.prefix}-type-select`).value=typeId;
+  await loadAccountingMasterRecords(kind);
+  show(view);
+  setMenuExpanded(kind==='object'?'object-toggle':'dimension-toggle',kind==='object'?'object-subnav':'dimension-subnav',true);
+  collapseDynamicMenus(kind==='object'?'object-toggle':'dimension-toggle');
+  $('page-title').textContent=kind==='object'?'Accounting Objects':'Accounting Dimensions';
+  highlightDynamicMenu();
 }
 async function openLedgerFamily(familyCode){
   await Promise.all([loadMenuData(),ensureDivisions(),ensureLedgerTypes(),ensureLegalEntities()]);
   selectedLedgerFamilyCode=familyCode;
+  selectedAccountingObjectTypeId='';
+  selectedAccountingDimensionTypeId='';
   selectedTransactionTypeId='';
   $('account-form-family').value=familyCode;
   $('account-form').hidden=true;
   show('accounts');
-  setMenuExpanded('master-toggle','master-subnav',true);
-  setMenuExpanded('transaction-toggle','transaction-subnav',false);
-  $('page-title').textContent=labelForFamily(familyCode);
-  $('account-grid-title').textContent=labelForFamily(familyCode);
+  if(familyCode==='gl')collapseDynamicMenus();
+  else{
+    setMenuExpanded('subledger-toggle','subledger-subnav',true);
+    collapseDynamicMenus('subledger-toggle');
+  }
+  const title=familyCode==='gl'?'GL Accounts':labelForFamily(familyCode);
+  $('page-title').textContent=title;
+  $('account-grid-title').textContent=title;
   await loadAccountsForFamily(familyCode);
   renderAccounts();
   highlightDynamicMenu();
@@ -203,12 +489,14 @@ async function openTransactionType(typeId){
   await Promise.all([ensureTransactionSetup(),ensureDivisions(),ensureFiscal()]);
   selectedTransactionTypeId=typeId;
   selectedLedgerFamilyCode='';
+  selectedAccountingObjectTypeId='';
+  selectedAccountingDimensionTypeId='';
   const type=state.transactionTypes.find(row=>row.transaction_type_id===typeId);
   if(type?.transaction_group_id)expandedTransactionGroups.add(type.transaction_group_id);
   $('journal-form').hidden=true;
   show('journals');
   setMenuExpanded('transaction-toggle','transaction-subnav',true);
-  setMenuExpanded('master-toggle','master-subnav',false);
+  collapseDynamicMenus('transaction-toggle');
   $('page-title').textContent=labelForTransactionType(typeId);
   $('journal-grid-title').textContent=labelForTransactionType(typeId);
   await Promise.all([loadJournalsForTransactionType(typeId),loadAllAccounts()]);
@@ -220,11 +508,12 @@ async function openReport(report){
   await ensureViewData('reports');
   selectedReport=report;
   selectedLedgerFamilyCode='';
+  selectedAccountingObjectTypeId='';
+  selectedAccountingDimensionTypeId='';
   selectedTransactionTypeId='';
   show('reports');
   setMenuExpanded('reports-toggle','reports-subnav',true);
-  setMenuExpanded('master-toggle','master-subnav',false);
-  setMenuExpanded('transaction-toggle','transaction-subnav',false);
+  collapseDynamicMenus('reports-toggle');
   const titles={financial_statement:'Financial Statement',ledger:'Ledger Balances'};
   $('page-title').textContent=titles[report]||'Reports';
   $('report-title').textContent=titles[report]||'Reports';
@@ -259,7 +548,7 @@ function fillSelects(){
 }
 function fillDivisionSelects(){
   const label=d=>`${'  '.repeat(Number(d.depth)||0)}${d.division_code} - ${d.division_name}`;
-  [$('division-parent'),$('account-division'),$('master-division'),$('journal-division')].forEach(s=>option(s,state.divisions,'division_id',label,s.id==='division-parent'?'Root division':''));
+  [$('division-parent'),$('account-division'),$('master-division'),$('journal-division'),$('accounting-object-division'),$('accounting-dimension-division')].forEach(s=>option(s,state.divisions,'division_id',label,s?.id==='division-parent'?'Root division':''));
   option($('report-division'),state.divisions,'division_id',label,'All divisions');
   document.querySelectorAll('.permission-division').forEach(s=>option(s,state.divisions,'division_id',label,'Select division'));
 }
@@ -577,17 +866,42 @@ function valueForDetailField(detail,schema,name){
   if(Object.prototype.hasOwnProperty.call(schema,'default'))return schema.default;
   return schema.type==='boolean'?false:'';
 }
+function detailFieldType(field={}){
+  const type=field.type||field.uiType||field['x-ui-type']||'string';
+  if(['text','short_text','long_text','textarea'].includes(type))return type;
+  return type;
+}
+function detailFieldWidth(field={}){
+  const width=field.uiWidth||field.width||field['x-width']||field['x-ui-width']||'medium';
+  if(['short','medium','wide','full'].includes(width))return width;
+  if(detailFieldType(field)==='short_text')return 'short';
+  if(['long_text','textarea'].includes(detailFieldType(field)))return 'full';
+  return 'medium';
+}
 function detailInputType(field){
   if(field.format==='date')return 'date';
   if(field.format==='date-time')return 'datetime-local';
-  if(field.type==='number'||field.type==='integer')return 'number';
+  if(detailFieldType(field)==='number'||detailFieldType(field)==='integer')return 'number';
   return 'text';
+}
+function detailEnumOptions(field){
+  if(Array.isArray(field.options))return field.options.map(item=>{
+    if(typeof item==='object')return {
+      value:item.code??item.value??'',
+      label:item.description??item.label??item.name??item.code??item.value??''
+    };
+    return {value:item,label:String(item)};
+  });
+  if(Array.isArray(field.enum))return field.enum.map((item,index)=>({value:item,label:field.enumNames?.[index]||String(item)}));
+  return [];
 }
 function renderDetailInput(name,field,value,required){
   const label=document.createElement('label');
+  label.className=`detail-field detail-field--${detailFieldWidth(field)}`;
   label.textContent=field.title||pretty(name);
   if(field.description)label.title=field.description;
-  if(Array.isArray(field.enum)){
+  const enumOptions=detailEnumOptions(field);
+  if(enumOptions.length){
     const select=document.createElement('select');
     select.dataset.detailField=name;
     if(!required){
@@ -596,18 +910,18 @@ function renderDetailInput(name,field,value,required){
       blank.textContent='None';
       select.append(blank);
     }
-    field.enum.forEach(item=>{
+    enumOptions.forEach(item=>{
       const option=document.createElement('option');
-      option.value=String(item);
-      option.textContent=field.enumNames?.[field.enum.indexOf(item)]||String(item);
+      option.value=String(item.value);
+      option.textContent=item.label||String(item.value);
       select.append(option);
     });
     select.value=value??'';
     label.append(select);
     return label;
   }
-  if(field.type==='boolean'){
-    label.className='check';
+  if(detailFieldType(field)==='boolean'){
+    label.className=`check detail-field detail-field--${detailFieldWidth(field)}`;
     const input=document.createElement('input');
     input.type='checkbox';
     input.dataset.detailField=name;
@@ -615,11 +929,12 @@ function renderDetailInput(name,field,value,required){
     label.prepend(input);
     return label;
   }
-  const input=(field.type==='object'||field.type==='array'||field.format==='textarea')?document.createElement('textarea'):document.createElement('input');
+  const fieldType=detailFieldType(field);
+  const input=(fieldType==='object'||fieldType==='array'||fieldType==='long_text'||fieldType==='textarea'||field.format==='textarea')?document.createElement('textarea'):document.createElement('input');
   input.dataset.detailField=name;
   if(input.tagName==='INPUT')input.type=detailInputType(field);
-  if(field.type==='integer')input.step='1';
-  input.value=(field.type==='object'||field.type==='array')?JSON.stringify(value??(field.type==='array'?[]:{}),null,2):(value??'');
+  if(fieldType==='integer')input.step='1';
+  input.value=(fieldType==='object'||fieldType==='array')?JSON.stringify(value??(fieldType==='array'?[]:{}),null,2):(value??'');
   label.append(input);
   return label;
 }
@@ -627,18 +942,21 @@ function showAccountDetailTab(container,id){
   container.querySelectorAll('[data-account-detail-tab]').forEach(button=>button.classList.toggle('active',button.dataset.accountDetailTab===id));
   container.querySelectorAll('[data-account-detail-panel]').forEach(panel=>{panel.hidden=panel.dataset.accountDetailPanel!==id;});
 }
-function renderAccountDetailFields(detail={}){
-  const container=$('account-detail-fields');
+function showAccountFixedTab(id){
+  document.querySelectorAll('[data-account-fixed-tab]').forEach(button=>button.classList.toggle('active',button.dataset.accountFixedTab===id));
+  document.querySelectorAll('[data-account-fixed-panel]').forEach(panel=>{panel.hidden=panel.dataset.accountFixedPanel!==id;});
+}
+function renderSchemaDetailFields(containerId,schema,detail={}){
+  const container=$(containerId);
   if(!container)return;
-  const schema=selectedAccountFamilySchema();
   const fields=schemaFields(schema);
   container.innerHTML='';
   if(!fields.length){
     const label=document.createElement('label');
     label.className='full';
     label.textContent='Additional data JSON';
-    const textarea=document.createElement('textarea');
-    textarea.dataset.detailRaw='true';
+      const textarea=document.createElement('textarea');
+      textarea.dataset.detailRaw='true';
     textarea.value=JSON.stringify(detail||{},null,2);
     label.append(textarea);
     container.append(label);
@@ -679,33 +997,40 @@ function renderAccountDetailFields(detail={}){
   container.append(detailLayout);
   syncRequiredMarkers(container);
 }
-function collectAccountDetail(){
-  const container=$('account-detail-fields');
+function renderAccountDetailFields(detail={}){
+  renderSchemaDetailFields('account-detail-fields',selectedAccountFamilySchema(),detail);
+}
+function collectSchemaDetail(containerId,schema){
+  const container=$(containerId);
   const raw=container?.querySelector('[data-detail-raw]');
   if(raw){
     try{return JSON.parse(raw.value||'{}');}
     catch{throw new Error('Additional data JSON must be valid JSON');}
   }
-  const schema=selectedAccountFamilySchema();
   const properties=schema?.properties||{};
   const detail={};
   container?.querySelectorAll('[data-detail-field]').forEach(input=>{
     const name=input.dataset.detailField;
     const field=properties[name]||{};
+    const fieldType=detailFieldType(field);
     if(input.type==='checkbox')detail[name]=input.checked;
-    else if(field.type==='number')detail[name]=input.value===''?null:Number(input.value);
-    else if(field.type==='integer')detail[name]=input.value===''?null:parseInt(input.value,10);
-    else if(field.type==='object'||field.type==='array'){
+    else if(fieldType==='number')detail[name]=input.value===''?null:Number(input.value);
+    else if(fieldType==='integer')detail[name]=input.value===''?null:parseInt(input.value,10);
+    else if(fieldType==='object'||fieldType==='array'){
       try{detail[name]=JSON.parse(input.value||null);}
       catch{throw new Error(`${field.title||pretty(name)} must be valid JSON`);}
     }else detail[name]=input.value;
   });
   return detail;
 }
+function collectAccountDetail(){
+  return collectSchemaDetail('account-detail-fields',selectedAccountFamilySchema());
+}
 function openAccountEditor(account={}){
   const family=selectedLedgerFamilyCode||account.ledger_family_code||'gl';
   $('account-form').hidden=false;
   $('account-form').reset();
+  showAccountFixedTab('identification');
   $('account-id').value=account.ledger_account_id||'';
   $('account-form-family').value=family;
   $('account-form-family').disabled=true;
@@ -739,6 +1064,10 @@ function addPanelCloseButtons(){
     'transaction-type-form',
     'role-form',
     'account-form',
+    'accounting-object-form',
+    'accounting-dimension-form',
+    'accounting-object-type-form',
+    'accounting-dimension-type-form',
     'legal-entity-form',
     'master-record-form',
     'journal-form'
@@ -756,11 +1085,11 @@ function addPanelCloseButtons(){
 }
 async function claimErpAdmin(){
   if(!state.orgId)return;
-  if(!confirm('Create an ERP Admin role and assign your email to it for this organisation?'))return;
+  if(!confirm('Assign your email to the Security Administrator role for this organisation?'))return;
   const result=await api('permissions/claim-admin',{method:'POST',body:JSON.stringify({organisation_id:state.orgId})});
   loadedSlices.permissions=false;
-  await loadDashboardData(true);
-  alert(`ERP Admin access assigned to ${result.email}.`);
+  await Promise.all([loadDashboardData(true),loadMenuData(true)]);
+  alert(`Security Administrator access assigned to ${result.email}.`);
 }
 function renderDashboard(){
   const org=currentOrg();
@@ -778,7 +1107,7 @@ function renderDashboard(){
   ];
   const showClaimAdmin=org&&summary&&Number(summary.admin_users||0)===0;
   $('metrics').innerHTML=cards.map(([k,v])=>`<article class="metric"><span>${k}</span><strong>${v}</strong></article>`).join('');
-  $('org-summary').innerHTML=org?`<p><b>${org.organisation_name}</b></p><p>Code: ${org.organisation_code}</p><p>Base currency: ${org.base_currency_code}</p><p>Status: ${pretty(org.workflow_status)}</p>${showClaimAdmin?'<div class="actions"><button type="button" id="claim-erp-admin">Create ERP Admin Role</button></div>':''}`:'';
+  $('org-summary').innerHTML=org?`<p><b>${org.organisation_name}</b></p><p>Code: ${org.organisation_code}</p><p>Base currency: ${org.base_currency_code}</p><p>Status: ${pretty(org.workflow_status)}</p>${showClaimAdmin?'<div class="actions"><button type="button" id="claim-erp-admin">Assign Security Administrator</button></div>':''}`:'';
   $('claim-erp-admin')?.addEventListener('click',()=>claimErpAdmin().catch(e=>alert(e.message)));
 }
 function resetOrgOpenAIFields(){
@@ -979,16 +1308,16 @@ function renderLedgerFamilies(){
   const matchingTypeFamilies=new Set((state.ledgerTypes||[]).filter(type=>rowMatches(type,term)).map(type=>type.ledger_family_code));
   const rows=(state.ledgerFamilies||[]).filter(row=>rowMatches(row,term)||matchingTypeFamilies.has(row.ledger_family_code));
   const target=$('ledger-family-list');
-  if(!rows.length){target.innerHTML='<p class="empty">No ledger families match the search.</p>';return;}
+  if(!rows.length){target.innerHTML='<p class="empty">No subledger account types match the search.</p>';return;}
   const el=document.createElement('table');
   el.className='ledger-family-table';
-  el.innerHTML='<thead><tr><th></th><th>Code</th><th>Name</th><th>Standard type</th><th>Legal entity</th><th>Active</th></tr></thead>';
+  el.innerHTML='<thead><tr><th></th><th>Code</th><th>Name</th><th>Modules</th><th>Standard type</th><th>Legal entity</th><th>Active</th></tr></thead>';
   const body=document.createElement('tbody');
   rows.forEach(family=>{
     const row=document.createElement('tr');
     row.className='click-row';
     const expanded=expandedLedgerFamilies.has(family.ledger_family_code);
-    row.innerHTML=`<td><button type="button" class="mini-toggle" aria-label="${expanded?'Collapse':'Expand'} ${family.ledger_family_code}">${expanded?'v':'>'}</button></td><td>${family.ledger_family_code}</td><td>${family.family_name}</td><td>${family.requires_standard_account_type?'Yes':'No'}</td><td>${family.requires_legal_entity?'Required':'Optional'}</td><td>${family.is_active?'Yes':'No'}</td>`;
+    row.innerHTML=`<td><button type="button" class="mini-toggle" aria-label="${expanded?'Collapse':'Expand'} ${family.ledger_family_code}">${expanded?'v':'>'}</button></td><td>${family.ledger_family_code}</td><td>${family.family_name}</td><td>${moduleNames(family)}</td><td>${family.requires_standard_account_type?'Yes':'No'}</td><td>${family.requires_legal_entity?'Required':'Optional'}</td><td>${family.is_active?'Yes':'No'}</td>`;
     row.querySelector('button').addEventListener('click',event=>{
       event.stopPropagation();
       if(expanded)expandedLedgerFamilies.delete(family.ledger_family_code);
@@ -1000,7 +1329,7 @@ function renderLedgerFamilies(){
     if(expanded){
       const typeRow=document.createElement('tr');
       const cell=document.createElement('td');
-      cell.colSpan=6;
+      cell.colSpan=7;
       cell.className='nested-cell';
       renderLedgerTypeGrid(cell,family);
       typeRow.append(cell);
@@ -1010,6 +1339,16 @@ function renderLedgerFamilies(){
   el.append(body);
   target.innerHTML='';
   target.append(el);
+}
+function renderModules(){
+  const rows=state.modules.filter(row=>rowMatches(row,searchTerm('module-search')));
+  table($('module-list'),[['Code',r=>r.module_code],['Name',r=>r.module_name],['Description',r=>r.module_description||''],['Active',r=>r.is_active?'Yes':'No']],rows,openModule);
+}
+function openModule(row={}){
+  $('module-form').hidden=false;$('module-form').reset();
+  $('module-id').value=row.module_id||'';$('module-code').value=row.module_code||'';$('module-code').readOnly=!!row.module_id;
+  $('module-name').value=row.module_name||'';$('module-description').value=row.module_description||'';$('module-sort').value=row.sort_order||0;$('module-active').checked=row.is_active!==false;
+  $('module-icon-svg').value=row.module_icon_svg||'';renderModuleIconPreview();
 }
 function selectLedgerFamily(family){
   $('ledger-family-form').hidden=false;
@@ -1021,6 +1360,7 @@ function selectLedgerFamily(family){
   $('ledger-family-legal-entity').checked=!!family.requires_legal_entity;
   $('ledger-family-schema').value=JSON.stringify(family.schema_json||{},null,2);
   $('ledger-family-active').checked=!!family.is_active;
+  fillModuleSelect('ledger-family-modules',family.module_ids);
 }
 function selectLedgerType(type){
   $('ledger-type-form').hidden=false;
@@ -1427,6 +1767,166 @@ function renderMasterRecords(){
     loadEntityDocuments('master').catch(e=>alert(e.message));
   });
 }
+function openAccountingSetupType(kind,row={}){
+  const prefix=kind==='object'?'accounting-object-type':'accounting-dimension-type';
+  $(`${prefix}-form`).hidden=false;
+  $(`${prefix}-id`).value=row.accounting_object_type_id||row.accounting_dimension_type_id||'';
+  $(`${prefix}-code`).value=row.type_code||'';
+  $(`${prefix}-code`).readOnly=!!(row.accounting_object_type_id||row.accounting_dimension_type_id);
+  $(`${prefix}-name`).value=row.type_name||'';
+  $(`${prefix}-schema`).value=JSON.stringify(row.schema_json||{type:'object',properties:{}},null,2);
+  $(`${prefix}-ui-schema`).value=JSON.stringify(row.ui_schema_json||{sections:[]},null,2);
+  $(`${prefix}-active`).checked=row.is_active!==false;
+  fillModuleSelect(`${prefix}-modules`,row.module_ids);
+}
+function renderAccountingSetupTypes(kind){
+  const isObject=kind==='object';
+  const rows=(isObject?state.accountingObjectTypes:state.accountingDimensionTypes).filter(row=>rowMatches(row,searchTerm(isObject?'accounting-object-type-search':'accounting-dimension-type-search')));
+  const target=$(isObject?'accounting-object-type-list':'accounting-dimension-type-list');
+  table(target,[['Code',r=>r.type_code],['Name',r=>r.type_name],['Modules',moduleNames],['Active',r=>r.is_active?'Yes':'No'],['Seeded',r=>r.is_seeded?'Yes':'No']],rows,row=>openAccountingSetupType(kind,row));
+}
+function accountingMasterConfig(kind){
+  const isObject=kind==='object';
+  return {
+    kind,
+    isObject,
+    recordsKey:isObject?'accountingObjects':'accountingDimensions',
+    typesKey:isObject?'accountingObjectTypes':'accountingDimensionTypes',
+    endpoint:isObject?'accounting-objects':'accounting-dimensions',
+    viewId:isObject?'accountingobjects':'accountingdimensions',
+    title:isObject?'Accounting Objects':'Accounting Dimensions',
+    recordId:isObject?'accounting_object_id':'accounting_dimension_id',
+    typeId:isObject?'accounting_object_type_id':'accounting_dimension_type_id',
+    code:isObject?'object_code':'dimension_code',
+    name:isObject?'object_name':'dimension_name',
+    prefix:isObject?'accounting-object':'accounting-dimension',
+    selected:()=>isObject?selectedAccountingObject:selectedAccountingDimension,
+    setSelected:value=>{if(isObject)selectedAccountingObject=value;else selectedAccountingDimension=value;},
+    selectedType:()=>isObject?selectedAccountingObjectTypeId:selectedAccountingDimensionTypeId,
+    setSelectedType:value=>{if(isObject)selectedAccountingObjectTypeId=value;else selectedAccountingDimensionTypeId=value;}
+  };
+}
+function fillAccountingMasterTypes(kind){
+  const config=accountingMasterConfig(kind);
+  option($(`${config.prefix}-type`),state[config.typesKey].filter(type=>type.is_active!==false),config.typeId,type=>`${type.type_code} - ${type.type_name}`,'Select type');
+}
+function accountingObjectParentLabel(row){
+  if(!row)return '';
+  const type=row.parent_type_name||row.type_name||pretty(row.parent_type_code||row.type_code||'');
+  const code=row.parent_object_code||row.object_code||'';
+  const name=row.parent_object_name||row.object_name||'';
+  return [type,code,name].filter(Boolean).join(' - ');
+}
+function accountingObjectParentKey(row){
+  return row?.accounting_object_id||row?.parent_accounting_object_id||'';
+}
+function renderAccountingObjectParentOptions(){
+  const list=$('accounting-object-parent-options');
+  if(!list)return;
+  list.innerHTML='';
+  accountingObjectParentOptions.forEach(row=>{
+    const option=document.createElement('option');
+    option.value=accountingObjectParentLabel(row);
+    option.dataset.id=accountingObjectParentKey(row);
+    list.append(option);
+  });
+}
+async function loadAccountingObjectParentOptions(term='',currentId=''){
+  const params=new URLSearchParams({organisation_id:state.orgId,search:term||''});
+  if(currentId)params.set('exclude_accounting_object_id',currentId);
+  const result=await api(`accounting-objects/search?${params.toString()}`);
+  accountingObjectParentOptions=result.records||[];
+  renderAccountingObjectParentOptions();
+}
+function syncAccountingObjectParentSelection(){
+  const input=$('accounting-object-parent-search');
+  const hidden=$('accounting-object-parent');
+  if(!input||!hidden)return;
+  const text=input.value.trim();
+  if(!text){
+    hidden.value='';
+    input.dataset.selectedLabel='';
+    return;
+  }
+  if(hidden.value&&input.dataset.selectedLabel===text)return;
+  const matches=accountingObjectParentOptions.filter(row=>accountingObjectParentLabel(row)===text);
+  const selected=matches.length===1?matches[0]:null;
+  hidden.value=selected?.accounting_object_id||'';
+  input.dataset.selectedLabel=selected?text:'';
+}
+function selectedAccountingMasterSchema(kind){
+  const config=accountingMasterConfig(kind);
+  const typeId=$(`${config.prefix}-type`)?.value||$(`${config.prefix}-type-select`)?.value||config.selectedType();
+  return state[config.typesKey].find(type=>type[config.typeId]===typeId)?.schema_json||{};
+}
+function renderAccountingMasterDetailFields(kind,detail={}){
+  const config=accountingMasterConfig(kind);
+  renderSchemaDetailFields(`${config.prefix}-detail-fields`,selectedAccountingMasterSchema(kind),detail);
+}
+function collectAccountingMasterDetail(kind){
+  const config=accountingMasterConfig(kind);
+  return collectSchemaDetail(`${config.prefix}-detail-fields`,selectedAccountingMasterSchema(kind));
+}
+function openAccountingMasterRecord(kind,row={}){
+  const config=accountingMasterConfig(kind);
+  const id=row[config.recordId]||'';
+  config.setSelected(id||null);
+  $(`${config.prefix}-form`).hidden=false;
+  $(`${config.prefix}-id`).value=id;
+  $(`${config.prefix}-type`).value=row[config.typeId]||$(`${config.prefix}-type-select`).value||'';
+  $(`${config.prefix}-division`).value=row.owner_division_id||state.divisions[0]?.division_id||'';
+  if(config.isObject){
+    accountingObjectParentOptions=[];
+    if(row.parent_accounting_object_id){
+      accountingObjectParentOptions=[{
+        accounting_object_id:row.parent_accounting_object_id,
+        object_code:row.parent_object_code,
+        object_name:row.parent_object_name,
+        type_code:row.parent_type_code,
+        type_name:row.parent_type_name
+      }];
+      renderAccountingObjectParentOptions();
+    }else renderAccountingObjectParentOptions();
+    $('accounting-object-parent').value=row.parent_accounting_object_id||'';
+    $('accounting-object-parent-search').value=accountingObjectParentLabel(accountingObjectParentOptions[0])||'';
+    $('accounting-object-parent-search').dataset.selectedLabel=$('accounting-object-parent-search').value;
+    loadAccountingObjectParentOptions('',id).catch(e=>alert(e.message));
+  }
+  $(`${config.prefix}-code`).value=row[config.code]||'';
+  $(`${config.prefix}-name`).value=row[config.name]||'';
+  $(`${config.prefix}-valid-from`).value=dateOnly(row.valid_from)||today();
+  $(`${config.prefix}-valid-to`).value=dateOnly(row.valid_to);
+  renderAccountingMasterDetailFields(kind,row.additional_data||{});
+}
+function renderAccountingMaster(kind){
+  const config=accountingMasterConfig(kind);
+  fillAccountingMasterTypes(kind);
+  const typeSelect=$(`${config.prefix}-type-select`);
+  const selectedType=typeSelect.value||config.selectedType();
+  option(typeSelect,state[config.typesKey].filter(type=>type.is_active!==false),config.typeId,type=>`${type.type_code} - ${type.type_name}`,'Select type');
+  if(selectedType)typeSelect.value=selectedType;
+  if(!typeSelect.value&&state[config.typesKey][0])typeSelect.value=state[config.typesKey][0][config.typeId];
+  const rows=state[config.recordsKey].filter(row=>rowMatches(row,searchTerm(`${config.prefix}-search`)));
+  const columns=config.isObject
+    ? [['Code',r=>r[config.code]],['Name',r=>r[config.name]],['Parent',r=>accountingObjectParentLabel({parent_type_name:r.parent_type_name,parent_object_code:r.parent_object_code,parent_object_name:r.parent_object_name})],['Owner',r=>r.owner_division_name],['Valid from',r=>dateOnly(r.valid_from)],['Valid to',r=>dateOnly(r.valid_to)]]
+    : [['Code',r=>r[config.code]],['Name',r=>r[config.name]],['Type',r=>r.type_name],['Owner',r=>r.owner_division_name],['Valid from',r=>dateOnly(r.valid_from)],['Valid to',r=>dateOnly(r.valid_to)]];
+  table($(`${config.prefix}-list`),columns,rows,row=>openAccountingMasterRecord(kind,row));
+}
+async function loadAccountingMasterRecords(kind){
+  const config=accountingMasterConfig(kind);
+  const typeId=$(`${config.prefix}-type-select`)?.value||state[config.typesKey][0]?.[config.typeId];
+  if(!typeId){
+    state[config.recordsKey]=[];
+    config.setSelectedType('');
+    renderAccountingMaster(kind);
+    return;
+  }
+  config.setSelectedType(typeId);
+  const records=await api(`${config.endpoint}/list?organisation_id=${state.orgId}&${config.typeId}=${encodeURIComponent(typeId)}`);
+  state[config.recordsKey]=records.records||[];
+  renderAccountingMaster(kind);
+  highlightDynamicMenu();
+}
 function renderJournals(){
   const rows=selectedTransactionTypeId?state.journals.filter(journal=>journal.transaction_type_id===selectedTransactionTypeId):state.journals;
   $('journal-grid-title').textContent=selectedTransactionTypeId?labelForTransactionType(selectedTransactionTypeId):'Transactions';
@@ -1556,7 +2056,7 @@ function renderTransactionGroups(){
 function renderTransactionTypes(){
   const term=searchTerm('transactiontype-search');
   const types=state.transactionTypes.filter(row=>rowMatches(row,term));
-  table($('transaction-reference'),[['Code',r=>r.type_code],['Name',r=>r.type_name],['Group',r=>r.group_name],['Financial',r=>r.is_financial?'Yes':'No'],['Lines',r=>state.postingRules.filter(rule=>rule.transaction_type_id===r.transaction_type_id).length],['Additional',r=>r.allow_additional_lines?'Yes':'No']],types,row=>selectTransactionType(row).catch(e=>alert(e.message)));
+  table($('transaction-reference'),[['Code',r=>r.type_code],['Name',r=>r.type_name],['Group',r=>r.group_name],['Modules',moduleNames],['Financial',r=>r.is_financial?'Yes':'No'],['Lines',r=>state.postingRules.filter(rule=>rule.transaction_type_id===r.transaction_type_id).length],['Additional',r=>r.allow_additional_lines?'Yes':'No']],types,row=>selectTransactionType(row).catch(e=>alert(e.message)));
 }
 function resourceLabel(permission){
   if(permission.resource_kind==='master_data')return permission.ledger_family_name||labelForFamily(permission.resource_code);
@@ -1569,7 +2069,7 @@ function renderRoles(){
     ...state.roleUsers.filter(row=>rowMatches(row,term)).map(row=>row.role_id)
   ]);
   const roles=state.roles.filter(row=>rowMatches(row,term)||matchingRoleIds.has(row.role_id));
-  table($('role-list'),[['Name',r=>r.role_name],['Description',r=>r.role_description||''],['Administrator',r=>r.is_admin?'Yes':'No'],['Users',r=>state.roleUsers.filter(u=>u.role_id===r.role_id).length],['Master rows',r=>state.rolePermissions.filter(p=>p.role_id===r.role_id&&p.resource_kind==='master_data').length],['Transaction rows',r=>state.rolePermissions.filter(p=>p.role_id===r.role_id&&p.resource_kind==='transaction').length],['Active',r=>r.is_active?'Yes':'No']],roles,selectRole);
+  table($('role-list'),[['Name',r=>r.role_name],['Description',r=>r.role_description||''],['Modules',r=>state.roleModules.filter(link=>link.role_id===r.role_id).map(link=>link.module_name).join(', ')],['Setup administrator',r=>r.is_admin?'Yes':'No'],['Users',r=>state.roleUsers.filter(u=>u.role_id===r.role_id).length],['Master rows',r=>state.rolePermissions.filter(p=>p.role_id===r.role_id&&p.resource_kind==='master_data').length],['Transaction rows',r=>state.rolePermissions.filter(p=>p.role_id===r.role_id&&p.resource_kind==='transaction').length],['Active',r=>r.is_active?'Yes':'No']],roles,selectRole);
 }
 function renderSetup(){
   renderTransactionGroups();
@@ -1605,6 +2105,7 @@ async function selectTransactionType(type){
   $('transaction-type-financial').checked=type.is_financial!==false;
   $('transaction-type-additional-lines').checked=!!type.allow_additional_lines;
   $('transaction-type-active').checked=!!type.is_active;
+  fillModuleSelect('transaction-type-modules',type.module_ids);
   renderTransactionTypeLines(state.postingRules.filter(rule=>rule.transaction_type_id===type.transaction_type_id));
   toggleTransactionLineEditor();
 }
@@ -1619,6 +2120,7 @@ async function openNewTransactionType(){
   $('transaction-type-financial').checked=true;
   $('transaction-type-additional-lines').checked=true;
   $('transaction-type-active').checked=true;
+  fillModuleSelect('transaction-type-modules');
   renderTransactionTypeLines([{},{}]);
   toggleTransactionLineEditor();
 }
@@ -1645,7 +2147,7 @@ function addTransactionTypeLine(line={}){
   const glAccounts=state.accounts.filter(account=>account.ledger_family_code==='gl'&&account.workflow_status!=='deleted');
   const subledgerFamilies=state.ledgerFamilies.filter(family=>family.ledger_family_code!=='gl'&&family.is_active!==false);
   option(row.querySelector('.tx-line-gl'),glAccounts,'ledger_account_id',account=>`${account.account_code} - ${account.account_name}`,'Select GL account');
-  option(row.querySelector('.tx-line-subledger'),subledgerFamilies,'ledger_family_code',family=>family.family_name,'Select subledger family');
+  option(row.querySelector('.tx-line-subledger'),subledgerFamilies,'ledger_family_code',family=>family.family_name,'Select subledger account type');
   row.querySelector('.tx-line-drcr').value=line.debit_credit||'debit';
   row.querySelector('.tx-line-gl').value=line.default_gl_account_id||'';
   row.querySelector('.tx-line-requires-subledger').checked=!!line.requires_subledger;
@@ -1660,6 +2162,8 @@ function selectRole(role){
   $('role-description').value=role.role_description||'';
   $('role-admin').checked=!!role.is_admin;
   $('role-active').checked=!!role.is_active;
+  fillModuleSelect('role-modules',state.roleModules.filter(link=>link.role_id===role.role_id).map(link=>link.module_id));
+  syncRoleModuleRequirement();
   renderPermissionLines('master',state.rolePermissions.filter(p=>p.role_id===role.role_id&&p.resource_kind==='master_data'));
   renderPermissionLines('transaction',state.rolePermissions.filter(p=>p.role_id===role.role_id&&p.resource_kind==='transaction'));
   renderRoleUserLines(state.roleUsers.filter(u=>u.role_id===role.role_id));
@@ -1670,11 +2174,14 @@ function openNewRole(){
   $('role-form').reset();
   $('role-id').value='';
   $('role-active').checked=true;
+  fillModuleSelect('role-modules');
+  syncRoleModuleRequirement();
   renderPermissionLines('master',[]);
   renderPermissionLines('transaction',[]);
   renderRoleUserLines([]);
   showRoleTab('users');
 }
+function syncRoleModuleRequirement(){$('role-modules').required=!$('role-admin').checked;}
 function showRoleTab(tab){
   ['master','transaction','users'].forEach(name=>{
     $(`role-tab-${name}`).hidden=name!==tab;
@@ -1686,7 +2193,7 @@ function workflowOptionHtml(values){
 }
 function renderPermissionLines(kind,lines=[]){
   const target=$(kind==='master'?'master-permission-lines':'transaction-permission-lines');
-  target.innerHTML=`<div class="permission-line-grid"><div class="permission-line permission-line-head"><span>Division</span><span>${kind==='master'?'Ledger Family':'Transaction Type'}</span><span>Workflow</span><span>Actions</span></div></div>`;
+  target.innerHTML=`<div class="permission-line-grid"><div class="permission-line permission-line-head"><span>Division</span><span>${kind==='master'?'Subledger Account Type':'Transaction Type'}</span><span>Workflow</span><span>Actions</span></div></div>`;
   lines.forEach(line=>addPermissionLine(kind,line));
 }
 function addPermissionLine(kind,line={}){
@@ -1703,8 +2210,8 @@ function addPermissionLine(kind,line={}){
   const divisionLabel=d=>`${'  '.repeat(Number(d.depth)||0)}${d.division_code} - ${d.division_name}`;
   option(row.querySelector('.permission-division'),state.divisions,'division_id',divisionLabel,'Select division');
   if(kind==='master'){
-    option(row.querySelector('.permission-resource'),state.ledgerFamilies.filter(f=>f.is_active!==false),'ledger_family_code',f=>`${f.ledger_family_code} - ${f.family_name}`,'Select ledger family');
-    prependOption(row.querySelector('.permission-resource'),'*','All ledger families');
+    option(row.querySelector('.permission-resource'),state.ledgerFamilies.filter(f=>f.is_active!==false),'ledger_family_code',f=>`${f.ledger_family_code} - ${f.family_name}`,'Select subledger account type');
+    prependOption(row.querySelector('.permission-resource'),'*','All subledger account types');
     row.querySelector('.permission-resource').value=line.resource_code||line.ledger_family_code||'';
   }else{
     option(row.querySelector('.permission-resource'),state.transactionTypes.filter(t=>t.is_active!==false),'transaction_type_id',t=>`${t.group_name}: ${t.type_name}`,'Select transaction type');
@@ -1735,8 +2242,9 @@ function addRoleUserLine(line={}){
   row.querySelector('button').addEventListener('click',()=>row.remove());
 }
 function resetOrgLoadedState(){
-  loadedSlices={menu:false,dashboard:false,divisions:false,fiscal:false,countries:false,currencies:false,taxTypes:false,ledgerTypes:false,masterTypes:false,legalEntities:false,financialFormats:false,transactions:false,permissions:false};
-  state.currencies=[];state.countries=[];state.taxTypes=[];state.taxRates=[];state.divisions=[];state.years=[];state.periods=[];state.masterTypes=[];state.masterRecords=[];state.legalEntities=[];state.legalEntityDetail=null;state.journals=[];state.financialFormats=[];state.financialFormatLines=[];state.financialFormatMappings=[];state.transactionGroups=[];state.transactionTypes=[];state.postingRules=[];state.ledgerFamilies=[];state.ledgerTypes=[];state.accountTypes=[];state.accounts=[];state.roles=[];state.rolePermissions=[];state.roleUsers=[];state.dashboardSummary=null;
+  loadedSlices={menu:false,dashboard:false,divisions:false,fiscal:false,countries:false,currencies:false,taxTypes:false,ledgerTypes:false,masterTypes:false,accountingObjectTypes:false,accountingDimensionTypes:false,legalEntities:false,financialFormats:false,transactions:false,permissions:false};
+  state.navigation={roles:[],modules:[],permissions:[],is_administrator:false};state.modules=[];state.currencies=[];state.countries=[];state.taxTypes=[];state.taxRates=[];state.divisions=[];state.years=[];state.periods=[];state.masterTypes=[];state.masterRecords=[];state.accountingObjectTypes=[];state.accountingDimensionTypes=[];state.accountingObjects=[];state.accountingDimensions=[];state.legalEntities=[];state.legalEntityDetail=null;state.journals=[];state.financialFormats=[];state.financialFormatLines=[];state.financialFormatMappings=[];state.transactionGroups=[];state.transactionTypes=[];state.postingRules=[];state.ledgerFamilies=[];state.ledgerTypes=[];state.accountTypes=[];state.accounts=[];state.roles=[];state.rolePermissions=[];state.roleUsers=[];state.dashboardSummary=null;
+  syncSetupAccess();
   loadedAccountFamilies=new Set();
 }
 async function loadDashboardData(force=false){
@@ -1758,13 +2266,26 @@ function invalidateDashboard(){
 }
 async function loadMenuData(force=false){
   if(!state.orgId||loadedSlices.menu&&!force)return;
-  const menu=await api(`setup/menu?organisation_id=${state.orgId}`);
+  const [menu,objectTypes,dimensionTypes,navigation]=await Promise.all([
+    api(`setup/menu?organisation_id=${state.orgId}`),
+    api(`accounting-objects/types?organisation_id=${state.orgId}`),
+    api(`accounting-dimensions/types?organisation_id=${state.orgId}`),
+    api(`navigation/menu?organisation_id=${state.orgId}`)
+  ]);
   state.ledgerFamilies=menu.ledger_families||[];
+  state.modules=menu.modules||[];
   state.transactionGroups=menu.transaction_groups||[];
   state.transactionTypes=menu.transaction_types||[];
+  state.accountingObjectTypes=objectTypes.types||[];
+  state.accountingDimensionTypes=dimensionTypes.types||[];
+  state.navigation=navigation;
   loadedSlices.menu=true;
+  loadedSlices.accountingObjectTypes=true;
+  loadedSlices.accountingDimensionTypes=true;
   buildDynamicMenu();
+  buildAlternativeMenus();
   fillSelects();
+  ['ledger-family-modules','accounting-object-type-modules','accounting-dimension-type-modules','transaction-type-modules'].forEach(id=>fillModuleSelect(id));
 }
 async function ensureDivisions(force=false){
   if(!state.orgId||loadedSlices.divisions&&!force)return;
@@ -1818,6 +2339,18 @@ async function ensureMasterTypes(force=false){
   loadedSlices.masterTypes=true;
   renderMasterTypes();
 }
+async function ensureAccountingObjectTypes(force=false){
+  if(!state.orgId||loadedSlices.accountingObjectTypes&&!force)return;
+  const types=await api(`accounting-objects/types?organisation_id=${state.orgId}`);
+  state.accountingObjectTypes=types.types||[];
+  loadedSlices.accountingObjectTypes=true;
+}
+async function ensureAccountingDimensionTypes(force=false){
+  if(!state.orgId||loadedSlices.accountingDimensionTypes&&!force)return;
+  const types=await api(`accounting-dimensions/types?organisation_id=${state.orgId}`);
+  state.accountingDimensionTypes=types.types||[];
+  loadedSlices.accountingDimensionTypes=true;
+}
 async function ensureLegalEntities(force=false){
   if(!state.orgId||loadedSlices.legalEntities&&!force)return;
   const entities=await api(`legal-entities/list?organisation_id=${state.orgId}`);
@@ -1853,16 +2386,22 @@ async function ensurePermissions(force=false){
   state.roles=permissions.roles||[];
   state.rolePermissions=permissions.role_permissions||[];
   state.roleUsers=permissions.role_users||[];
+  state.roleModules=permissions.role_modules||[];
   loadedSlices.permissions=true;
 }
 async function ensureViewData(view){
   if(!state.orgId)return;
-  if(view==='divisions'){await ensureDivisions();renderDivisions();}
+  if(view==='modules'){await loadMenuData();renderModules();}
+  else if(view==='divisions'){await ensureDivisions();renderDivisions();}
   else if(view==='fiscal'){await ensureFiscal();renderFiscal();}
   else if(view==='countries'){await ensureCountries();renderCountries();}
   else if(view==='currencies'){await ensureCurrencies();renderCurrencies();}
   else if(view==='taxtypes'){await ensureTaxTypes();renderTaxTypes();}
   else if(view==='ledgerfamilies'){await Promise.all([loadMenuData(),ensureLedgerTypes()]);renderLedgerFamilies();}
+  else if(view==='accountingobjecttypes'){await ensureAccountingObjectTypes();renderAccountingSetupTypes('object');}
+  else if(view==='accountingdimensiontypes'){await ensureAccountingDimensionTypes();renderAccountingSetupTypes('dimension');}
+  else if(view==='accountingobjects'){await Promise.all([ensureAccountingObjectTypes(),ensureDivisions()]);renderAccountingMaster('object');await loadAccountingMasterRecords('object');}
+  else if(view==='accountingdimensions'){await Promise.all([ensureAccountingDimensionTypes(),ensureDivisions()]);renderAccountingMaster('dimension');await loadAccountingMasterRecords('dimension');}
   else if(view==='financialformats'){await Promise.all([ensureFinancialFormats(),loadAccountsForFamily('gl')]);renderFinancialFormats();}
   else if(view==='transactiongroups'){await ensureTransactionSetup();renderTransactionGroups();}
   else if(view==='transactiontypes'){await ensureTransactionSetup();renderTransactionTypes();}
@@ -1938,9 +2477,11 @@ function resetScreenState(){
     'fiscal-editor-panel',
     'fiscal-period-panel'
   ].forEach(id=>{if($(id))$(id).hidden=true;});
-  ['account-form','master-record-form','legal-entity-form','journal-form','fiscal-form','fiscal-period-form','financial-format-form'].forEach(id=>$(id)?.reset());
+  ['account-form','master-record-form','accounting-object-form','accounting-dimension-form','legal-entity-form','journal-form','fiscal-form','fiscal-period-form','financial-format-form'].forEach(id=>$(id)?.reset());
   $('account-id').value='';
   $('master-record-id').value='';
+  if($('accounting-object-id'))$('accounting-object-id').value='';
+  if($('accounting-dimension-id'))$('accounting-dimension-id').value='';
   $('journal-id').value='';
   $('fiscal-year-id').value='';
   $('fiscal-period-id').value='';
@@ -1973,6 +2514,8 @@ document.querySelectorAll('.nav[data-view]').forEach(b=>b.addEventListener('clic
   ['ledgerfamily-search',renderLedgerFamilies],
   ['financial-format-search',renderFinancialFormats],
   ['account-search',renderAccounts],
+  ['accounting-object-search',()=>renderAccountingMaster('object')],
+  ['accounting-dimension-search',()=>renderAccountingMaster('dimension')],
   ['legal-entity-search',renderLegalEntities],
   ['master-record-search',renderMasterRecords],
   ['transactiongroup-search',renderTransactionGroups],
@@ -1983,9 +2526,16 @@ $('setup-toggle').addEventListener('click',()=>{
   const expanded=$('setup-toggle').getAttribute('aria-expanded')==='true';
   setSetupExpanded(!expanded);
 });
-$('master-toggle').addEventListener('click',()=>{
-  const expanded=$('master-toggle').getAttribute('aria-expanded')==='true';
-  setMenuExpanded('master-toggle','master-subnav',!expanded);
+[
+  ['subledger-toggle','subledger-subnav'],
+  ['object-toggle','object-subnav'],
+  ['dimension-toggle','dimension-subnav']
+].forEach(([toggleId,subnavId])=>{
+  $(toggleId).addEventListener('click',()=>{
+    const expanded=$(toggleId).getAttribute('aria-expanded')==='true';
+    setMenuExpanded(toggleId,subnavId,!expanded);
+    if(!expanded)collapseDynamicMenus(toggleId);
+  });
 });
 $('transaction-toggle').addEventListener('click',()=>{
   const expanded=$('transaction-toggle').getAttribute('aria-expanded')==='true';
@@ -2010,7 +2560,7 @@ $('refresh').addEventListener('click',()=>load().catch(e=>alert(e.message)));
 async function createExampleOrg(){
   if(!window.confirm('Create or reset Example (PTY) LTD using the Template Organisation setup and approved sample transactions? Existing EXAMPLE data will be deleted.'))return;
   try{
-    const r=await api('setup/example-org',{method:'POST',body:JSON.stringify({})});
+    const r=await api('setup/example-org',{method:'POST',body:JSON.stringify({access_organisation_id:state.orgId})});
     boot=await api('setup/bootstrap');
     state.orgId=r.organisation?.organisation_id||state.orgId;
     storeCurrentOrg();
@@ -2041,7 +2591,7 @@ $('init-schema').addEventListener('click',async()=>{
 $('reset-erp').addEventListener('click',async()=>{
   if(!window.confirm('Reset this tenant ERP data? This deletes ERP organisations, divisions, fiscal years, ledger accounts, master data, journals, and custom setup. It will not reseed defaults.'))return;
   try{
-    const r=await api('setup/reset',{method:'POST',body:JSON.stringify({})});
+    const r=await api('setup/reset',{method:'POST',body:JSON.stringify({access_organisation_id:state.orgId})});
     state.orgId=null;
     await load();
     alert(`ERP reset complete. ${r.deleted} records removed.`);
@@ -2090,7 +2640,7 @@ function openNewOrganisation(){
 $('add-org').addEventListener('click',openNewOrganisation);
 $('new-org').addEventListener('click',openNewOrganisation);
 async function saveOrganisationForm(){
-  const r=await api('organisations/save',{method:'POST',body:JSON.stringify({organisation_id:$('org-id').value,organisation_code:$('org-code').value,organisation_name:$('org-name').value,base_currency_code:$('org-currency').value,is_template:$('org-template').checked})});
+  const r=await api('organisations/save',{method:'POST',body:JSON.stringify({organisation_id:$('org-id').value,access_organisation_id:state.orgId,organisation_code:$('org-code').value,organisation_name:$('org-name').value,base_currency_code:$('org-currency').value,is_template:$('org-template').checked})});
   if(r.organisation?.organisation_id)$('org-id').value=r.organisation.organisation_id;
   if(r.organisation?.organisation_id)await saveOrgOpenAISetting(r.organisation.organisation_id);
   return r.organisation;
@@ -2135,9 +2685,19 @@ function ensureDeleteTransactionsOption(){
   label.appendChild(document.createTextNode(' Transactions and journals'));
   fiscalOption.insertAdjacentElement('afterend',label);
 }
+function ensureDeleteModulesOption(){
+  if(document.getElementById('delete-modules'))return;
+  const options=$('org-delete-panel')?.querySelector('.copy-options');
+  if(!options)return;
+  const label=document.createElement('label');label.className='check';
+  const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.id='delete-modules';
+  label.append(checkbox,document.createTextNode(' Modules (also removes module links)'));
+  options.append(label);
+}
 function openOrgDeletePanel(){
   const targetId=selectedOrganisationId();
   ensureDeleteTransactionsOption();
+  ensureDeleteModulesOption();
   $('org-delete-panel').hidden=false;
   $('org-copy-panel').hidden=true;
   $('org-delete-result').hidden=true;
@@ -2182,6 +2742,7 @@ $('run-org-delete').addEventListener('click',async()=>{
   const orgId=$('org-delete-target').value;
   if(!orgId)return alert('Select an organisation first');
   ensureDeleteTransactionsOption();
+  ensureDeleteModulesOption();
   const options={
     divisions:$('delete-divisions').checked,
     countries:$('delete-countries').checked,
@@ -2197,14 +2758,16 @@ $('run-org-delete').addEventListener('click',async()=>{
     transaction_types:$('delete-transaction-types').checked,
     posting_rules:$('delete-posting-rules').checked,
     master_data_types:$('delete-master-types').checked,
-    permissions:$('delete-permissions').checked
+    permissions:$('delete-permissions').checked,
+    modules:$('delete-modules').checked
   };
   if(!Object.values(options).some(Boolean))return alert('Select at least one data option to delete');
   const org=boot.organisations.find(o=>o.organisation_id===orgId);
   const name=org?`${org.organisation_code} - ${org.organisation_name}`:'the selected organisation';
   const deletesTransactions=options.transactions||options.fiscal_years||options.divisions||options.chart_of_accounts||options.ledger_types||options.ledger_families;
   const transactionWarning=deletesTransactions?' Captured transactions/journals will also be deleted.':'';
-  if(!window.confirm(`Delete the selected data from ${name}?${transactionWarning} This cannot be undone.`))return;
+  const moduleWarning=options.modules?' Module links from roles and setup object types will also be removed; those linked records will remain.':'';
+  if(!window.confirm(`Delete the selected data from ${name}?${transactionWarning}${moduleWarning} This cannot be undone.`))return;
   const r=await api('organisations/delete-data',{method:'POST',body:JSON.stringify({organisation_id:orgId,options})});
   state.orgId=orgId;
   storeCurrentOrg();
@@ -2274,6 +2837,7 @@ $('account-form-family').addEventListener('change',()=>{
   updateAccountLegalEntityRequirement();
   renderAccountDetailFields(detail);
 });
+document.querySelectorAll('[data-account-fixed-tab]').forEach(button=>button.addEventListener('click',()=>showAccountFixedTab(button.dataset.accountFixedTab)));
 $('add-account').addEventListener('click',()=>openAccountEditor());
 $('new-account').addEventListener('click',()=>openAccountEditor());
 $('intake-account-document').addEventListener('click',()=>openDocumentIntake('ledger_account'));
@@ -2354,6 +2918,74 @@ $('account-form').addEventListener('submit',async e=>{
   $('account-form').hidden=true;
   invalidateDashboard();
 });
+function resetAccountingMasterForm(kind){
+  const config=accountingMasterConfig(kind);
+  $(`${config.prefix}-form`).reset();
+  $(`${config.prefix}-id`).value='';
+  $(`${config.prefix}-type`).value=$(`${config.prefix}-type-select`).value||state[config.typesKey][0]?.[config.typeId]||'';
+  $(`${config.prefix}-division`).value=state.divisions[0]?.division_id||'';
+  if(config.isObject){
+    accountingObjectParentOptions=[];
+    renderAccountingObjectParentOptions();
+    $('accounting-object-parent').value='';
+    $('accounting-object-parent-search').value='';
+    $('accounting-object-parent-search').dataset.selectedLabel='';
+    loadAccountingObjectParentOptions('', '').catch(e=>alert(e.message));
+  }
+  $(`${config.prefix}-valid-from`).value=today();
+  $(`${config.prefix}-valid-to`).value='';
+  renderAccountingMasterDetailFields(kind,{});
+  config.setSelected(null);
+}
+['object','dimension'].forEach(kind=>{
+  const config=accountingMasterConfig(kind);
+  $(`${config.prefix}-type-select`)?.addEventListener('change',()=>loadAccountingMasterRecords(kind).catch(e=>alert(e.message)));
+  $(`${config.prefix}-type`)?.addEventListener('change',()=>renderAccountingMasterDetailFields(kind,{}));
+  $(`add-${config.prefix}`)?.addEventListener('click',()=>{
+    $(`${config.prefix}-form`).hidden=false;
+    resetAccountingMasterForm(kind);
+  });
+  $(`new-${config.prefix}`)?.addEventListener('click',()=>resetAccountingMasterForm(kind));
+  $(`${config.prefix}-form`)?.addEventListener('submit',async e=>{
+    e.preventDefault();
+    let additionalData;
+    try{additionalData=collectAccountingMasterDetail(kind);}
+    catch(error){alert(error.message);return;}
+    const body={
+      organisation_id:state.orgId,
+      owner_division_id:$(`${config.prefix}-division`).value,
+      valid_from:$(`${config.prefix}-valid-from`).value,
+      valid_to:$(`${config.prefix}-valid-to`).value,
+      additional_data:JSON.stringify(additionalData)
+    };
+    if(config.isObject){
+      syncAccountingObjectParentSelection();
+      if($('accounting-object-parent-search').value.trim()&&!$('accounting-object-parent').value)return alert('Choose a parent object from the search results, or clear the parent object field.');
+      body.parent_accounting_object_id=$('accounting-object-parent').value;
+    }
+    body[config.recordId]=$(`${config.prefix}-id`).value;
+    body[config.typeId]=$(`${config.prefix}-type`).value;
+    body[config.code]=$(`${config.prefix}-code`).value;
+    body[config.name]=$(`${config.prefix}-name`).value;
+    const saved=await api(`${config.endpoint}/save`,{method:'POST',body:JSON.stringify(body)});
+    config.setSelected(saved.record?.[config.recordId]||config.selected());
+    $(`${config.prefix}-id`).value=config.selected()||'';
+    $(`${config.prefix}-type-select`).value=body[config.typeId];
+    await loadAccountingMasterRecords(kind);
+    alert(`${config.isObject?'Accounting object':'Accounting dimension'} saved.`);
+  });
+});
+let accountingObjectParentSearchTimer=null;
+$('accounting-object-parent-search')?.addEventListener('input',()=>{
+  clearTimeout(accountingObjectParentSearchTimer);
+  syncAccountingObjectParentSelection();
+  const term=$('accounting-object-parent-search').value.trim();
+  const currentId=$('accounting-object-id').value;
+  accountingObjectParentSearchTimer=setTimeout(()=>{
+    loadAccountingObjectParentOptions(term,currentId).then(syncAccountingObjectParentSelection).catch(e=>alert(e.message));
+  },180);
+});
+$('accounting-object-parent-search')?.addEventListener('change',syncAccountingObjectParentSelection);
 $('add-legal-entity').addEventListener('click',resetLegalEntityForm);
 $('new-legal-entity').addEventListener('click',resetLegalEntityForm);
 $('intake-legal-entity-document').addEventListener('click',()=>openDocumentIntake('legal_entity'));
@@ -2529,9 +3161,18 @@ function openNewLedgerFamily(){
   $('ledger-family-legal-entity').checked=false;
   $('ledger-family-schema').value='{}';
   $('ledger-family-active').checked=true;
+  fillModuleSelect('ledger-family-modules');
 }
 $('add-currency').addEventListener('click',openNewCurrency);
 $('new-currency').addEventListener('click',openNewCurrency);
+$('add-module').addEventListener('click',()=>openModule({is_active:true}));
+$('new-module').addEventListener('click',()=>openModule({is_active:true}));
+$('module-search').addEventListener('input',renderModules);
+$('module-form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  await api('modules/save',{method:'POST',body:JSON.stringify({module_id:$('module-id').value,organisation_id:state.orgId,module_code:$('module-code').value,module_name:$('module-name').value,module_description:$('module-description').value,module_icon_svg:$('module-icon-svg').value,sort_order:$('module-sort').value,is_active:$('module-active').checked})});
+  $('module-form').hidden=true;await loadMenuData(true);renderModules();
+});
 $('add-tax-type').addEventListener('click',openNewTaxType);
 $('new-tax-type').addEventListener('click',openNewTaxType);
 $('add-tax-rate').addEventListener('click',()=>addTaxRateLine());
@@ -2555,9 +3196,47 @@ $('new-country').addEventListener('click',openNewCountry);
 $('country-form').addEventListener('submit',async e=>{e.preventDefault();await api('countries/save',{method:'POST',body:JSON.stringify({organisation_id:state.orgId,country_code:$('country-code').value,alpha3_code:$('country-alpha3').value,numeric_code:$('country-numeric').value,country_name:$('country-name').value,official_name:$('country-official').value,region:$('country-region').value,subregion:$('country-subregion').value,default_currency_code:$('country-currency').value,calling_code:$('country-calling-code').value,postal_code_required:$('country-postal-required').checked,administrative_level_label:$('country-admin-label').value})});$('country-form').hidden=true;await ensureCountries(true);renderCountries();});
 $('add-ledger-family').addEventListener('click',openNewLedgerFamily);
 $('new-ledger-family').addEventListener('click',openNewLedgerFamily);
-$('ledger-family-form').addEventListener('submit',async e=>{e.preventDefault();await api('ledger-families/save',{method:'POST',body:JSON.stringify({organisation_id:state.orgId,ledger_family_code:$('ledger-family-code').value,family_name:$('ledger-family-name').value,requires_standard_account_type:$('ledger-family-standard-type').checked,requires_legal_entity:$('ledger-family-legal-entity').checked,schema_json:$('ledger-family-schema').value,is_active:$('ledger-family-active').checked})});$('ledger-family-form').hidden=true;await loadMenuData(true);await ensureLedgerTypes(true);renderLedgerFamilies();});
-$('new-ledger-type').addEventListener('click',()=>openNewLedgerType($('ledger-type-family').value||'gl'));
+$('ledger-family-form').addEventListener('submit',async e=>{e.preventDefault();await api('ledger-families/save',{method:'POST',body:JSON.stringify({organisation_id:state.orgId,ledger_family_code:$('ledger-family-code').value,family_name:$('ledger-family-name').value,module_ids:selectedModuleIds('ledger-family-modules'),requires_standard_account_type:$('ledger-family-standard-type').checked,requires_legal_entity:$('ledger-family-legal-entity').checked,schema_json:$('ledger-family-schema').value,is_active:$('ledger-family-active').checked})});$('ledger-family-form').hidden=true;await loadMenuData(true);await ensureLedgerTypes(true);renderLedgerFamilies();});
+$('new-ledger-type').addEventListener('click',()=>openNewLedgerType($('ledger-type-family').value||state.ledgerFamilies[0]?.ledger_family_code||''));
 $('ledger-type-form').addEventListener('submit',async e=>{e.preventDefault();await api('ledger-types/save',{method:'POST',body:JSON.stringify({account_type_id:$('ledger-type-id').value,organisation_id:state.orgId,ledger_family_code:$('ledger-type-family').value,account_type_code:$('ledger-type-code').value,account_type_name:$('ledger-type-name').value,is_required:$('ledger-type-required').checked,is_active:$('ledger-type-active').checked})});$('ledger-type-form').hidden=true;await ensureLedgerTypes(true);renderLedgerFamilies();});
+$('add-accounting-object-type').addEventListener('click',()=>openAccountingSetupType('object'));
+$('new-accounting-object-type').addEventListener('click',()=>openAccountingSetupType('object'));
+$('accounting-object-type-search').addEventListener('input',()=>renderAccountingSetupTypes('object'));
+$('accounting-object-type-form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  await api('accounting-objects/save-type',{method:'POST',body:JSON.stringify({
+    accounting_object_type_id:$('accounting-object-type-id').value,
+    organisation_id:state.orgId,
+    type_code:$('accounting-object-type-code').value,
+    type_name:$('accounting-object-type-name').value,
+    module_ids:selectedModuleIds('accounting-object-type-modules'),
+    schema_json:$('accounting-object-type-schema').value,
+    ui_schema_json:$('accounting-object-type-ui-schema').value,
+    is_active:$('accounting-object-type-active').checked
+  })});
+  $('accounting-object-type-form').hidden=true;
+  await ensureAccountingObjectTypes(true);
+  renderAccountingSetupTypes('object');
+});
+$('add-accounting-dimension-type').addEventListener('click',()=>openAccountingSetupType('dimension'));
+$('new-accounting-dimension-type').addEventListener('click',()=>openAccountingSetupType('dimension'));
+$('accounting-dimension-type-search').addEventListener('input',()=>renderAccountingSetupTypes('dimension'));
+$('accounting-dimension-type-form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  await api('accounting-dimensions/save-type',{method:'POST',body:JSON.stringify({
+    accounting_dimension_type_id:$('accounting-dimension-type-id').value,
+    organisation_id:state.orgId,
+    type_code:$('accounting-dimension-type-code').value,
+    type_name:$('accounting-dimension-type-name').value,
+    module_ids:selectedModuleIds('accounting-dimension-type-modules'),
+    schema_json:$('accounting-dimension-type-schema').value,
+    ui_schema_json:$('accounting-dimension-type-ui-schema').value,
+    is_active:$('accounting-dimension-type-active').checked
+  })});
+  $('accounting-dimension-type-form').hidden=true;
+  await ensureAccountingDimensionTypes(true);
+  renderAccountingSetupTypes('dimension');
+});
 $('add-financial-format').addEventListener('click',openNewFinancialFormat);
 $('new-financial-format').addEventListener('click',openNewFinancialFormat);
 $('add-financial-line').addEventListener('click',()=>addFinancialFormatLine({sort_order:(document.querySelectorAll('.financial-line:not(.financial-line-head)').length+1)*100,line_type:'account_group',is_active:true}));
@@ -2610,6 +3289,7 @@ $('transaction-type-form').addEventListener('submit',async e=>{
     type_code:$('transaction-type-code').value,
     type_name:$('transaction-type-name').value,
     type_description:$('transaction-type-description').value,
+    module_ids:selectedModuleIds('transaction-type-modules'),
     is_financial:financial,
     allow_additional_lines:$('transaction-type-additional-lines').checked,
     sort_order:$('transaction-type-sort').value,
@@ -2625,6 +3305,7 @@ $('new-role').addEventListener('click',openNewRole);
 $('add-master-permission').addEventListener('click',()=>addPermissionLine('master'));
 $('add-transaction-permission').addEventListener('click',()=>addPermissionLine('transaction'));
 $('add-role-user').addEventListener('click',()=>addRoleUserLine());
+$('role-admin').addEventListener('change',syncRoleModuleRequirement);
 document.querySelectorAll('[data-role-tab]').forEach(button=>button.addEventListener('click',()=>showRoleTab(button.dataset.roleTab)));
 $('role-form').addEventListener('submit',async e=>{
   e.preventDefault();
@@ -2650,6 +3331,7 @@ $('role-form').addEventListener('submit',async e=>{
     role_description:$('role-description').value,
     is_admin:$('role-admin').checked,
     is_active:$('role-active').checked,
+    module_ids:selectedModuleIds('role-modules'),
     master_permissions,
     transaction_permissions,
     role_users
@@ -2667,8 +3349,20 @@ function patchDynamicSelects(){
 }
 const originalRenderAll=renderAll;
 renderAll=function(){originalRenderAll();patchDynamicSelects();};
+installModuleField('ledger-family-form','ledger-family-modules');
+installModuleField('accounting-object-type-form','accounting-object-type-modules');
+installModuleField('accounting-dimension-type-form','accounting-dimension-type-modules');
+installModuleField('transaction-type-form','transaction-type-modules');
+installModuleField('role-form','role-modules');
+installModuleIconEditor();
+$('role-admin').closest('label').lastChild.textContent=' Setup administrator';
+document.querySelectorAll('[data-menu-mode]').forEach(tab=>{
+  tab.addEventListener('click',()=>applyMenuMode(tab.dataset.menuMode));
+  tab.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();applyMenuMode(tab.dataset.menuMode);}});
+});
 setupLegalEntityTabs();
 addPanelCloseButtons();
 syncRequiredMarkers();
+initSidebarResize();
 load().catch(e=>alert(e.message));
 })();

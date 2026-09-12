@@ -1,5 +1,5 @@
 'use strict';
-const {authTenant,clean,nullable,money,checkPeriodOpen,requireResourcePermission}=require('../_shared/erp');
+const {authTenant,clean,nullable,money,checkPeriodOpen,requireResourcePermission,requireModuleAccess}=require('../_shared/erp');
 
 module.exports=async ctx=>{
   const access=await authTenant(ctx);
@@ -17,6 +17,8 @@ module.exports=async ctx=>{
     [divisionId,'source division']
   ].filter(([value])=>!value).map(([,label])=>label);
   if(missing.length)return ctx.send(400,{error:`Missing required field${missing.length>1?'s':''}: ${missing.join(', ')}`});
+  const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:orgId,resourceKind:'transaction_type',resourceCode:transactionTypeId});
+  if(moduleDenied)return ctx.send(moduleDenied.status,moduleDenied.body);
   if(lines.length<2)return ctx.send(400,{error:'At least two journal lines are required'});
   await checkPeriodOpen(ctx,access.tenantId,periodId);
   const existing=id?await ctx.broker('core_erp','query',{text:`SELECT workflow_status FROM erp_journal WHERE tenant_id=$1 AND journal_id=$2`,values:[access.tenantId,id]}):null;

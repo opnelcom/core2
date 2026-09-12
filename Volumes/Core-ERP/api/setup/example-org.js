@@ -30,10 +30,11 @@ const sampleAmounts={
 
 const subledgerTemplates={
   bank:{code:'MAIN_BANK',name:'Main Bank Account',type:'current_account',legal:'Example Bank'},
-  cash_location:{code:'SHOP_1_TILL_1',name:'Shop 1, Till 1',type:'point_of_sale'},
+  cash_point:{code:'SHOP_1_TILL_1',name:'Shop 1, Till 1',type:'point_of_sale'},
   customer:{code:'CUST_DEMO',name:'Demo Customer',type:'trade_customer',legal:'Demo Customer (PTY) LTD'},
   vendor:{code:'VEND_DEMO',name:'Demo Vendor',type:'trade_vendor',legal:'Demo Vendor (PTY) LTD'},
   employee:{code:'EMP_DEMO',name:'Demo Employee',type:'permanent_employee'},
+  capex_project:{code:'CAPEX_DEMO',name:'Demo Capital Project',type:'standard'},
   loan:{code:'LOAN_DEMO',name:'Demo Loan',type:'loan_account',legal:'Demo Lender (PTY) LTD'}
 };
 
@@ -70,6 +71,14 @@ async function deleteExistingExample(ctx,access){
     `DELETE FROM erp_user_role WHERE tenant_id=$1 AND organisation_id=ANY($2::uuid[])`,
     `DELETE FROM erp_role_permission WHERE tenant_id=$1 AND organisation_id=ANY($2::uuid[])`,
     `DELETE FROM erp_role WHERE tenant_id=$1 AND organisation_id=ANY($2::uuid[])`,
+    `DELETE FROM erp_accounting_dimension WHERE tenant_id=$1 AND organisation_id=ANY($2::uuid[])`,
+    `DELETE FROM erp_accounting_object WHERE tenant_id=$1 AND organisation_id=ANY($2::uuid[])`,
+    `DELETE FROM erp_subledger_account WHERE tenant_id=$1 AND organisation_id=ANY($2::uuid[])`,
+    `DELETE FROM erp_gl_account WHERE tenant_id=$1 AND organisation_id=ANY($2::uuid[])`,
+    `DELETE FROM erp_accounting_dimension_type WHERE tenant_id=$1 AND organisation_id=ANY($2::uuid[])`,
+    `DELETE FROM erp_accounting_object_type WHERE tenant_id=$1 AND organisation_id=ANY($2::uuid[])`,
+    `DELETE FROM erp_subledger_account_type WHERE tenant_id=$1 AND organisation_id=ANY($2::uuid[])`,
+    `DELETE FROM erp_gl_account_type WHERE tenant_id=$1 AND organisation_id=ANY($2::uuid[])`,
     `DELETE FROM erp_master_data_record WHERE tenant_id=$1 AND organisation_id=ANY($2::uuid[])`,
     `DELETE FROM erp_master_data_type WHERE tenant_id=$1 AND organisation_id=ANY($2::uuid[])`,
     `DELETE FROM erp_ledger_account WHERE tenant_id=$1 AND organisation_id=ANY($2::uuid[])`,
@@ -191,7 +200,12 @@ async function validateTemplateSetup(ctx,access,templateId){
       (SELECT count(*)::int FROM erp_transaction_type WHERE tenant_id=$1 AND organisation_id=$2) AS transaction_types,
       (SELECT count(*)::int FROM erp_posting_rule WHERE tenant_id=$1 AND organisation_id=$2) AS posting_rules,
       (SELECT count(*)::int FROM erp_tax_type WHERE tenant_id=$1 AND organisation_id=$2) AS tax_types,
-      (SELECT count(*)::int FROM erp_tax_rate WHERE tenant_id=$1 AND organisation_id=$2) AS tax_rates`,[
+      (SELECT count(*)::int FROM erp_tax_rate WHERE tenant_id=$1 AND organisation_id=$2) AS tax_rates,
+      (SELECT count(*)::int FROM erp_gl_account_type WHERE tenant_id=$1 AND organisation_id=$2) AS gl_account_types,
+      (SELECT count(*)::int FROM erp_gl_account WHERE tenant_id=$1 AND organisation_id=$2) AS gl_accounts_clean,
+      (SELECT count(*)::int FROM erp_subledger_account_type WHERE tenant_id=$1 AND organisation_id=$2) AS subledger_account_types,
+      (SELECT count(*)::int FROM erp_accounting_object_type WHERE tenant_id=$1 AND organisation_id=$2) AS accounting_object_types,
+      (SELECT count(*)::int FROM erp_accounting_dimension_type WHERE tenant_id=$1 AND organisation_id=$2) AS accounting_dimension_types`,[
       access.tenantId,templateId
     ]);
   const row=counts.rows[0]||{};
@@ -275,6 +289,28 @@ async function ensureSubledgers(ctx,access,orgId,rootDivisionId){
         access.tenantId,orgId,rootDivisionId,family,template.code,template.name,accountTypeId,legalEntityId,
         JSON.stringify({example:true}),access.auth.email
       ]);
+    await query(ctx,`WITH subledger_type AS (
+        SELECT subledger_account_type_id
+        FROM erp_subledger_account_type
+        WHERE tenant_id=$1 AND organisation_id=$2 AND type_code=$4
+        LIMIT 1
+      )
+      INSERT INTO erp_subledger_account(
+        tenant_id,organisation_id,owner_division_id,subledger_account_type_id,legal_entity_id,account_code,account_name,
+        workflow_status,additional_data,created_by_email,updated_by_email,approved_by_email,approved_at
+      )
+      SELECT $1,$2,$3,subledger_type.subledger_account_type_id,$8,$5,$6,'approved',$9::jsonb,$10,$10,$10,now()
+      FROM subledger_type
+      ON CONFLICT(tenant_id,organisation_id,subledger_account_type_id,account_code) DO UPDATE
+      SET account_name=excluded.account_name,
+          legal_entity_id=excluded.legal_entity_id,
+          workflow_status='approved',
+          additional_data=excluded.additional_data,
+          updated_by_email=$10,
+          updated_at=now()`,[
+        access.tenantId,orgId,rootDivisionId,family,template.code,template.name,accountTypeId,legalEntityId,
+        JSON.stringify({example:true}),access.auth.email
+      ]);
     subledgers[family]=inserted.rows[0].ledger_account_id;
   }
   return subledgers;
@@ -346,6 +382,67 @@ async function createSampleJournals(ctx,access,orgId,rootDivisionId,periods,subl
   return {journals:journalCount,lines:lineCount};
 }
 
+async function ensureAccountingExamples(ctx,access,orgId,rootDivisionId){
+  const objectRows=[
+    ['property','PROP_HQ','Head Office Property'],
+    ['region','REG_NORTH','Northern Region'],
+    ['opex_project','OPEX_MAINT','Operations Maintenance Project'],
+    ['cost_centre','CC_FIN','Finance Cost Centre'],
+    ['profit_centre','PC_RETAIL','Retail Profit Centre'],
+    ['contract','CON_CLEANING','Cleaning Services Contract']
+  ];
+  for(const [typeCode,code,name] of objectRows){
+    await query(ctx,`WITH object_type AS (
+        SELECT accounting_object_type_id
+        FROM erp_accounting_object_type
+        WHERE tenant_id=$1 AND organisation_id=$2 AND type_code=$3
+      )
+      INSERT INTO erp_accounting_object(
+        tenant_id,organisation_id,owner_division_id,accounting_object_type_id,object_code,object_name,
+        workflow_status,valid_from,valid_to,additional_data,created_by_email,updated_by_email,approved_by_email,approved_at
+      )
+      SELECT $1,$2,$4,object_type.accounting_object_type_id,$5,$6,'approved','2026-01-01',NULL,'{"example":true}'::jsonb,$7,$7,$7,now()
+      FROM object_type
+      ON CONFLICT(tenant_id,organisation_id,accounting_object_type_id,object_code) DO UPDATE
+      SET object_name=excluded.object_name,
+          workflow_status='approved',
+          updated_by_email=$7,
+          updated_at=now()`,[access.tenantId,orgId,typeCode,rootDivisionId,code,name,access.auth.email]);
+  }
+  const dimensionRows=[
+    ['revenue_type','REV_SERVICE','Service Revenue'],
+    ['expense_type','EXP_REPAIRS','Repairs and Maintenance'],
+    ['mscoa_fund','2026-FUND-001','MSCOA Fund 2026 Example'],
+    ['mscoa_project','2026-PROJ-001','MSCOA Project 2026 Example'],
+    ['mscoa_item','2026-ITEM-001','MSCOA Item 2026 Example'],
+    ['mscoa_region','2026-REG-001','MSCOA Region 2026 Example'],
+    ['mscoa_function','2026-FUNC-001','MSCOA Function 2026 Example'],
+    ['mscoa_costing','2026-COST-001','MSCOA Costing 2026 Example'],
+    ['mscoa_outcome','2026-OUT-001','MSCOA Outcome 2026 Example']
+  ];
+  for(const [typeCode,code,name] of dimensionRows){
+    await query(ctx,`WITH dimension_type AS (
+        SELECT accounting_dimension_type_id
+        FROM erp_accounting_dimension_type
+        WHERE tenant_id=$1 AND organisation_id=$2 AND type_code=$3
+      )
+      INSERT INTO erp_accounting_dimension(
+        tenant_id,organisation_id,owner_division_id,accounting_dimension_type_id,dimension_code,dimension_name,
+        workflow_status,valid_from,valid_to,additional_data,created_by_email,updated_by_email,approved_by_email,approved_at
+      )
+      SELECT $1,$2,$4,dimension_type.accounting_dimension_type_id,$5,$6,'approved','2026-01-01','2026-12-31','{"example":true}'::jsonb,$7,$7,$7,now()
+      FROM dimension_type
+      ON CONFLICT(tenant_id,organisation_id,accounting_dimension_type_id,dimension_code) DO UPDATE
+      SET dimension_name=excluded.dimension_name,
+          workflow_status='approved',
+          valid_from=excluded.valid_from,
+          valid_to=excluded.valid_to,
+          updated_by_email=$7,
+          updated_at=now()`,[access.tenantId,orgId,typeCode,rootDivisionId,code,name,access.auth.email]);
+  }
+  return {accounting_objects:objectRows.length,accounting_dimensions:dimensionRows.length};
+}
+
 module.exports=async ctx=>{
   if(ctx.req.method!=='POST')return ctx.send(405,{error:'POST required'});
   const access=await authTenant(ctx);
@@ -384,6 +481,7 @@ module.exports=async ctx=>{
   if(periods.rowCount<exampleFiscalYears.length)return ctx.send(400,{error:'Could not create the example fiscal periods'});
 
   const subledgers=await ensureSubledgers(ctx,access,organisation.organisation_id,rootDivisionId);
+  const accountingExamples=await ensureAccountingExamples(ctx,access,organisation.organisation_id,rootDivisionId);
   const samples=await createSampleJournals(ctx,access,organisation.organisation_id,rootDivisionId,periods.rows,subledgers);
 
   return {
@@ -395,6 +493,7 @@ module.exports=async ctx=>{
     fiscal_years:fiscalYears.length,
     fiscal_periods:fiscalYears.length*12,
     subledgers:Object.keys(subledgers).length,
+    ...accountingExamples,
     ...samples
   };
 };

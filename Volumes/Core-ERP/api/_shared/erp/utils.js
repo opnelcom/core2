@@ -54,11 +54,16 @@ function validateSchema(schema,data){
   Object.entries(props).forEach(([key,field])=>{
     const value=data?.[key];
     if(value===undefined||value===null||value==='')return;
-    if(field.type==='array'&&!Array.isArray(value))errors.push(`${key} must be an array`);
-    if(field.type==='object'&&(typeof value!=='object'||Array.isArray(value)))errors.push(`${key} must be an object`);
-    if(field.type==='string'&&typeof value!=='string')errors.push(`${key} must be a string`);
-    if(field.type==='number'&&typeof value!=='number')errors.push(`${key} must be a number`);
-    if(field.type==='boolean'&&typeof value!=='boolean')errors.push(`${key} must be true or false`);
+    const type=['text','short_text','long_text','textarea'].includes(field.type)?'string':field.type;
+    if(type==='array'&&!Array.isArray(value))errors.push(`${key} must be an array`);
+    if(type==='object'&&(typeof value!=='object'||Array.isArray(value)))errors.push(`${key} must be an object`);
+    if(type==='string'&&typeof value!=='string')errors.push(`${key} must be a string`);
+    if(type==='number'&&typeof value!=='number')errors.push(`${key} must be a number`);
+    if(type==='boolean'&&typeof value!=='boolean')errors.push(`${key} must be true or false`);
+    if(Array.isArray(field.options)){
+      const codes=field.options.map(option=>typeof option==='object'?option.code??option.value:option).filter(option=>option!==undefined&&option!==null);
+      if(codes.length&&!codes.includes(value))errors.push(`${key} must be one of ${codes.join(', ')}`);
+    }
     if(Array.isArray(field.enum)&&!field.enum.includes(value))errors.push(`${key} must be one of ${field.enum.join(', ')}`);
   });
   return errors;

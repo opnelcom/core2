@@ -1,5 +1,5 @@
 'use strict';
-const {authTenant}=require('../_shared/erp');
+const {authTenant,requireBusinessAccess}=require('../_shared/erp');
 
 module.exports=async ctx=>{
   const access=await authTenant(ctx);
@@ -9,6 +9,8 @@ module.exports=async ctx=>{
   const entity=await ctx.broker('core_erp','query',{text:`SELECT * FROM erp_legal_entity WHERE tenant_id=$1 AND legal_entity_id=$2 AND workflow_status <> 'deleted'`,values:[access.tenantId,id]});
   if(!entity.rowCount)return ctx.send(404,{error:'Legal entity not found'});
   const orgId=entity.rows[0].organisation_id;
+  const denied=await requireBusinessAccess(ctx,access,orgId);
+  if(denied)return ctx.send(denied.status,denied.body);
   const [identifications,addresses,relationships,accounts]=await Promise.all([
     ctx.broker('core_erp','query',{text:`SELECT * FROM erp_legal_entity_identification WHERE tenant_id=$1 AND legal_entity_id=$2 AND is_active=true ORDER BY identification_type,valid_from DESC`,values:[access.tenantId,id]}),
     ctx.broker('core_erp','query',{text:`SELECT * FROM erp_legal_entity_address WHERE tenant_id=$1 AND legal_entity_id=$2 ORDER BY is_primary DESC,address_type,valid_from DESC`,values:[access.tenantId,id]}),

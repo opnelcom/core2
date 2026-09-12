@@ -5,6 +5,7 @@ const logRoot=process.env.LOG_ROOT||'/app/logs';
 function config(){try{return JSON.parse(fs.readFileSync(path.join(root,'config','gateway.json'),'utf8'));}catch{return {routes:[{prefix:'/',target:'http://core-saas:3000'}]};}}
 function dailyLogFile(appName){const safeName=String(appName||'core-gateway').replace(/[^A-Za-z0-9._-]/g,'-');const day=new Date().toISOString().slice(0,10);return `${safeName}-${day}.log`;}
 function writeLog(level,msg,meta={}){const entry={ts:new Date().toISOString(),level,app:'core-gateway',msg,...meta};const line=JSON.stringify(entry);console.log(line);try{fs.mkdirSync(logRoot,{recursive:true});fs.appendFileSync(path.join(logRoot,dailyLogFile('core-gateway')),line+'\n');}catch{}}
+function writeVisitorLog(meta={}){const entry={ts:new Date().toISOString(),app:'core-gateway',event:'visitor-issued',...meta};const line=JSON.stringify(entry);try{fs.mkdirSync(logRoot,{recursive:true});fs.appendFileSync(path.join(logRoot,'core-gateway-visitors.log'),line+'\n');}catch{}}
 let httpsActive=false;
 
 function contentPath(value){
@@ -32,6 +33,68 @@ function redirectTarget(req,c){
   return `https://${host}${req.url}`;
 }
 
+function cookies(header=''){
+  return Object.fromEntries(header.split(';').map(v=>v.trim()).filter(Boolean).map(v=>{
+    const i=v.indexOf('=');
+    if(i<0)return [decodeURIComponent(v),''];
+    return [decodeURIComponent(v.slice(0,i)),decodeURIComponent(v.slice(i+1))];
+  }));
+}
+
+function appendCookie(res,value){
+  const old=res.getHeader('Set-Cookie');
+  res.setHeader('Set-Cookie',old?[].concat(old,value):value);
+}
+
+function clientIp(req){
+  return String(req.headers['cf-connecting-ip']||req.headers['x-real-ip']||req.socket.remoteAddress||'');
+}
+
+function forwardedFor(req,ip){
+  const existing=String(req.headers['x-forwarded-for']||'').trim();
+  return existing?`${existing}, ${ip}`:ip;
+}
+
+function isValidVisitorId(value){
+  return /^[A-Za-z0-9_-]{22,128}$/.test(String(value||''));
+}
+
+function visitorCookie(isTls,c){
+  const maxAge=Number(c.visitorCookieMaxAgeSeconds||60*60*24*365);
+  const secure=isTls||c.visitorCookieSecure===true||c.tls?.enabled===true;
+  return [
+    `core_visitor=${crypto.randomBytes(32).toString('base64url')}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    `Max-Age=${Number.isFinite(maxAge)&&maxAge>0?Math.trunc(maxAge):60*60*24*365}`,
+    secure?'Secure':null
+  ].filter(Boolean).join('; ');
+}
+
+function ensureVisitor(req,res,isTls,c,incoming,requestId){
+  const parsed=cookies(req.headers.cookie);
+  let visitorId=parsed.core_visitor;
+  const ip=clientIp(req);
+  const details={
+    requestId,
+    clientIp:ip,
+    xForwardedFor:String(req.headers['x-forwarded-for']||''),
+    userAgent:String(req.headers['user-agent']||''),
+    acceptLanguage:String(req.headers['accept-language']||''),
+    referer:String(req.headers.referer||req.headers.referrer||''),
+    host:String(req.headers.host||''),
+    path:incoming.pathname,
+    proto:isTls?'https':'http'
+  };
+  if(isValidVisitorId(visitorId))return {visitorId,isNew:false,details};
+  const cookie=visitorCookie(isTls,c);
+  visitorId=cookie.match(/^core_visitor=([^;]+)/)?.[1]||crypto.randomUUID();
+  appendCookie(res,cookie);
+  writeVisitorLog({visitorId,...details});
+  return {visitorId,isNew:true,details};
+}
+
 function serveAcmeChallenge(req,res,c,incoming){
   if(!incoming.pathname.startsWith('/.well-known/acme-challenge/'))return false;
   const token=incoming.pathname.slice('/.well-known/acme-challenge/'.length);
@@ -57,7 +120,6 @@ function requestHandler(isTls=false){
   return (req,res)=>{
     const started=Date.now();
     const requestId=req.headers['x-request-id']||crypto.randomUUID();
-    res.on('finish',()=>writeLog('info','request',{requestId,method:req.method,url:req.url,statusCode:res.statusCode,durationMs:Date.now()-started,proto:isTls?'https':'http'}));
     const c=config();
     const incoming=new URL(req.url,'http://localhost');
     if(incoming.pathname==='/health'){
@@ -72,6 +134,8 @@ function requestHandler(isTls=false){
     if(isTls&&c.tls&&c.tls.hsts===true){
       res.setHeader('strict-transport-security',c.tls.hstsHeader||'max-age=31536000; includeSubDomains');
     }
+    const visitor=ensureVisitor(req,res,isTls,c,incoming,requestId);
+    res.on('finish',()=>writeLog('info','request',{requestId,visitorId:visitor.visitorId,visitorNew:visitor.isNew,clientIp:visitor.details.clientIp,xForwardedFor:visitor.details.xForwardedFor,userAgent:visitor.details.userAgent,acceptLanguage:visitor.details.acceptLanguage,referer:visitor.details.referer,host:visitor.details.host,method:req.method,url:req.url,statusCode:res.statusCode,durationMs:Date.now()-started,proto:isTls?'https':'http'}));
     const route=[...c.routes].sort((a,b)=>b.prefix.length-a.prefix.length).find(r=>incoming.pathname===r.prefix||incoming.pathname.startsWith(r.prefix.endsWith('/')?r.prefix:r.prefix+'/')||r.prefix==='/');
     if(!route){
       writeLog('warn','no route',{requestId,method:req.method,url:req.url});
@@ -84,7 +148,7 @@ function requestHandler(isTls=false){
       const stripped=incoming.pathname.slice(route.prefix.length)||'/';
       outPath=(stripped.startsWith('/')?stripped:'/'+stripped)+incoming.search;
     }
-    const headers={...req.headers,host:target.host,'x-forwarded-host':req.headers.host,'x-forwarded-proto':isTls?'https':'http','x-request-id':requestId};
+    const headers={...req.headers,host:target.host,'x-forwarded-host':req.headers.host,'x-forwarded-proto':isTls?'https':'http','x-forwarded-for':forwardedFor(req,visitor.details.clientIp),'x-request-id':requestId,'x-core-visitor-id':visitor.visitorId};
     const p=http.request({hostname:target.hostname,port:target.port||80,path:outPath,method:req.method,headers},pr=>{
       res.writeHead(pr.statusCode,pr.headers);
       pr.pipe(res);

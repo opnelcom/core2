@@ -7,7 +7,7 @@ module.exports=async ctx=>{
   if(access.status)return ctx.send(access.status,access.body);
   const orgId=ctx.query.organisation_id;
   if(!orgId)return ctx.send(400,{error:'organisation_id is required'});
-  const [roles,permissions,users]=await Promise.all([
+  const [roles,permissions,users,roleModules]=await Promise.all([
     ctx.broker('core_erp','query',{
       text:`SELECT *
             FROM erp_role
@@ -44,7 +44,14 @@ module.exports=async ctx=>{
             WHERE tenant_id=$1 AND organisation_id=$2
             ORDER BY lower(email),valid_from`,
       values:[access.tenantId,orgId]
+    }),
+    ctx.broker('core_erp','query',{
+      text:`SELECT rm.role_id,rm.module_id,m.module_code,m.module_name
+            FROM erp_role_module rm JOIN erp_module m ON m.module_id=rm.module_id
+            JOIN erp_role r ON r.role_id=rm.role_id
+            WHERE r.tenant_id=$1 AND r.organisation_id=$2 ORDER BY r.role_name,m.sort_order,m.module_name`,
+      values:[access.tenantId,orgId]
     })
   ]);
-  return {roles:roles.rows,role_permissions:permissions.rows,role_users:users.rows};
+  return {roles:roles.rows,role_permissions:permissions.rows,role_users:users.rows,role_modules:roleModules.rows};
 };

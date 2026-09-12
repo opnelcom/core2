@@ -21,7 +21,13 @@ module.exports=async ctx=>{
   const masterPermissions=Array.isArray(ctx.body.master_permissions)?ctx.body.master_permissions:[];
   const transactionPermissions=Array.isArray(ctx.body.transaction_permissions)?ctx.body.transaction_permissions:[];
   const roleUsers=Array.isArray(ctx.body.role_users)?ctx.body.role_users:[];
+  const moduleIds=[...new Set((Array.isArray(ctx.body.module_ids)?ctx.body.module_ids:[]).map(String).filter(Boolean))];
   if(!orgId||!name)return ctx.send(400,{error:'organisation_id and role name are required'});
+  if(!isAdmin&&!moduleIds.length)return ctx.send(400,{error:'At least one module is required for a non-administrator role'});
+  if(moduleIds.length){
+    const modules=await ctx.broker('core_erp','query',{text:`SELECT module_id FROM erp_module WHERE tenant_id=$1 AND organisation_id=$2 AND module_id=ANY($3::uuid[]) AND is_active=true`,values:[access.tenantId,orgId,moduleIds]});
+    if(modules.rows.length!==moduleIds.length)return ctx.send(400,{error:'Every selected module must be active and belong to this organisation'});
+  }
 
   const roleCode=id?null:roleCodeFromName(name);
   const saved=id
@@ -54,8 +60,13 @@ module.exports=async ctx=>{
     {
       text:`DELETE FROM erp_user_role WHERE tenant_id=$1 AND organisation_id=$2 AND role_id=$3`,
       values:[access.tenantId,orgId,roleId]
+    },
+    {
+      text:`DELETE FROM erp_role_module WHERE role_id=$3`,
+      values:[access.tenantId,orgId,roleId]
     }
   ];
+  moduleIds.forEach(moduleId=>statements.push({text:`INSERT INTO erp_role_module(role_id,module_id) VALUES($1,$2)`,values:[roleId,moduleId]}));
   const addPermission=(kind,row)=>{
     const divisionId=nullable(row.division_id);
     const resourceCode=kind==='master_data'?clean(row.ledger_family_code):clean(row.transaction_type_id);

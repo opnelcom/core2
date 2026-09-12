@@ -206,10 +206,10 @@ function renderApplications(applications){
       fallback.textContent=(app.application_name||app.application_code||'A').trim().slice(0,1).toUpperCase();
       button.append(fallback);
     }
-    const tooltip=document.createElement('span');
-    tooltip.className='application-icon-tooltip';
-    tooltip.textContent=app.application_name||app.application_code||'Application';
-    button.append(tooltip);
+    const label=document.createElement('span');
+    label.className='application-icon-label';
+    label.textContent=app.application_name||app.application_code||'Application';
+    button.append(label);
     button.addEventListener('click',()=>openApplication(app));
     list.append(button);
   });

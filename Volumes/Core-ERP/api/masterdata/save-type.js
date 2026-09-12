@@ -11,7 +11,7 @@ module.exports=async ctx=>{
   const family=clean(ctx.body.ledger_family_code);
   const code=clean(ctx.body.type_code).toLowerCase();
   const name=clean(ctx.body.type_name);
-  if(!orgId||!family||!code||!name)return ctx.send(400,{error:'Organisation, ledger family, type code and name are required'});
+  if(!orgId||!family||!code||!name)return ctx.send(400,{error:'Organisation, subledger account type, type code and name are required'});
   let schema;
   let uiSchema;
   try{

@@ -1,5 +1,5 @@
 'use strict';
-const {authTenant}=require('../_shared/erp');
+const {authTenant,requireModuleAccess}=require('../_shared/erp');
 
 module.exports=async ctx=>{
   const access=await authTenant(ctx);
@@ -7,6 +7,10 @@ module.exports=async ctx=>{
   const orgId=ctx.query.organisation_id;
   if(!orgId)return ctx.send(400,{error:'organisation_id is required'});
   const family=ctx.query.ledger_family_code||'gl';
+  if(family!=='gl'){
+    const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:orgId,resourceKind:'ledger_family',resourceCode:family});
+    if(moduleDenied)return ctx.send(moduleDenied.status,moduleDenied.body);
+  }
   const r=await ctx.broker('core_erp','query',{
     text:`SELECT a.*,t.account_type_code,t.account_type_name,d.division_name owner_division_name,e.known_name legal_entity_known_name,e.legal_name legal_entity_legal_name
           FROM erp_ledger_account a

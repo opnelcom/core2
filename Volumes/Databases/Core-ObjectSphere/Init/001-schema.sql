@@ -96,6 +96,15 @@ CREATE TABLE IF NOT EXISTS objectsphere_item_attachment(
 );
 ALTER TABLE objectsphere_item_attachment DROP CONSTRAINT IF EXISTS objectsphere_item_attachment_attachment_type_check;
 ALTER TABLE objectsphere_item_attachment ADD CONSTRAINT objectsphere_item_attachment_attachment_type_check CHECK(attachment_type IN('photo','document','wireframe'));
+CREATE TABLE IF NOT EXISTS objectsphere_tenant_openai_setting(
+  tenant_id uuid PRIMARY KEY,
+  api_key_ciphertext text,
+  api_key_iv text,
+  api_key_tag text,
+  model text NOT NULL DEFAULT 'gpt-4.1-mini',
+  updated_by_email text,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
 CREATE TABLE IF NOT EXISTS objectsphere_event_type(
   event_type_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id uuid NOT NULL,

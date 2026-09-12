@@ -1,5 +1,5 @@
 'use strict';
-const {authTenant,validateJournal,checkPeriodOpen,requireResourcePermission}=require('../_shared/erp');
+const {authTenant,validateJournal,checkPeriodOpen,requireResourcePermission,requireModuleAccess}=require('../_shared/erp');
 
 module.exports=async ctx=>{
   const access=await authTenant(ctx);
@@ -10,6 +10,8 @@ module.exports=async ctx=>{
   const current=await ctx.broker('core_erp','query',{text:`SELECT * FROM erp_journal WHERE tenant_id=$1 AND journal_id=$2`,values:[access.tenantId,id]});
   if(!current.rowCount)return ctx.send(404,{error:'Journal not found'});
   const journal=current.rows[0];
+  const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:journal.organisation_id,resourceKind:'transaction_type',resourceCode:journal.transaction_type_id});
+  if(moduleDenied)return ctx.send(moduleDenied.status,moduleDenied.body);
   const permissionStatus={
     submit:'submitted',
     approve:'approved',

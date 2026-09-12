@@ -1,5 +1,6 @@
 'use strict';
 const {authTenant,requireAdmin,clean,nullable,bool}=require('../_shared/erp');
+const {moduleIds,validateModules,replaceLinks}=require('../_shared/erp/modules');
 
 module.exports=async ctx=>{
   if(ctx.req.method!=='POST')return ctx.send(405,{error:'POST required'});
@@ -19,7 +20,10 @@ module.exports=async ctx=>{
   const sortOrder=Number(ctx.body.sort_order)||0;
   const isActive=ctx.body.is_active!==false&&ctx.body.is_active!=='false';
   const lines=Array.isArray(ctx.body.lines)?ctx.body.lines:[];
+  const selectedModules=moduleIds(ctx.body);
   if(!orgId||!groupId||!code||!name)return ctx.send(400,{error:'organisation_id, transaction_group_id, type_code, and type_name are required'});
+  const invalidModules=await validateModules(ctx,access,orgId,selectedModules);
+  if(invalidModules)return ctx.send(invalidModules.status,invalidModules.body);
   if(isFinancial&&lines.length<2)return ctx.send(400,{error:'Financial transaction types require at least two transaction lines'});
   if(!isFinancial&&lines.length>0)return ctx.send(400,{error:'Non-financial transaction types cannot have transaction lines'});
   if(lines.length===1)return ctx.send(400,{error:'Transaction types can have zero, two, or more transaction lines'});
@@ -35,7 +39,7 @@ module.exports=async ctx=>{
     const debitCredit=clean(line.debit_credit).toLowerCase();
     if(!['debit','credit'].includes(debitCredit))return ctx.send(400,{error:`Line ${index+1} requires DR/CR`});
     if(!nullable(line.default_gl_account_id))return ctx.send(400,{error:`Line ${index+1} requires a GL account`});
-    if(bool(line.requires_subledger)&&!clean(line.subledger_family_code))return ctx.send(400,{error:`Line ${index+1} requires a subledger family`});
+    if(bool(line.requires_subledger)&&!clean(line.subledger_family_code))return ctx.send(400,{error:`Line ${index+1} requires a subledger account type`});
   }
   if(lines.length){
     const accountIds=[...new Set(lines.map(line=>nullable(line.default_gl_account_id)).filter(Boolean))];
@@ -86,5 +90,6 @@ module.exports=async ctx=>{
     });
   });
   await ctx.broker('core_erp','transaction',{statements});
+  await replaceLinks(ctx,access,orgId,{table:'erp_transaction_type_module',idColumn:'transaction_type_id',idValue:typeId,moduleIds:selectedModules});
   return {ok:true,transaction_type:saved.rows[0]};
 };

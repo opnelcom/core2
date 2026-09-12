@@ -231,8 +231,175 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       updated_at timestamptz NOT NULL DEFAULT now(),
       PRIMARY KEY(tenant_id,organisation_id,ledger_family_code)
     );
+
+    CREATE TABLE IF NOT EXISTS erp_module(
+      module_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      module_code text NOT NULL,
+      module_name text NOT NULL,
+      module_description text NOT NULL DEFAULT '',
+      module_icon_svg text NOT NULL DEFAULT '',
+      sort_order integer NOT NULL DEFAULT 0,
+      is_seeded boolean NOT NULL DEFAULT false,
+      is_active boolean NOT NULL DEFAULT true,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE(tenant_id,organisation_id,module_code)
+    );
+    ALTER TABLE erp_module ADD COLUMN IF NOT EXISTS module_icon_svg text NOT NULL DEFAULT '';
     ALTER TABLE erp_ledger_family ADD COLUMN IF NOT EXISTS requires_legal_entity boolean NOT NULL DEFAULT false;
     ALTER TABLE erp_ledger_family ADD COLUMN IF NOT EXISTS schema_json jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+    CREATE TABLE IF NOT EXISTS erp_gl_account_type(
+      gl_account_type_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      type_code text NOT NULL,
+      type_name text NOT NULL,
+      is_required boolean NOT NULL DEFAULT true,
+      is_seeded boolean NOT NULL DEFAULT false,
+      is_active boolean NOT NULL DEFAULT true,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE(tenant_id,organisation_id,type_code)
+    );
+
+    CREATE TABLE IF NOT EXISTS erp_subledger_account_type(
+      subledger_account_type_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      type_code text NOT NULL,
+      type_name text NOT NULL,
+      requires_legal_entity boolean NOT NULL DEFAULT false,
+      schema_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+      is_seeded boolean NOT NULL DEFAULT false,
+      is_active boolean NOT NULL DEFAULT true,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE(tenant_id,organisation_id,type_code)
+    );
+
+    CREATE TABLE IF NOT EXISTS erp_gl_account(
+      gl_account_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      owner_division_id uuid NOT NULL REFERENCES erp_division(division_id),
+      account_code text NOT NULL,
+      account_name text NOT NULL,
+      gl_account_type_id uuid REFERENCES erp_gl_account_type(gl_account_type_id),
+      requires_subledger boolean NOT NULL DEFAULT false,
+      required_subledger_type_code text,
+      workflow_status text NOT NULL DEFAULT 'draft' CHECK(workflow_status IN('draft','submitted','approved','rejected','blocked','archived','deleted')),
+      valid_from date NOT NULL DEFAULT CURRENT_DATE,
+      valid_to date,
+      additional_data jsonb NOT NULL DEFAULT '{}'::jsonb,
+      created_by_email text,
+      updated_by_email text,
+      approved_by_email text,
+      approved_at timestamptz,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE(tenant_id,organisation_id,account_code)
+    );
+
+    CREATE TABLE IF NOT EXISTS erp_subledger_account(
+      subledger_account_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      owner_division_id uuid NOT NULL REFERENCES erp_division(division_id),
+      subledger_account_type_id uuid NOT NULL REFERENCES erp_subledger_account_type(subledger_account_type_id),
+      legal_entity_id uuid REFERENCES erp_legal_entity(legal_entity_id),
+      account_code text NOT NULL,
+      account_name text NOT NULL,
+      workflow_status text NOT NULL DEFAULT 'draft' CHECK(workflow_status IN('draft','submitted','approved','rejected','blocked','archived','deleted')),
+      valid_from date NOT NULL DEFAULT CURRENT_DATE,
+      valid_to date,
+      additional_data jsonb NOT NULL DEFAULT '{}'::jsonb,
+      created_by_email text,
+      updated_by_email text,
+      approved_by_email text,
+      approved_at timestamptz,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE(tenant_id,organisation_id,subledger_account_type_id,account_code)
+    );
+
+    CREATE TABLE IF NOT EXISTS erp_accounting_object_type(
+      accounting_object_type_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      type_code text NOT NULL,
+      type_name text NOT NULL,
+      schema_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+      ui_schema_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+      is_seeded boolean NOT NULL DEFAULT false,
+      is_active boolean NOT NULL DEFAULT true,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE(tenant_id,organisation_id,type_code)
+    );
+
+    CREATE TABLE IF NOT EXISTS erp_accounting_object(
+      accounting_object_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      owner_division_id uuid NOT NULL REFERENCES erp_division(division_id),
+      accounting_object_type_id uuid NOT NULL REFERENCES erp_accounting_object_type(accounting_object_type_id),
+      parent_accounting_object_id uuid REFERENCES erp_accounting_object(accounting_object_id),
+      object_code text NOT NULL,
+      object_name text NOT NULL,
+      workflow_status text NOT NULL DEFAULT 'draft' CHECK(workflow_status IN('draft','submitted','approved','rejected','blocked','archived','deleted')),
+      valid_from date NOT NULL DEFAULT CURRENT_DATE,
+      valid_to date,
+      additional_data jsonb NOT NULL DEFAULT '{}'::jsonb,
+      created_by_email text,
+      updated_by_email text,
+      approved_by_email text,
+      approved_at timestamptz,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE(tenant_id,organisation_id,accounting_object_type_id,object_code)
+    );
+
+    ALTER TABLE erp_accounting_object
+      ADD COLUMN IF NOT EXISTS parent_accounting_object_id uuid REFERENCES erp_accounting_object(accounting_object_id);
+
+    CREATE TABLE IF NOT EXISTS erp_accounting_dimension_type(
+      accounting_dimension_type_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      type_code text NOT NULL,
+      type_name text NOT NULL,
+      schema_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+      ui_schema_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+      is_seeded boolean NOT NULL DEFAULT false,
+      is_active boolean NOT NULL DEFAULT true,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE(tenant_id,organisation_id,type_code)
+    );
+
+    CREATE TABLE IF NOT EXISTS erp_accounting_dimension(
+      accounting_dimension_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      owner_division_id uuid NOT NULL REFERENCES erp_division(division_id),
+      accounting_dimension_type_id uuid NOT NULL REFERENCES erp_accounting_dimension_type(accounting_dimension_type_id),
+      dimension_code text NOT NULL,
+      dimension_name text NOT NULL,
+      workflow_status text NOT NULL DEFAULT 'draft' CHECK(workflow_status IN('draft','submitted','approved','rejected','blocked','archived','deleted')),
+      valid_from date NOT NULL DEFAULT CURRENT_DATE,
+      valid_to date,
+      additional_data jsonb NOT NULL DEFAULT '{}'::jsonb,
+      created_by_email text,
+      updated_by_email text,
+      approved_by_email text,
+      approved_at timestamptz,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE(tenant_id,organisation_id,accounting_dimension_type_id,dimension_code)
+    );
 
     CREATE TABLE IF NOT EXISTS erp_tax_type(
       tax_type_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -405,6 +572,30 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       UNIQUE(transaction_type_id,line_order)
     );
     ALTER TABLE erp_transaction_type ADD COLUMN IF NOT EXISTS is_financial boolean NOT NULL DEFAULT true;
+
+    CREATE TABLE IF NOT EXISTS erp_ledger_family_module(
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      ledger_family_code text NOT NULL,
+      module_id uuid NOT NULL REFERENCES erp_module(module_id) ON DELETE CASCADE,
+      PRIMARY KEY(tenant_id,organisation_id,ledger_family_code,module_id),
+      FOREIGN KEY(tenant_id,organisation_id,ledger_family_code) REFERENCES erp_ledger_family(tenant_id,organisation_id,ledger_family_code) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS erp_accounting_object_type_module(
+      accounting_object_type_id uuid NOT NULL REFERENCES erp_accounting_object_type(accounting_object_type_id) ON DELETE CASCADE,
+      module_id uuid NOT NULL REFERENCES erp_module(module_id) ON DELETE CASCADE,
+      PRIMARY KEY(accounting_object_type_id,module_id)
+    );
+    CREATE TABLE IF NOT EXISTS erp_accounting_dimension_type_module(
+      accounting_dimension_type_id uuid NOT NULL REFERENCES erp_accounting_dimension_type(accounting_dimension_type_id) ON DELETE CASCADE,
+      module_id uuid NOT NULL REFERENCES erp_module(module_id) ON DELETE CASCADE,
+      PRIMARY KEY(accounting_dimension_type_id,module_id)
+    );
+    CREATE TABLE IF NOT EXISTS erp_transaction_type_module(
+      transaction_type_id uuid NOT NULL REFERENCES erp_transaction_type(transaction_type_id) ON DELETE CASCADE,
+      module_id uuid NOT NULL REFERENCES erp_module(module_id) ON DELETE CASCADE,
+      PRIMARY KEY(transaction_type_id,module_id)
+    );
     ALTER TABLE erp_posting_rule ADD COLUMN IF NOT EXISTS requires_subledger boolean NOT NULL DEFAULT false;
     ALTER TABLE erp_posting_rule ADD COLUMN IF NOT EXISTS subledger_family_code text;
 
@@ -580,6 +771,9 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       UNIQUE(tenant_id,organisation_id,role_code)
     );
     ALTER TABLE erp_role ADD COLUMN IF NOT EXISTS role_description text NOT NULL DEFAULT '';
+    UPDATE erp_role
+    SET is_admin=false
+    WHERE role_code='erp_admin' AND is_admin=true;
 
     CREATE TABLE IF NOT EXISTS erp_role_permission(
       role_permission_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -605,4 +799,10 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       valid_from date NOT NULL DEFAULT CURRENT_DATE,
       valid_to date,
       UNIQUE(tenant_id,organisation_id,role_id,email)
+    );
+
+    CREATE TABLE IF NOT EXISTS erp_role_module(
+      role_id uuid NOT NULL REFERENCES erp_role(role_id) ON DELETE CASCADE,
+      module_id uuid NOT NULL REFERENCES erp_module(module_id) ON DELETE CASCADE,
+      PRIMARY KEY(role_id,module_id)
     );

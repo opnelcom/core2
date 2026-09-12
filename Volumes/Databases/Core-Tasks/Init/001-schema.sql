@@ -47,6 +47,16 @@ CREATE TABLE IF NOT EXISTS tasks_task_attachment(
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS tasks_tenant_openai_setting(
+  tenant_id uuid PRIMARY KEY,
+  api_key_ciphertext text,
+  api_key_iv text,
+  api_key_tag text,
+  model text NOT NULL DEFAULT 'gpt-4.1-mini',
+  updated_by_email text,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE INDEX IF NOT EXISTS tasks_task_tenant_parent_idx ON tasks_task(tenant_id,parent_task_id,status,sort_order,task_name);
 CREATE INDEX IF NOT EXISTS tasks_task_tenant_status_idx ON tasks_task(tenant_id,status,importance,due_date);
 CREATE INDEX IF NOT EXISTS tasks_task_attachment_task_idx ON tasks_task_attachment(tenant_id,task_id,attachment_type,deleted,created_at);

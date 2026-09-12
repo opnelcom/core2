@@ -38,7 +38,8 @@ module.exports=async ctx=>{
     financialFormats:isEnabled(options,'financial_statement_formats'),
     taxTypes:isEnabled(options,'tax_types'),
     masterDataTypes:isEnabled(options,'master_data_types'),
-    permissions:isEnabled(options,'permissions')
+    permissions:isEnabled(options,'permissions'),
+    modules:isEnabled(options,'modules')
   };
 
   const needsChartDelete=wants.chart||wants.ledgerTypes||wants.ledgerFamilies;
@@ -65,7 +66,15 @@ module.exports=async ctx=>{
   if(needsFinancialFormatDelete)add('financial_statement_formats',`DELETE FROM erp_financial_statement_format WHERE tenant_id=$1 AND organisation_id=$2`);
   if(needsTransactionTypeDelete)add('journal_transaction_links',`UPDATE erp_journal SET transaction_type_id=NULL WHERE tenant_id=$1 AND organisation_id=$2 AND transaction_type_id IS NOT NULL`);
   if(needsMasterRecordDelete)add('master_data_records',`DELETE FROM erp_master_data_record WHERE tenant_id=$1 AND organisation_id=$2`);
+  if(needsMasterRecordDelete)add('accounting_dimensions',`DELETE FROM erp_accounting_dimension WHERE tenant_id=$1 AND organisation_id=$2`);
+  if(needsMasterRecordDelete)add('accounting_objects',`DELETE FROM erp_accounting_object WHERE tenant_id=$1 AND organisation_id=$2`);
+  if(needsChartDelete)add('subledger_accounts',`DELETE FROM erp_subledger_account WHERE tenant_id=$1 AND organisation_id=$2`);
+  if(needsChartDelete)add('gl_accounts',`DELETE FROM erp_gl_account WHERE tenant_id=$1 AND organisation_id=$2`);
   if(needsChartDelete)add('chart_of_accounts',`DELETE FROM erp_ledger_account WHERE tenant_id=$1 AND organisation_id=$2`);
+  if(wants.masterDataTypes)add('accounting_dimension_types',`DELETE FROM erp_accounting_dimension_type WHERE tenant_id=$1 AND organisation_id=$2`);
+  if(wants.masterDataTypes)add('accounting_object_types',`DELETE FROM erp_accounting_object_type WHERE tenant_id=$1 AND organisation_id=$2`);
+  if(needsLedgerTypeDelete)add('subledger_account_types',`DELETE FROM erp_subledger_account_type WHERE tenant_id=$1 AND organisation_id=$2`);
+  if(needsLedgerTypeDelete)add('gl_account_types',`DELETE FROM erp_gl_account_type WHERE tenant_id=$1 AND organisation_id=$2`);
   if(needsLedgerTypeDelete)add('ledger_types',`DELETE FROM erp_ledger_account_type WHERE tenant_id=$1 AND organisation_id=$2`);
   if(wants.masterDataTypes||wants.ledgerFamilies)add('master_data_types',`DELETE FROM erp_master_data_type WHERE tenant_id=$1 AND organisation_id=$2`);
   if(wants.transactionTypes)add('transaction_types',`DELETE FROM erp_transaction_type WHERE tenant_id=$1 AND organisation_id=$2`);
@@ -82,6 +91,7 @@ module.exports=async ctx=>{
     add('tax_types',`DELETE FROM erp_tax_type WHERE tenant_id=$1 AND organisation_id=$2`);
   }
   if(wants.ledgerFamilies)add('ledger_families',`DELETE FROM erp_ledger_family WHERE tenant_id=$1 AND organisation_id=$2`);
+  if(wants.modules)add('modules',`DELETE FROM erp_module WHERE tenant_id=$1 AND organisation_id=$2`);
 
   if(!statements.length)return {ok:true,deleted:0,detail:{}};
   const r=await ctx.broker('core_erp','transaction',{statements:statements.map(({text,values})=>({text,values}))});

@@ -6,6 +6,82 @@
     "revenue",
     "expense"
   ],
+  "moduleSeeds": [
+    ["sales", "Sales", 10, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 18 10 12l4 3 6-8\"/><path d=\"M15 7h5v5\"/></svg>"],
+    ["crm", "CRM", 20, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"8\" cy=\"8\" r=\"3\"/><path d=\"M3 19c0-3 2-5 5-5s5 2 5 5\"/><path d=\"M17 10c-3-2-5 2 0 5 5-3 3-7 0-5Z\"/></svg>"],
+    ["procurement", "Procurement", 30, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 5h2l2 10h10l3-7H6\"/><circle cx=\"9\" cy=\"19\" r=\"1\"/><circle cx=\"17\" cy=\"19\" r=\"1\"/></svg>"],
+    ["hr_payroll", "HR & Payroll", 40, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"9\" cy=\"7\" r=\"3\"/><path d=\"M3 19c0-4 2-6 6-6s6 2 6 6\"/><circle cx=\"18\" cy=\"14\" r=\"3\"/><path d=\"M18 12.5v3M16.8 14h2.4\"/></svg>"],
+    ["finance", "Finance", 50, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 9 9-5 9 5M5 10v7m5-7v7m4-7v7m5-7v7M3 20h18\"/></svg>"],
+    ["treasury_cash", "Treasury & Cash", 60, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><ellipse cx=\"9\" cy=\"7\" rx=\"5\" ry=\"2.5\"/><path d=\"M4 7v6c0 1.4 2.2 2.5 5 2.5M14 7v3\"/><ellipse cx=\"16\" cy=\"15\" rx=\"5\" ry=\"2.5\"/><path d=\"M11 15v3c0 1.4 2.2 2.5 5 2.5s5-1.1 5-2.5v-3\"/></svg>"],
+    ["tax", "Tax", 70, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 3h9l4 4v14H6Z\"/><path d=\"M15 3v5h4M9 16l6-6\"/><circle cx=\"10\" cy=\"11\" r=\"1\"/><circle cx=\"15\" cy=\"16\" r=\"1\"/></svg>"],
+    ["inventory", "Inventory", 80, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m4 7 8-4 8 4-8 4Z\"/><path d=\"M4 7v10l8 4 8-4V7M12 11v10\"/></svg>"],
+    ["asset_management", "Asset Management", 90, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1\"/></svg>"],
+    ["project_management", "Project Management", 100, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"5\" y=\"4\" width=\"14\" height=\"17\" rx=\"2\"/><path d=\"M9 4V2h6v2M8 10l2 2 4-4M8 16h8\"/></svg>"],
+    ["contract_management", "Contract Management", 110, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 3h10l4 4v14H5Z\"/><path d=\"M15 3v5h4M8 12h8M8 16h4M13 18l5-5 2 2-5 5-3 1Z\"/></svg>"],
+    ["property_management", "Property Management", 120, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 11 9-8 9 8M5 10v11h14V10M9 21v-7h6v7\"/></svg>"],
+    ["intercompany", "Intercompany", 130, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"7\" width=\"6\" height=\"12\"/><rect x=\"15\" y=\"5\" width=\"6\" height=\"14\"/><path d=\"M9 10h7l-2-2m1 7H8l2 2\"/></svg>"],
+    ["public_sector", "Public Sector", 140, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 21V3m0 1h12l-2 4 2 4H5M9 21v-6h10v6M8 21h12\"/></svg>"],
+    ["corporate_administration", "Corporate Administration", 150, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"7\" width=\"18\" height=\"13\" rx=\"2\"/><path d=\"M8 7V4h8v3M3 12h18M10 12v2h4v-2\"/></svg>"]
+  ],
+  "moduleMappings": {
+    "ledgerFamilies": {
+      "bank": ["treasury_cash", "finance"],
+      "customer": ["sales", "crm", "finance"],
+      "vendor": ["procurement", "finance"],
+      "employee": ["hr_payroll", "finance"],
+      "cash_point": ["treasury_cash", "sales", "finance"],
+      "asset": ["asset_management", "finance"],
+      "capex_project": ["asset_management", "project_management", "procurement", "finance"],
+      "loan": ["treasury_cash", "finance"]
+    },
+    "accountingObjectTypes": {
+      "property": ["property_management", "asset_management", "finance"],
+      "region": ["sales", "crm", "procurement", "hr_payroll", "finance"],
+      "opex_project": ["project_management", "procurement", "finance"],
+      "cost_centre": ["finance", "hr_payroll"],
+      "profit_centre": ["finance", "sales"],
+      "contract": ["contract_management", "sales", "procurement", "hr_payroll", "asset_management", "finance"]
+    },
+    "accountingDimensionTypes": {
+      "revenue_type": ["sales", "finance"],
+      "expense_type": ["procurement", "finance"],
+      "mscoa_fund": ["public_sector", "finance"],
+      "mscoa_project": ["public_sector", "project_management", "finance"],
+      "mscoa_item": ["public_sector", "finance"],
+      "mscoa_region": ["public_sector", "finance"],
+      "mscoa_function": ["public_sector", "finance"],
+      "mscoa_costing": ["public_sector", "finance"],
+      "mscoa_outcome": ["public_sector", "project_management", "finance"]
+    },
+    "transactionGroups": {
+      "journal": ["finance"],
+      "sales": ["sales", "crm", "finance"],
+      "purchasing": ["procurement", "finance"],
+      "banking": ["treasury_cash", "finance"],
+      "cash_management": ["treasury_cash", "finance"],
+      "tax": ["tax", "finance"],
+      "payroll": ["hr_payroll", "finance"],
+      "inventory": ["inventory", "finance"],
+      "assets": ["asset_management", "procurement", "finance"],
+      "loans": ["treasury_cash", "finance"],
+      "owner": ["corporate_administration", "treasury_cash", "finance"],
+      "intercompany": ["intercompany", "finance"]
+    },
+    "transactionTypeAdditions": {
+      "cash_sale": ["treasury_cash"],
+      "customer_payment": ["treasury_cash"],
+      "customer_cash_payment": ["treasury_cash"],
+      "supplier_payment": ["treasury_cash"],
+      "supplier_cash_payment": ["treasury_cash"],
+      "petty_cash_expense": ["procurement"],
+      "pos_cash_to_safe": ["sales"],
+      "safe_cash_to_pos": ["sales"],
+      "till_cash_over": ["sales"],
+      "till_cash_short": ["sales"],
+      "asset_purchase_bank": ["treasury_cash"],
+      "asset_purchase_cash": ["treasury_cash"]
+    }
+  },
   "workflowStates": [
     "draft",
     "submitted",
@@ -17,36 +93,6 @@
     "reversed"
   ],
   "ledgerTypeSeeds": [
-    [
-      "gl",
-      "asset",
-      "Asset",
-      true
-    ],
-    [
-      "gl",
-      "liability",
-      "Liability",
-      true
-    ],
-    [
-      "gl",
-      "equity",
-      "Equity",
-      true
-    ],
-    [
-      "gl",
-      "revenue",
-      "Revenue",
-      true
-    ],
-    [
-      "gl",
-      "expense",
-      "Expense",
-      true
-    ],
     [
       "bank",
       "current_account",
@@ -120,43 +166,43 @@
       false
     ],
     [
-      "cash_location",
+      "cash_point",
       "point_of_sale",
       "Point of Sale",
       false
     ],
     [
-      "cash_location",
+      "cash_point",
       "management_safe",
       "Management Safe",
       false
     ],
     [
-      "cash_location",
+      "cash_point",
       "cash_in_transit",
       "Cash in Transit",
       false
     ],
     [
-      "cash_location",
+      "cash_point",
       "temporary_cash_box",
       "Temporary Cash Box",
       false
     ],
     [
-      "cash_location",
+      "cash_point",
       "undeposited_cash",
       "Undeposited Cash",
       false
     ],
     [
-      "cash_location",
+      "cash_point",
       "change_float",
       "Change Float",
       false
     ],
     [
-      "cash_location",
+      "cash_point",
       "petty_cash",
       "Petty Cash",
       false
@@ -205,12 +251,6 @@
     ],
     [
       "asset",
-      "inventory_asset",
-      "Inventory Asset",
-      false
-    ],
-    [
-      "asset",
       "biological_asset",
       "Biological Asset",
       false
@@ -219,30 +259,6 @@
       "asset",
       "financial_asset",
       "Financial Asset",
-      false
-    ],
-    [
-      "project",
-      "capital_project",
-      "Capital project",
-      false
-    ],
-    [
-      "project",
-      "operational_project",
-      "Operational project",
-      false
-    ],
-    [
-      "contract",
-      "customer_contract",
-      "Customer contract",
-      false
-    ],
-    [
-      "contract",
-      "supplier_contract",
-      "Supplier contract",
       false
     ],
     [
@@ -3619,12 +3635,6 @@
   ],
   "ledgerFamilies": [
     [
-      "gl",
-      "General ledger",
-      true,
-      false
-    ],
-    [
       "bank",
       "Bank account",
       false,
@@ -3649,8 +3659,8 @@
       false
     ],
     [
-      "cash_location",
-      "Cash Location",
+      "cash_point",
+      "Cash Point",
       false,
       false
     ],
@@ -3661,16 +3671,10 @@
       false
     ],
     [
-      "project",
-      "Project",
+      "capex_project",
+      "Capital Project (WIP/AUC)",
       false,
       false
-    ],
-    [
-      "contract",
-      "Contract",
-      false,
-      true
     ],
     [
       "loan",
@@ -4523,78 +4527,6 @@
       "required": [],
       "additionalProperties": false
     },
-    "contract": {
-      "type": "object",
-      "tabs": [
-        {
-          "label": "General",
-          "fields": [
-            "contractNumber",
-            "contractType",
-            "counterpartyName"
-          ]
-        },
-        {
-          "label": "Dates",
-          "fields": [
-            "startDate",
-            "endDate",
-            "renewalDate"
-          ]
-        },
-        {
-          "label": "Value",
-          "fields": [
-            "contractValue",
-            "currencyCode",
-            "responsiblePerson"
-          ]
-        }
-      ],
-      "properties": {
-        "contractNumber": {
-          "type": "string",
-          "title": "Contract Number"
-        },
-        "contractType": {
-          "type": "string",
-          "title": "Contract Type"
-        },
-        "counterpartyName": {
-          "type": "string",
-          "title": "Counterparty Name"
-        },
-        "startDate": {
-          "type": "string",
-          "title": "Start Date",
-          "format": "date"
-        },
-        "endDate": {
-          "type": "string",
-          "title": "End Date",
-          "format": "date"
-        },
-        "renewalDate": {
-          "type": "string",
-          "title": "Renewal Date",
-          "format": "date"
-        },
-        "contractValue": {
-          "type": "number",
-          "title": "Contract Value"
-        },
-        "currencyCode": {
-          "type": "string",
-          "title": "Currency Code"
-        },
-        "responsiblePerson": {
-          "type": "string",
-          "title": "Responsible Person"
-        }
-      },
-      "required": [],
-      "additionalProperties": false
-    },
     "loan": {
       "type": "object",
       "tabs": [
@@ -4809,7 +4741,77 @@
       "required": [],
       "additionalProperties": false
     },
-    "cash_location": {
+    "vendor": {
+      "type": "object",
+      "tabs": [
+        {
+          "label": "General",
+          "fields": [
+            "vendorType",
+            "registrationNumber",
+            "taxNumber"
+          ]
+        },
+        {
+          "label": "Contact",
+          "fields": [
+            "email",
+            "phone"
+          ]
+        },
+        {
+          "label": "Payment",
+          "fields": [
+            "paymentTerms",
+            "bankAccountName",
+            "bankAccountNumber",
+            "currencyCode"
+          ]
+        }
+      ],
+      "properties": {
+        "vendorType": {
+          "type": "string",
+          "title": "Vendor Type"
+        },
+        "registrationNumber": {
+          "type": "string",
+          "title": "Registration Number"
+        },
+        "taxNumber": {
+          "type": "string",
+          "title": "Tax Number"
+        },
+        "email": {
+          "type": "string",
+          "title": "Email",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "title": "Phone"
+        },
+        "paymentTerms": {
+          "type": "string",
+          "title": "Payment Terms"
+        },
+        "bankAccountName": {
+          "type": "string",
+          "title": "Bank Account Name"
+        },
+        "bankAccountNumber": {
+          "type": "string",
+          "title": "Bank Account Number"
+        },
+        "currencyCode": {
+          "type": "string",
+          "title": "Currency Code"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "cash_point": {
       "type": "object",
       "tabs": [
         {
@@ -4881,51 +4883,7 @@
       "required": [],
       "additionalProperties": false
     },
-    "gl": {
-      "type": "object",
-      "tabs": [
-        {
-          "label": "Reporting",
-          "fields": [
-            "reportingCategory",
-            "cashFlowCategory",
-            "taxCategory"
-          ]
-        },
-        {
-          "label": "Controls",
-          "fields": [
-            "reconciliationRequired",
-            "budgetControl"
-          ]
-        }
-      ],
-      "properties": {
-        "reportingCategory": {
-          "type": "string",
-          "title": "Reporting Category"
-        },
-        "cashFlowCategory": {
-          "type": "string",
-          "title": "Cash Flow Category"
-        },
-        "taxCategory": {
-          "type": "string",
-          "title": "Tax Category"
-        },
-        "reconciliationRequired": {
-          "type": "boolean",
-          "title": "Reconciliation Required"
-        },
-        "budgetControl": {
-          "type": "boolean",
-          "title": "Budget Control"
-        }
-      },
-      "required": [],
-      "additionalProperties": false
-    },
-    "project": {
+    "capex_project": {
       "type": "object",
       "tabs": [
         {
@@ -4990,84 +4948,20 @@
       },
       "required": [],
       "additionalProperties": false
-    },
-    "vendor": {
-      "type": "object",
-      "tabs": [
-        {
-          "label": "General",
-          "fields": [
-            "vendorType",
-            "registrationNumber",
-            "taxNumber"
-          ]
-        },
-        {
-          "label": "Contact",
-          "fields": [
-            "email",
-            "phone"
-          ]
-        },
-        {
-          "label": "Payment",
-          "fields": [
-            "paymentTerms",
-            "bankAccountName",
-            "bankAccountNumber",
-            "currencyCode"
-          ]
-        }
-      ],
-      "properties": {
-        "vendorType": {
-          "type": "string",
-          "title": "Vendor Type"
-        },
-        "registrationNumber": {
-          "type": "string",
-          "title": "Registration Number"
-        },
-        "taxNumber": {
-          "type": "string",
-          "title": "Tax Number"
-        },
-        "email": {
-          "type": "string",
-          "title": "Email",
-          "format": "email"
-        },
-        "phone": {
-          "type": "string",
-          "title": "Phone"
-        },
-        "paymentTerms": {
-          "type": "string",
-          "title": "Payment Terms"
-        },
-        "bankAccountName": {
-          "type": "string",
-          "title": "Bank Account Name"
-        },
-        "bankAccountNumber": {
-          "type": "string",
-          "title": "Bank Account Number"
-        },
-        "currencyCode": {
-          "type": "string",
-          "title": "Currency Code"
-        }
-      },
-      "required": [],
-      "additionalProperties": false
     }
   },
   "roleSeeds": [
     [
+      "security_administrator",
+      "Security Administrator",
+      "Setup administration only, without master data, transaction or report access.",
+      true
+    ],
+    [
       "erp_admin",
       "ERP Administrator",
-      "Full administrator role seeded for the template organisation.",
-      true
+      "Full master data, transaction and reporting access without Setup administration.",
+      false
     ],
     [
       "organisation_finance_manager",
@@ -5118,6 +5012,9 @@
       false
     ]
   ],
+  "roleModuleSeeds": {
+    "erp_admin": ["*"]
+  },
   "rolePermissionSeeds": [
     [
       "erp_admin",
@@ -5290,37 +5187,25 @@
     [
       "organisation_sales_user",
       "master_data",
-      "project",
+      "capex_project",
       "view"
     ],
     [
       "organisation_sales_user",
       "master_data",
-      "project",
+      "capex_project",
       "approved"
     ],
     [
       "organisation_sales_user",
       "master_data",
-      "contract",
+      "cash_point",
       "view"
     ],
     [
       "organisation_sales_user",
       "master_data",
-      "contract",
-      "approved"
-    ],
-    [
-      "organisation_sales_user",
-      "master_data",
-      "cash_location",
-      "view"
-    ],
-    [
-      "organisation_sales_user",
-      "master_data",
-      "cash_location",
+      "cash_point",
       "approved"
     ],
     [
@@ -5368,37 +5253,25 @@
     [
       "organisation_procurement_user",
       "master_data",
-      "project",
+      "capex_project",
       "view"
     ],
     [
       "organisation_procurement_user",
       "master_data",
-      "project",
+      "capex_project",
       "approved"
     ],
     [
       "organisation_procurement_user",
       "master_data",
-      "contract",
+      "cash_point",
       "view"
     ],
     [
       "organisation_procurement_user",
       "master_data",
-      "contract",
-      "approved"
-    ],
-    [
-      "organisation_procurement_user",
-      "master_data",
-      "cash_location",
-      "view"
-    ],
-    [
-      "organisation_procurement_user",
-      "master_data",
-      "cash_location",
+      "cash_point",
       "approved"
     ],
     [
@@ -5779,7 +5652,7 @@
       "debit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Cash received"
     ],
     [
@@ -5833,7 +5706,7 @@
       "debit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Customer cash received"
     ],
     [
@@ -5896,7 +5769,7 @@
       "credit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Cash paid"
     ],
     [
@@ -5950,7 +5823,7 @@
       "credit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Cash deposited"
     ],
     [
@@ -5959,7 +5832,7 @@
       "debit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Cash withdrawn"
     ],
     [
@@ -5977,7 +5850,7 @@
       "debit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Safe cash received"
     ],
     [
@@ -5986,7 +5859,7 @@
       "credit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "POS cash removed"
     ],
     [
@@ -5995,7 +5868,7 @@
       "debit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "POS float issued"
     ],
     [
@@ -6004,7 +5877,7 @@
       "credit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Safe cash issued"
     ],
     [
@@ -6022,7 +5895,7 @@
       "credit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Cash banked"
     ],
     [
@@ -6031,7 +5904,7 @@
       "debit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Cash received from bank"
     ],
     [
@@ -6049,7 +5922,7 @@
       "debit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Petty cash issued"
     ],
     [
@@ -6058,7 +5931,7 @@
       "credit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Safe cash issued"
     ],
     [
@@ -6067,7 +5940,7 @@
       "debit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Petty cash replenished"
     ],
     [
@@ -6076,7 +5949,7 @@
       "credit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Cash source"
     ],
     [
@@ -6094,7 +5967,7 @@
       "credit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Petty cash paid"
     ],
     [
@@ -6103,7 +5976,7 @@
       "debit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Till cash surplus"
     ],
     [
@@ -6130,7 +6003,7 @@
       "credit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Till cash shortage"
     ],
     [
@@ -6139,7 +6012,7 @@
       "debit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Safe cash surplus"
     ],
     [
@@ -6166,7 +6039,7 @@
       "credit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Safe cash shortage"
     ],
     [
@@ -6274,7 +6147,7 @@
       "credit",
       "1000",
       true,
-      "cash_location",
+      "cash_point",
       "Cash paid"
     ],
     [
@@ -6410,7 +6283,7 @@
       "Cash",
       "asset",
       true,
-      "cash_location"
+      "cash_point"
     ],
     [
       "1010",
@@ -6726,5 +6599,591 @@
         ]
       }
     ]
+  },
+  "glAccountTypeSeeds": [
+    [
+      "asset",
+      "Asset",
+      true
+    ],
+    [
+      "liability",
+      "Liability",
+      true
+    ],
+    [
+      "equity",
+      "Equity",
+      true
+    ],
+    [
+      "revenue",
+      "Revenue",
+      true
+    ],
+    [
+      "expense",
+      "Expense",
+      true
+    ]
+  ],
+  "accountingObjectTypeSeeds": [
+    [
+      "property",
+      "Property"
+    ],
+    [
+      "region",
+      "Region"
+    ],
+    [
+      "opex_project",
+      "Operational Project"
+    ],
+    [
+      "cost_centre",
+      "Cost Centre"
+    ],
+    [
+      "profit_centre",
+      "Profit Centre"
+    ],
+    [
+      "contract",
+      "Contract"
+    ]
+  ],
+  "accountingDimensionTypeSeeds": [
+    [
+      "revenue_type",
+      "Revenue Type"
+    ],
+    [
+      "expense_type",
+      "Expense Type"
+    ],
+    [
+      "mscoa_fund",
+      "MSCOA Fund"
+    ],
+    [
+      "mscoa_project",
+      "MSCOA Project"
+    ],
+    [
+      "mscoa_item",
+      "MSCOA Item"
+    ],
+    [
+      "mscoa_region",
+      "MSCOA Region"
+    ],
+    [
+      "mscoa_function",
+      "MSCOA Function"
+    ],
+    [
+      "mscoa_costing",
+      "MSCOA Costing"
+    ],
+    [
+      "mscoa_outcome",
+      "MSCOA Outcome"
+    ]
+  ],
+  "accountingObjectTypeMetadata": {
+    "property": {
+      "schema_json": {
+        "type": "object",
+        "tabs": [
+          {
+            "label": "General",
+            "fields": [
+              "propertyKind",
+              "ownershipStatus",
+              "usage"
+            ]
+          },
+          {
+            "label": "Location",
+            "fields": [
+              "cadastralReference",
+              "physicalAddress",
+              "areaSqm"
+            ]
+          }
+        ],
+        "properties": {
+          "propertyKind": {
+            "type": "short_text",
+            "title": "Property Kind",
+            "enum": [
+              "land",
+              "site",
+              "building",
+              "floor",
+              "room",
+              "wing",
+              "leased_store",
+              "other"
+            ],
+            "x-listView": true,
+            "x-searchable": true,
+            "uiWidth": "short"
+          },
+          "ownershipStatus": {
+            "type": "short_text",
+            "title": "Ownership Status",
+            "enum": [
+              "owned",
+              "leased",
+              "managed",
+              "right_of_use",
+              "other"
+            ],
+            "x-reportable": true,
+            "uiWidth": "short"
+          },
+          "usage": {
+            "type": "text",
+            "title": "Usage",
+            "x-searchable": true,
+            "uiWidth": "medium"
+          },
+          "cadastralReference": {
+            "type": "short_text",
+            "title": "Cadastral / Erf Reference",
+            "x-searchable": true,
+            "uiWidth": "medium"
+          },
+          "physicalAddress": {
+            "type": "long_text",
+            "title": "Physical Address",
+            "x-searchable": true,
+            "uiWidth": "full"
+          },
+          "areaSqm": {
+            "type": "number",
+            "title": "Area (sqm)",
+            "uiWidth": "short"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "ui_schema_json": {
+        "sections": [
+          {
+            "label": "General",
+            "fields": [
+              "propertyKind",
+              "ownershipStatus",
+              "usage"
+            ]
+          },
+          {
+            "label": "Location",
+            "fields": [
+              "cadastralReference",
+              "physicalAddress",
+              "areaSqm"
+            ]
+          }
+        ]
+      }
+    },
+    "region": {
+      "schema_json": {
+        "type": "object",
+        "tabs": [
+          {
+            "label": "General",
+            "fields": [
+              "regionLevel",
+              "countryCode",
+              "responsiblePerson"
+            ]
+          }
+        ],
+        "properties": {
+          "regionLevel": {
+            "type": "short_text",
+            "title": "Region Level",
+            "enum": [
+              "national",
+              "province",
+              "district",
+              "municipality",
+              "ward",
+              "service_area",
+              "other"
+            ],
+            "x-listView": true,
+            "x-reportable": true,
+            "uiWidth": "short"
+          },
+          "countryCode": {
+            "type": "short_text",
+            "title": "Country Code",
+            "uiWidth": "short"
+          },
+          "responsiblePerson": {
+            "type": "text",
+            "title": "Responsible Person",
+            "x-searchable": true,
+            "uiWidth": "medium"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "ui_schema_json": {
+        "sections": [
+          {
+            "label": "General",
+            "fields": [
+              "regionLevel",
+              "countryCode",
+              "responsiblePerson"
+            ]
+          }
+        ]
+      }
+    },
+    "opex_project": {
+      "schema_json": {
+        "type": "object",
+        "tabs": [
+          {
+            "label": "General",
+            "fields": [
+              "projectCategory",
+              "sponsor",
+              "projectManager"
+            ]
+          },
+          {
+            "label": "Dates and Budget",
+            "fields": [
+              "startDate",
+              "endDate",
+              "budgetAmount"
+            ]
+          }
+        ],
+        "properties": {
+          "projectCategory": {
+            "type": "short_text",
+            "title": "Project Category",
+            "x-listView": true,
+            "x-reportable": true,
+            "uiWidth": "medium"
+          },
+          "sponsor": {
+            "type": "text",
+            "title": "Sponsor",
+            "x-searchable": true,
+            "uiWidth": "medium"
+          },
+          "projectManager": {
+            "type": "text",
+            "title": "Project Manager",
+            "x-searchable": true,
+            "uiWidth": "medium"
+          },
+          "startDate": {
+            "type": "string",
+            "title": "Start Date",
+            "format": "date",
+            "uiWidth": "short"
+          },
+          "endDate": {
+            "type": "string",
+            "title": "End Date",
+            "format": "date",
+            "uiWidth": "short"
+          },
+          "budgetAmount": {
+            "type": "number",
+            "title": "Budget Amount",
+            "uiWidth": "short"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "ui_schema_json": {
+        "sections": [
+          {
+            "label": "General",
+            "fields": [
+              "projectCategory",
+              "sponsor",
+              "projectManager"
+            ]
+          },
+          {
+            "label": "Dates and Budget",
+            "fields": [
+              "startDate",
+              "endDate",
+              "budgetAmount"
+            ]
+          }
+        ]
+      }
+    },
+    "cost_centre": {
+      "schema_json": {
+        "type": "object",
+        "tabs": [
+          {
+            "label": "General",
+            "fields": [
+              "costCentreClass",
+              "manager",
+              "purpose"
+            ]
+          }
+        ],
+        "properties": {
+          "costCentreClass": {
+            "type": "short_text",
+            "title": "Cost Centre Class",
+            "x-listView": true,
+            "x-reportable": true,
+            "uiWidth": "short"
+          },
+          "manager": {
+            "type": "text",
+            "title": "Manager",
+            "x-searchable": true,
+            "uiWidth": "medium"
+          },
+          "purpose": {
+            "type": "long_text",
+            "title": "Purpose",
+            "uiWidth": "full"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "ui_schema_json": {
+        "sections": [
+          {
+            "label": "General",
+            "fields": [
+              "costCentreClass",
+              "manager",
+              "purpose"
+            ]
+          }
+        ]
+      }
+    },
+    "profit_centre": {
+      "schema_json": {
+        "type": "object",
+        "tabs": [
+          {
+            "label": "General",
+            "fields": [
+              "profitCentreClass",
+              "manager",
+              "revenueResponsibility"
+            ]
+          }
+        ],
+        "properties": {
+          "profitCentreClass": {
+            "type": "short_text",
+            "title": "Profit Centre Class",
+            "x-listView": true,
+            "x-reportable": true,
+            "uiWidth": "short"
+          },
+          "manager": {
+            "type": "text",
+            "title": "Manager",
+            "x-searchable": true,
+            "uiWidth": "medium"
+          },
+          "revenueResponsibility": {
+            "type": "long_text",
+            "title": "Revenue Responsibility",
+            "uiWidth": "full"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "ui_schema_json": {
+        "sections": [
+          {
+            "label": "General",
+            "fields": [
+              "profitCentreClass",
+              "manager",
+              "revenueResponsibility"
+            ]
+          }
+        ]
+      }
+    },
+    "contract": {
+      "schema_json": {
+        "type": "object",
+        "tabs": [
+          {
+            "label": "General",
+            "fields": [
+              "contractNumber",
+              "contractType",
+              "counterpartyName"
+            ]
+          },
+          {
+            "label": "Dates",
+            "fields": [
+              "startDate",
+              "endDate",
+              "renewalDate"
+            ]
+          },
+          {
+            "label": "Value",
+            "fields": [
+              "contractValue",
+              "currencyCode",
+              "responsiblePerson"
+            ]
+          }
+        ],
+        "properties": {
+          "contractNumber": {
+            "type": "short_text",
+            "title": "Contract Number",
+            "x-listView": true,
+            "x-searchable": true,
+            "uiWidth": "short"
+          },
+          "contractType": {
+            "type": "short_text",
+            "title": "Contract Type",
+            "x-reportable": true,
+            "uiWidth": "medium",
+            "options": [
+              {
+                "code": "lease_in",
+                "description": "Lease in"
+              },
+              {
+                "code": "lease_out",
+                "description": "Lease out"
+              },
+              {
+                "code": "service_provision",
+                "description": "Service provision"
+              },
+              {
+                "code": "service_contract",
+                "description": "Service contract"
+              },
+              {
+                "code": "supply_contract",
+                "description": "Supply contract"
+              },
+              {
+                "code": "grant_agreement",
+                "description": "Grant agreement"
+              },
+              {
+                "code": "maintenance_contract",
+                "description": "Maintenance contract"
+              },
+              {
+                "code": "rental_agreement",
+                "description": "Rental agreement"
+              },
+              {
+                "code": "other",
+                "description": "Other"
+              }
+            ]
+          },
+          "counterpartyName": {
+            "type": "text",
+            "title": "Counterparty Name",
+            "x-searchable": true,
+            "uiWidth": "medium"
+          },
+          "startDate": {
+            "type": "string",
+            "title": "Start Date",
+            "format": "date",
+            "uiWidth": "short"
+          },
+          "endDate": {
+            "type": "string",
+            "title": "End Date",
+            "format": "date",
+            "uiWidth": "short"
+          },
+          "renewalDate": {
+            "type": "string",
+            "title": "Renewal Date",
+            "format": "date",
+            "uiWidth": "short"
+          },
+          "contractValue": {
+            "type": "number",
+            "title": "Contract Value",
+            "uiWidth": "short"
+          },
+          "currencyCode": {
+            "type": "short_text",
+            "title": "Currency Code",
+            "uiWidth": "short"
+          },
+          "responsiblePerson": {
+            "type": "text",
+            "title": "Responsible Person",
+            "x-searchable": true,
+            "uiWidth": "medium"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "ui_schema_json": {
+        "sections": [
+          {
+            "label": "General",
+            "fields": [
+              "contractNumber",
+              "contractType",
+              "counterpartyName"
+            ]
+          },
+          {
+            "label": "Dates",
+            "fields": [
+              "startDate",
+              "endDate",
+              "renewalDate"
+            ]
+          },
+          {
+            "label": "Value",
+            "fields": [
+              "contractValue",
+              "currencyCode",
+              "responsiblePerson"
+            ]
+          }
+        ]
+      }
+    }
   }
 }

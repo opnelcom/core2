@@ -1,10 +1,11 @@
 'use strict';
-const {authTenant}=require('../_shared/erp');
+const {authTenant,isTenantAdministrator}=require('../_shared/erp');
 
 module.exports=async ctx=>{
   if(ctx.req.method!=='POST')return ctx.send(405,{error:'POST required'});
   const access=await authTenant(ctx);
   if(access.status)return ctx.send(access.status,access.body);
+  if(!isTenantAdministrator(access))return ctx.send(403,{error:'Tenant administrator access is required to assign the first Security Administrator'});
   const orgId=ctx.body.organisation_id;
   if(!orgId)return ctx.send(400,{error:'organisation_id is required'});
 
@@ -21,12 +22,12 @@ module.exports=async ctx=>{
     values:[access.tenantId,orgId]
   });
   if(Number(existing.rows[0]?.count)||0){
-    return ctx.send(409,{error:'This organisation already has an ERP administrator'});
+    return ctx.send(409,{error:'This organisation already has a Security Administrator'});
   }
 
   const role=await ctx.broker('core_erp','query',{
     text:`INSERT INTO erp_role(tenant_id,organisation_id,role_code,role_name,role_description,is_admin,is_active)
-      VALUES($1,$2,'erp_admin','ERP Admin','Full ERP administration access',true,true)
+      VALUES($1,$2,'security_administrator','Security Administrator','Setup administration only, without master data, transaction or report access.',true,true)
       ON CONFLICT(tenant_id,organisation_id,role_code) DO UPDATE
       SET role_name=excluded.role_name,
         role_description=excluded.role_description,

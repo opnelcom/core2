@@ -1,5 +1,5 @@
 'use strict';
-const {authTenant,clean,nullable,bool,parseJson}=require('../_shared/erp');
+const {authTenant,requireBusinessAccess,clean,nullable,bool,parseJson}=require('../_shared/erp');
 
 const arrays=(body,name)=>{
   const value=parseJson(body[name],[]);
@@ -16,6 +16,8 @@ module.exports=async ctx=>{
   const knownName=clean(ctx.body.known_name);
   const status=clean(ctx.body.workflow_status,'draft');
   if(!orgId||!legalName||!knownName)return ctx.send(400,{error:'Organisation, legal name and known name are required'});
+  const denied=await requireBusinessAccess(ctx,access,orgId);
+  if(denied)return ctx.send(denied.status,denied.body);
   if(!['draft','submitted','approved','rejected','blocked','archived','deleted'].includes(status))return ctx.send(400,{error:'Invalid workflow status'});
   let additionalData={};
   try{

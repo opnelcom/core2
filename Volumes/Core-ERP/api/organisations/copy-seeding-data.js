@@ -108,6 +108,7 @@ module.exports=async ctx=>{
     masterDataTypes:isEnabled(options,'master_data_types'),
     permissions:isEnabled(options,'permissions')
   };
+  wants.modules=wants.ledgerFamilies||wants.masterDataTypes||wants.transactionTypes||wants.permissions;
 
   const statements=[];
   const detail={};
@@ -118,6 +119,12 @@ module.exports=async ctx=>{
   }
 
   const add=(name,text,values=[access.tenantId,sourceId,targetId])=>statements.push({name,text,values});
+
+  if(wants.modules)add('modules',`INSERT INTO erp_module(tenant_id,organisation_id,module_code,module_name,module_description,module_icon_svg,sort_order,is_seeded,is_active)
+    SELECT tenant_id,$3,module_code,module_name,module_description,module_icon_svg,sort_order,is_seeded,is_active
+    FROM erp_module WHERE tenant_id=$1 AND organisation_id=$2
+    ON CONFLICT(tenant_id,organisation_id,module_code) DO UPDATE
+    SET module_name=excluded.module_name,module_description=excluded.module_description,module_icon_svg=excluded.module_icon_svg,sort_order=excluded.sort_order,is_seeded=excluded.is_seeded,is_active=excluded.is_active,updated_at=now()`);
 
   if(wants.currencies)add('currencies',`INSERT INTO erp_currency(tenant_id,organisation_id,currency_code,currency_name,decimal_places,is_active,is_seeded)
     SELECT tenant_id,$3,currency_code,currency_name,decimal_places,is_active,is_seeded
@@ -182,6 +189,34 @@ module.exports=async ctx=>{
     ON CONFLICT(tenant_id,organisation_id,ledger_family_code) DO UPDATE
     SET family_name=excluded.family_name,requires_standard_account_type=excluded.requires_standard_account_type,requires_legal_entity=excluded.requires_legal_entity,schema_json=excluded.schema_json,is_active=excluded.is_active,is_seeded=excluded.is_seeded,updated_at=now()`);
 
+  if(wants.ledgerFamilies)add('subledger_account_types',`INSERT INTO erp_subledger_account_type(tenant_id,organisation_id,type_code,type_name,requires_legal_entity,schema_json,is_active,is_seeded)
+    SELECT tenant_id,$3,type_code,type_name,requires_legal_entity,schema_json,is_active,is_seeded
+    FROM erp_subledger_account_type
+    WHERE tenant_id=$1 AND organisation_id=$2
+    ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
+    SET type_name=excluded.type_name,requires_legal_entity=excluded.requires_legal_entity,schema_json=excluded.schema_json,is_active=excluded.is_active,is_seeded=excluded.is_seeded,updated_at=now()`);
+
+  if(wants.ledgerTypes)add('gl_account_types',`INSERT INTO erp_gl_account_type(tenant_id,organisation_id,type_code,type_name,is_required,is_seeded,is_active)
+    SELECT tenant_id,$3,type_code,type_name,is_required,is_seeded,is_active
+    FROM erp_gl_account_type
+    WHERE tenant_id=$1 AND organisation_id=$2
+    ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
+    SET type_name=excluded.type_name,is_required=excluded.is_required,is_seeded=excluded.is_seeded,is_active=excluded.is_active,updated_at=now()`);
+
+  if(wants.masterDataTypes)add('accounting_object_types',`INSERT INTO erp_accounting_object_type(tenant_id,organisation_id,type_code,type_name,schema_json,ui_schema_json,is_seeded,is_active)
+    SELECT tenant_id,$3,type_code,type_name,schema_json,ui_schema_json,is_seeded,is_active
+    FROM erp_accounting_object_type
+    WHERE tenant_id=$1 AND organisation_id=$2
+    ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
+    SET type_name=excluded.type_name,schema_json=excluded.schema_json,ui_schema_json=excluded.ui_schema_json,is_seeded=excluded.is_seeded,is_active=excluded.is_active,updated_at=now()`);
+
+  if(wants.masterDataTypes)add('accounting_dimension_types',`INSERT INTO erp_accounting_dimension_type(tenant_id,organisation_id,type_code,type_name,schema_json,ui_schema_json,is_seeded,is_active)
+    SELECT tenant_id,$3,type_code,type_name,schema_json,ui_schema_json,is_seeded,is_active
+    FROM erp_accounting_dimension_type
+    WHERE tenant_id=$1 AND organisation_id=$2
+    ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
+    SET type_name=excluded.type_name,schema_json=excluded.schema_json,ui_schema_json=excluded.ui_schema_json,is_seeded=excluded.is_seeded,is_active=excluded.is_active,updated_at=now()`);
+
   if(wants.ledgerTypes)add('ledger_types',`INSERT INTO erp_ledger_account_type(tenant_id,organisation_id,ledger_family_code,account_type_code,account_type_name,is_required,is_seeded,is_active)
     SELECT tenant_id,$3,ledger_family_code,account_type_code,account_type_name,is_required,is_seeded,is_active
     FROM erp_ledger_account_type
@@ -207,6 +242,37 @@ module.exports=async ctx=>{
     JOIN erp_transaction_group target_group ON target_group.tenant_id=$1 AND target_group.organisation_id=$3 AND target_group.group_code=source_types.group_code
     ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
     SET transaction_group_id=excluded.transaction_group_id,type_name=excluded.type_name,type_description=excluded.type_description,is_financial=excluded.is_financial,allow_additional_lines=excluded.allow_additional_lines,sort_order=excluded.sort_order,is_active=excluded.is_active`);
+
+  if(wants.ledgerFamilies)add('ledger_family_modules',`INSERT INTO erp_ledger_family_module(tenant_id,organisation_id,ledger_family_code,module_id)
+    SELECT $1,$3,link.ledger_family_code,target_module.module_id
+    FROM erp_ledger_family_module link
+    JOIN erp_module source_module ON source_module.module_id=link.module_id
+    JOIN erp_module target_module ON target_module.tenant_id=$1 AND target_module.organisation_id=$3 AND target_module.module_code=source_module.module_code
+    WHERE link.tenant_id=$1 AND link.organisation_id=$2 ON CONFLICT DO NOTHING`);
+  if(wants.masterDataTypes)add('accounting_object_type_modules',`INSERT INTO erp_accounting_object_type_module(accounting_object_type_id,module_id)
+    SELECT target_type.accounting_object_type_id,target_module.module_id
+    FROM erp_accounting_object_type_module link
+    JOIN erp_accounting_object_type source_type ON source_type.accounting_object_type_id=link.accounting_object_type_id
+    JOIN erp_accounting_object_type target_type ON target_type.tenant_id=$1 AND target_type.organisation_id=$3 AND target_type.type_code=source_type.type_code
+    JOIN erp_module source_module ON source_module.module_id=link.module_id
+    JOIN erp_module target_module ON target_module.tenant_id=$1 AND target_module.organisation_id=$3 AND target_module.module_code=source_module.module_code
+    WHERE source_type.tenant_id=$1 AND source_type.organisation_id=$2 ON CONFLICT DO NOTHING`);
+  if(wants.masterDataTypes)add('accounting_dimension_type_modules',`INSERT INTO erp_accounting_dimension_type_module(accounting_dimension_type_id,module_id)
+    SELECT target_type.accounting_dimension_type_id,target_module.module_id
+    FROM erp_accounting_dimension_type_module link
+    JOIN erp_accounting_dimension_type source_type ON source_type.accounting_dimension_type_id=link.accounting_dimension_type_id
+    JOIN erp_accounting_dimension_type target_type ON target_type.tenant_id=$1 AND target_type.organisation_id=$3 AND target_type.type_code=source_type.type_code
+    JOIN erp_module source_module ON source_module.module_id=link.module_id
+    JOIN erp_module target_module ON target_module.tenant_id=$1 AND target_module.organisation_id=$3 AND target_module.module_code=source_module.module_code
+    WHERE source_type.tenant_id=$1 AND source_type.organisation_id=$2 ON CONFLICT DO NOTHING`);
+  if(wants.transactionTypes)add('transaction_type_modules',`INSERT INTO erp_transaction_type_module(transaction_type_id,module_id)
+    SELECT target_type.transaction_type_id,target_module.module_id
+    FROM erp_transaction_type_module link
+    JOIN erp_transaction_type source_type ON source_type.transaction_type_id=link.transaction_type_id
+    JOIN erp_transaction_type target_type ON target_type.tenant_id=$1 AND target_type.organisation_id=$3 AND target_type.type_code=source_type.type_code
+    JOIN erp_module source_module ON source_module.module_id=link.module_id
+    JOIN erp_module target_module ON target_module.tenant_id=$1 AND target_module.organisation_id=$3 AND target_module.module_code=source_module.module_code
+    WHERE source_type.tenant_id=$1 AND source_type.organisation_id=$2 ON CONFLICT DO NOTHING`);
 
   if(wants.masterDataTypes)add('master_data_types',`INSERT INTO erp_master_data_type(tenant_id,organisation_id,ledger_family_code,type_code,type_name,schema_json,ui_schema_json,schema_version,workflow_status)
     SELECT tenant_id,$3,ledger_family_code,type_code,type_name,schema_json,ui_schema_json,schema_version,workflow_status
@@ -237,6 +303,29 @@ module.exports=async ctx=>{
     LEFT JOIN erp_division target_division ON target_division.tenant_id=$1 AND target_division.organisation_id=$3 AND target_division.division_code=s.division_code AND target_division.workflow_status <> 'deleted'
     LEFT JOIN target_types tt ON tt.ledger_family_code=s.ledger_family_code AND tt.account_type_code=s.account_type_code
     ON CONFLICT DO NOTHING`,[access.tenantId,sourceId,targetId,access.auth.email]);
+
+  if(wants.chart)add('gl_accounts',`WITH target_root AS (
+      SELECT division_id FROM erp_division WHERE tenant_id=$1 AND organisation_id=$3 AND parent_division_id IS NULL AND workflow_status <> 'deleted' LIMIT 1
+    ),
+    source_accounts AS (
+      SELECT a.*,t.type_code account_type_code,source_division.division_code
+      FROM erp_gl_account a
+      LEFT JOIN erp_gl_account_type t ON t.gl_account_type_id=a.gl_account_type_id
+      LEFT JOIN erp_division source_division ON source_division.division_id=a.owner_division_id
+      WHERE a.tenant_id=$1 AND a.organisation_id=$2 AND a.workflow_status <> 'deleted'
+    ),
+    target_types AS (
+      SELECT gl_account_type_id,type_code
+      FROM erp_gl_account_type
+      WHERE tenant_id=$1 AND organisation_id=$3
+    )
+    INSERT INTO erp_gl_account(tenant_id,organisation_id,owner_division_id,account_code,account_name,gl_account_type_id,requires_subledger,required_subledger_type_code,workflow_status,valid_from,valid_to,additional_data,created_by_email,updated_by_email,approved_by_email,approved_at)
+    SELECT $1,$3,COALESCE(target_division.division_id,target_root.division_id),s.account_code,s.account_name,tt.gl_account_type_id,s.requires_subledger,s.required_subledger_type_code,s.workflow_status,s.valid_from,s.valid_to,s.additional_data,$4,$4,$4,CASE WHEN s.workflow_status='approved' THEN now() ELSE NULL END
+    FROM source_accounts s
+    CROSS JOIN target_root
+    LEFT JOIN erp_division target_division ON target_division.tenant_id=$1 AND target_division.organisation_id=$3 AND target_division.division_code=s.division_code AND target_division.workflow_status <> 'deleted'
+    LEFT JOIN target_types tt ON tt.type_code=s.account_type_code
+    ON CONFLICT(tenant_id,organisation_id,account_code) DO NOTHING`,[access.tenantId,sourceId,targetId,access.auth.email]);
 
   if(wants.postingRules)add('posting_rules',`WITH source_rules AS (
       SELECT pr.*,tt.type_code,a.ledger_family_code,a.account_code
@@ -318,6 +407,22 @@ module.exports=async ctx=>{
       WHERE tenant_id=$1 AND organisation_id=$2
       ON CONFLICT(tenant_id,organisation_id,role_code) DO UPDATE
       SET role_name=excluded.role_name,role_description=excluded.role_description,is_admin=excluded.is_admin,is_active=excluded.is_active`);
+    add('cleared_role_modules',`DELETE FROM erp_role_module target_link
+      USING erp_role target_role, erp_role source_role
+      WHERE target_link.role_id=target_role.role_id
+        AND target_role.tenant_id=$1
+        AND target_role.organisation_id=$3
+        AND source_role.tenant_id=$1
+        AND source_role.organisation_id=$2
+        AND source_role.role_code=target_role.role_code`);
+    add('role_modules',`INSERT INTO erp_role_module(role_id,module_id)
+      SELECT target_role.role_id,target_module.module_id
+      FROM erp_role_module source_link
+      JOIN erp_role source_role ON source_role.role_id=source_link.role_id
+      JOIN erp_role target_role ON target_role.tenant_id=$1 AND target_role.organisation_id=$3 AND target_role.role_code=source_role.role_code
+      JOIN erp_module source_module ON source_module.module_id=source_link.module_id
+      JOIN erp_module target_module ON target_module.tenant_id=$1 AND target_module.organisation_id=$3 AND target_module.module_code=source_module.module_code
+      WHERE source_role.tenant_id=$1 AND source_role.organisation_id=$2 ON CONFLICT DO NOTHING`);
     add('cleared_role_permissions',`DELETE FROM erp_role_permission target_permission
       USING erp_role target_role, erp_role source_role
       WHERE target_permission.tenant_id=$1

@@ -12,7 +12,7 @@
   "smtpProfileKey": "replace-with-a-long-random-internal-key",
   "sessionSecret": "replace-with-a-long-random-session-secret",
   "sessionMaxAgeSeconds": 2592000,
-  "cookieSecure": false,
+  "cookieSecure": true,
   "nodeEnv": "production",
   "bootstrapAdminEmail": "joppenheim@opnel.com",
   "publicBaseUrl": "https://home.joppenheim.org:9000"

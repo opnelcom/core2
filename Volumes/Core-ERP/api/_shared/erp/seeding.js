@@ -59,6 +59,10 @@ async function seedOrganisationDefaults(ctx,access,organisationId){
     countries,
     ledgerFamilies,
     ledgerFamilySchemas,
+    accountingObjectTypeMetadata={},
+    glAccountTypeSeeds,
+    accountingObjectTypeSeeds,
+    accountingDimensionTypeSeeds,
     ledgerTypeSeeds,
     chartTemplate,
     transactionGroups,
@@ -67,13 +71,24 @@ async function seedOrganisationDefaults(ctx,access,organisationId){
     customerSchema,
     customerUiSchema,
     roleSeeds,
-    rolePermissionSeeds
+    roleModuleSeeds={},
+    rolePermissionSeeds,
+    moduleSeeds=[],
+    moduleMappings={}
   }=loadTemplateDefaults();
   const org=await ctx.broker('core_erp','query',{
     text:`SELECT is_template FROM erp_organisation WHERE tenant_id=$1 AND organisation_id=$2 AND workflow_status <> 'deleted'`,
     values:[access.tenantId,organisationId]
   });
   if(!org.rows[0]?.is_template)return;
+  await ctx.broker('core_erp','query',{
+    text:`INSERT INTO erp_module(tenant_id,organisation_id,module_code,module_name,module_icon_svg,sort_order,is_seeded,is_active)
+          SELECT $1,$2,module_code,module_name,module_icon_svg,sort_order,true,true
+          FROM jsonb_to_recordset($3::jsonb) AS row(module_code text,module_name text,sort_order integer,module_icon_svg text)
+          ON CONFLICT(tenant_id,organisation_id,module_code) DO UPDATE
+          SET module_name=excluded.module_name,module_icon_svg=excluded.module_icon_svg,sort_order=excluded.sort_order,is_seeded=true,is_active=true,updated_at=now()`,
+    values:[access.tenantId,organisationId,JSON.stringify(moduleSeeds.map(([module_code,module_name,sort_order,module_icon_svg=''])=>({module_code,module_name,sort_order,module_icon_svg})))]
+  });
   await ctx.broker('core_erp','query',{
     text:`INSERT INTO erp_currency(tenant_id,organisation_id,currency_code,currency_name,decimal_places,is_seeded,is_active)
           SELECT $1,$2,currency_code,currency_name,decimal_places,true,true
@@ -110,6 +125,19 @@ async function seedOrganisationDefaults(ctx,access,organisationId){
   });
   await seedTaxTypes(ctx,access,organisationId,taxTypeSeeds);
   await ctx.broker('core_erp','query',{
+    text:`INSERT INTO erp_gl_account_type(tenant_id,organisation_id,type_code,type_name,is_required,is_seeded,is_active)
+          SELECT $1,$2,type_code,type_name,is_required,true,true
+          FROM jsonb_to_recordset($3::jsonb)
+          AS row(type_code text,type_name text,is_required boolean)
+          ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
+          SET type_name=excluded.type_name,
+              is_required=excluded.is_required,
+              is_seeded=true,
+              is_active=true,
+              updated_at=now()`,
+    values:[access.tenantId,organisationId,JSON.stringify(glAccountTypeSeeds.map(([type_code,type_name,is_required])=>({type_code,type_name,is_required})))]
+  });
+  await ctx.broker('core_erp','query',{
     text:`INSERT INTO erp_ledger_family(tenant_id,organisation_id,ledger_family_code,family_name,requires_standard_account_type,requires_legal_entity,schema_json,is_seeded,is_active)
           SELECT $1,$2,ledger_family_code,family_name,requires_standard_account_type,requires_legal_entity,schema_json,true,true
           FROM jsonb_to_recordset($3::jsonb)
@@ -127,6 +155,59 @@ async function seedOrganisationDefaults(ctx,access,organisationId){
               is_active=true,
               updated_at=now()`,
     values:[access.tenantId,organisationId,JSON.stringify(ledgerFamilies.map(([ledger_family_code,family_name,requires_standard_account_type,requires_legal_entity])=>({ledger_family_code,family_name,requires_standard_account_type,requires_legal_entity,schema_json:ledgerFamilySchemas[ledger_family_code]||{}})))]
+  });
+  await ctx.broker('core_erp','query',{
+    text:`INSERT INTO erp_subledger_account_type(tenant_id,organisation_id,type_code,type_name,requires_legal_entity,schema_json,is_seeded,is_active)
+          SELECT $1,$2,ledger_family_code,family_name,requires_legal_entity,schema_json,true,true
+          FROM jsonb_to_recordset($3::jsonb)
+          AS row(ledger_family_code text,family_name text,requires_standard_account_type boolean,requires_legal_entity boolean,schema_json jsonb)
+          ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
+          SET type_name=excluded.type_name,
+              requires_legal_entity=excluded.requires_legal_entity,
+              schema_json=excluded.schema_json,
+              is_seeded=true,
+              is_active=true,
+              updated_at=now()`,
+    values:[access.tenantId,organisationId,JSON.stringify(ledgerFamilies.map(([ledger_family_code,family_name,requires_standard_account_type,requires_legal_entity])=>({ledger_family_code,family_name,requires_standard_account_type,requires_legal_entity,schema_json:ledgerFamilySchemas[ledger_family_code]||{}})))]
+  });
+  await ctx.broker('core_erp','query',{
+    text:`INSERT INTO erp_accounting_object_type(tenant_id,organisation_id,type_code,type_name,schema_json,ui_schema_json,is_seeded,is_active)
+          SELECT $1,$2,type_code,type_name,schema_json,ui_schema_json,true,true
+          FROM jsonb_to_recordset($3::jsonb)
+          AS row(type_code text,type_name text,schema_json jsonb,ui_schema_json jsonb)
+          ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
+          SET type_name=excluded.type_name,
+              schema_json=excluded.schema_json,
+              ui_schema_json=excluded.ui_schema_json,
+              is_seeded=true,
+              is_active=true,
+              updated_at=now()`,
+    values:[access.tenantId,organisationId,JSON.stringify(accountingObjectTypeSeeds.map(([type_code,type_name])=>({
+      type_code,
+      type_name,
+      schema_json:accountingObjectTypeMetadata[type_code]?.schema_json||{type:'object',properties:{},required:[],additionalProperties:false},
+      ui_schema_json:accountingObjectTypeMetadata[type_code]?.ui_schema_json||{sections:[]}
+    })))]
+  });
+  await ctx.broker('core_erp','query',{
+    text:`INSERT INTO erp_accounting_dimension_type(tenant_id,organisation_id,type_code,type_name,schema_json,ui_schema_json,is_seeded,is_active)
+          SELECT $1,$2,type_code,type_name,'{}'::jsonb,'{}'::jsonb,true,true
+          FROM jsonb_to_recordset($3::jsonb)
+          AS row(type_code text,type_name text)
+          ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
+          SET type_name=excluded.type_name,
+              is_seeded=true,
+              is_active=true,
+              updated_at=now()`,
+    values:[access.tenantId,organisationId,JSON.stringify(accountingDimensionTypeSeeds.map(([type_code,type_name])=>({type_code,type_name})))]
+  });
+  await ctx.broker('core_erp','query',{
+    text:`INSERT INTO erp_ledger_account_type(tenant_id,organisation_id,ledger_family_code,account_type_code,account_type_name,is_required,is_seeded,is_active)
+          SELECT $1,$2,'gl',type_code,type_name,is_required,true,true
+          FROM jsonb_to_recordset($3::jsonb)
+          AS row(type_code text,type_name text,is_required boolean)
+          ON CONFLICT DO NOTHING`,
+    values:[access.tenantId,organisationId,JSON.stringify(glAccountTypeSeeds.map(([type_code,type_name,is_required])=>({type_code,type_name,is_required})))]
   });
   await ctx.broker('core_erp','query',{
     text:`INSERT INTO erp_ledger_account_type(tenant_id,organisation_id,ledger_family_code,account_type_code,account_type_name,is_required,is_seeded,is_active)
@@ -154,9 +235,33 @@ async function seedOrganisationDefaults(ctx,access,organisationId){
     values:[access.tenantId,organisationId,JSON.stringify(chartTemplate.map(([account_code,account_name,account_type_code,requires_subledger,required_subledger_family_code])=>({account_code,account_name,account_type_code,requires_subledger,required_subledger_family_code}))),access.auth.email]
   });
   await ctx.broker('core_erp','query',{
+    text:`WITH root AS (
+            SELECT division_id FROM erp_division WHERE tenant_id=$1 AND organisation_id=$2 AND parent_division_id IS NULL ORDER BY created_at LIMIT 1
+          ),
+          type_rows AS (
+            SELECT gl_account_type_id,type_code FROM erp_gl_account_type WHERE tenant_id=$1 AND organisation_id=$2
+          ),
+          payload AS (
+            SELECT * FROM jsonb_to_recordset($3::jsonb)
+            AS row(account_code text,account_name text,account_type_code text,requires_subledger boolean,required_subledger_type_code text)
+          )
+          INSERT INTO erp_gl_account(tenant_id,organisation_id,owner_division_id,account_code,account_name,gl_account_type_id,requires_subledger,required_subledger_type_code,workflow_status,created_by_email,updated_by_email,approved_by_email,approved_at)
+          SELECT $1,$2,root.division_id,p.account_code,p.account_name,t.gl_account_type_id,p.requires_subledger,p.required_subledger_type_code,'approved',$4,$4,$4,now()
+          FROM payload p CROSS JOIN root JOIN type_rows t ON t.type_code=p.account_type_code
+          ON CONFLICT(tenant_id,organisation_id,account_code) DO UPDATE
+          SET account_name=excluded.account_name,
+              gl_account_type_id=excluded.gl_account_type_id,
+              requires_subledger=excluded.requires_subledger,
+              required_subledger_type_code=excluded.required_subledger_type_code,
+              workflow_status='approved',
+              updated_by_email=$4,
+              updated_at=now()`,
+    values:[access.tenantId,organisationId,JSON.stringify(chartTemplate.map(([account_code,account_name,account_type_code,requires_subledger,required_subledger_type_code])=>({account_code,account_name,account_type_code,requires_subledger,required_subledger_type_code}))),access.auth.email]
+  });
+  await ctx.broker('core_erp','query',{
     text:`UPDATE erp_ledger_account
           SET requires_subledger=true,
-              required_subledger_family_code='cash_location',
+              required_subledger_family_code='cash_point',
               updated_by_email=$3,
               updated_at=now()
           WHERE tenant_id=$1
@@ -186,6 +291,44 @@ async function seedOrganisationDefaults(ctx,access,organisationId){
           ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
           SET transaction_group_id=excluded.transaction_group_id,type_name=excluded.type_name,type_description=excluded.type_description,is_financial=true,allow_additional_lines=true,sort_order=excluded.sort_order,is_active=true`,
     values:[access.tenantId,organisationId,JSON.stringify(transactionTypes.map(([type_code,group_code,type_name,type_description,sort_order])=>({type_code,group_code,type_name,type_description,sort_order})))]
+  });
+  const mappingRows=(mapping)=>Object.entries(mapping||{}).flatMap(([object_code,moduleCodes])=>moduleCodes.map(module_code=>({object_code,module_code})));
+  await ctx.broker('core_erp','query',{
+    text:`WITH payload AS (SELECT * FROM jsonb_to_recordset($3::jsonb) AS row(object_code text,module_code text))
+          INSERT INTO erp_ledger_family_module(tenant_id,organisation_id,ledger_family_code,module_id)
+          SELECT $1,$2,p.object_code,m.module_id FROM payload p
+          JOIN erp_module m ON m.tenant_id=$1 AND m.organisation_id=$2 AND m.module_code=p.module_code
+          JOIN erp_ledger_family f ON f.tenant_id=$1 AND f.organisation_id=$2 AND f.ledger_family_code=p.object_code
+          ON CONFLICT DO NOTHING`,
+    values:[access.tenantId,organisationId,JSON.stringify(mappingRows(moduleMappings.ledgerFamilies))]
+  });
+  await ctx.broker('core_erp','query',{
+    text:`WITH payload AS (SELECT * FROM jsonb_to_recordset($3::jsonb) AS row(object_code text,module_code text))
+          INSERT INTO erp_accounting_object_type_module(accounting_object_type_id,module_id)
+          SELECT t.accounting_object_type_id,m.module_id FROM payload p
+          JOIN erp_module m ON m.tenant_id=$1 AND m.organisation_id=$2 AND m.module_code=p.module_code
+          JOIN erp_accounting_object_type t ON t.tenant_id=$1 AND t.organisation_id=$2 AND t.type_code=p.object_code
+          ON CONFLICT DO NOTHING`,
+    values:[access.tenantId,organisationId,JSON.stringify(mappingRows(moduleMappings.accountingObjectTypes))]
+  });
+  await ctx.broker('core_erp','query',{
+    text:`WITH payload AS (SELECT * FROM jsonb_to_recordset($3::jsonb) AS row(object_code text,module_code text))
+          INSERT INTO erp_accounting_dimension_type_module(accounting_dimension_type_id,module_id)
+          SELECT t.accounting_dimension_type_id,m.module_id FROM payload p
+          JOIN erp_module m ON m.tenant_id=$1 AND m.organisation_id=$2 AND m.module_code=p.module_code
+          JOIN erp_accounting_dimension_type t ON t.tenant_id=$1 AND t.organisation_id=$2 AND t.type_code=p.object_code
+          ON CONFLICT DO NOTHING`,
+    values:[access.tenantId,organisationId,JSON.stringify(mappingRows(moduleMappings.accountingDimensionTypes))]
+  });
+  const transactionModuleRows=transactionTypes.flatMap(([type_code,group_code])=>[...new Set([...(moduleMappings.transactionGroups?.[group_code]||[]),...(moduleMappings.transactionTypeAdditions?.[type_code]||[])])].map(module_code=>({object_code:type_code,module_code})));
+  await ctx.broker('core_erp','query',{
+    text:`WITH payload AS (SELECT * FROM jsonb_to_recordset($3::jsonb) AS row(object_code text,module_code text))
+          INSERT INTO erp_transaction_type_module(transaction_type_id,module_id)
+          SELECT t.transaction_type_id,m.module_id FROM payload p
+          JOIN erp_module m ON m.tenant_id=$1 AND m.organisation_id=$2 AND m.module_code=p.module_code
+          JOIN erp_transaction_type t ON t.tenant_id=$1 AND t.organisation_id=$2 AND t.type_code=p.object_code
+          ON CONFLICT DO NOTHING`,
+    values:[access.tenantId,organisationId,JSON.stringify(transactionModuleRows)]
   });
   await ctx.broker('core_erp','query',{
     text:`WITH payload AS (
@@ -279,6 +422,25 @@ async function seedOrganisationDefaults(ctx,access,organisationId){
               AND existing.action_code=CASE WHEN e.workflow_status='view' THEN 'view' ELSE 'manage' END
           )`,
     values:[access.tenantId,organisationId,JSON.stringify(rolePermissionSeeds.map(([role_code,resource_kind,resource_code,workflow_status])=>({role_code,resource_kind,resource_code,workflow_status})))]
+  });
+  await ctx.broker('core_erp','query',{
+    text:`WITH requested AS (
+            SELECT role_code,module_code FROM jsonb_to_recordset($3::jsonb) AS row(role_code text,module_code text)
+          ), role_modules AS (
+            SELECT r.role_id,m.module_id FROM requested requested_role
+            JOIN erp_role r ON r.tenant_id=$1 AND r.organisation_id=$2 AND r.role_code=requested_role.role_code
+            JOIN erp_module m ON m.tenant_id=$1 AND m.organisation_id=$2 AND (requested_role.module_code='*' OR m.module_code=requested_role.module_code)
+            UNION
+            SELECT rp.role_id,fm.module_id FROM erp_role_permission rp
+            JOIN erp_ledger_family_module fm ON fm.tenant_id=rp.tenant_id AND fm.organisation_id=rp.organisation_id AND (rp.resource_code='*' OR fm.ledger_family_code=rp.resource_code)
+            WHERE rp.tenant_id=$1 AND rp.organisation_id=$2 AND rp.resource_kind='master_data'
+            UNION
+            SELECT rp.role_id,tm.module_id FROM erp_role_permission rp
+            JOIN erp_transaction_type_module tm ON rp.resource_code='*' OR tm.transaction_type_id::text=rp.resource_code
+            WHERE rp.tenant_id=$1 AND rp.organisation_id=$2 AND rp.resource_kind='transaction'
+          )
+          INSERT INTO erp_role_module(role_id,module_id) SELECT DISTINCT role_id,module_id FROM role_modules ON CONFLICT DO NOTHING`,
+    values:[access.tenantId,organisationId,JSON.stringify(Object.entries(roleModuleSeeds).flatMap(([role_code,moduleCodes])=>moduleCodes.map(module_code=>({role_code,module_code}))))]
   });
   if(isAdministrator(access)){
     await ctx.broker('core_erp','query',{

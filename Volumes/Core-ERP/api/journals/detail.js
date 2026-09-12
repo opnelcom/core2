@@ -1,5 +1,5 @@
 'use strict';
-const {authTenant}=require('../_shared/erp');
+const {authTenant,requireModuleAccess}=require('../_shared/erp');
 
 module.exports=async ctx=>{
   const access=await authTenant(ctx);
@@ -35,6 +35,8 @@ module.exports=async ctx=>{
     values:[access.tenantId,id,access.auth.email]
   });
   if(!journal.rowCount)return ctx.send(404,{error:'Journal not found'});
+  const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:journal.rows[0].organisation_id,resourceKind:'transaction_type',resourceCode:journal.rows[0].transaction_type_id});
+  if(moduleDenied)return ctx.send(moduleDenied.status,moduleDenied.body);
   const lines=await ctx.broker('core_erp','query',{
     text:`SELECT l.*,gl.account_code gl_account_code,gl.account_name gl_account_name,sub.account_code subledger_account_code,sub.account_name subledger_account_name,d.division_name
           FROM erp_journal_line l

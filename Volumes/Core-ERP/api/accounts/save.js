@@ -1,11 +1,9 @@
 'use strict';
-const {authTenant,requireAdmin,clean,nullable,bool,parseJson}=require('../_shared/erp');
+const {authTenant,requireModuleAccess,requireResourcePermission,clean,nullable,bool,parseJson}=require('../_shared/erp');
 
 module.exports=async ctx=>{
   const access=await authTenant(ctx);
   if(access.status)return ctx.send(access.status,access.body);
-  const denied=requireAdmin(access);
-  if(denied)return ctx.send(denied.status,denied.body);
   const id=nullable(ctx.body.ledger_account_id);
   const orgId=ctx.body.organisation_id;
   const divisionId=ctx.body.owner_division_id;
@@ -16,6 +14,10 @@ module.exports=async ctx=>{
   const accountTypeId=nullable(ctx.body.account_type_id);
   const subledgerFamily=nullable(ctx.body.required_subledger_family_code);
   if(!orgId||!divisionId||!family||!code||!name||!accountTypeId)return ctx.send(400,{error:'Organisation, owner division, family, account type, code and name are required'});
+  const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:orgId,resourceKind:'ledger_family',resourceCode:family});
+  if(moduleDenied)return ctx.send(moduleDenied.status,moduleDenied.body);
+  const permissionDenied=await requireResourcePermission(ctx,access,{organisationId:orgId,divisionId,resourceKind:'master_data',resourceCode:family,workflowStatus:'approved'});
+  if(permissionDenied)return ctx.send(permissionDenied.status,permissionDenied.body);
   const familyExists=await ctx.broker('core_erp','query',{
     text:`SELECT requires_legal_entity FROM erp_ledger_family
           WHERE tenant_id=$1 AND organisation_id=$2 AND ledger_family_code=$3 AND is_active=true`,
@@ -37,14 +39,14 @@ module.exports=async ctx=>{
           WHERE tenant_id=$1 AND organisation_id=$2 AND account_type_id=$3 AND ledger_family_code=$4 AND is_active=true`,
     values:[access.tenantId,orgId,accountTypeId,family]
   });
-  if(!type.rowCount)return ctx.send(400,{error:'Account type must belong to the selected ledger family'});
+  if(!type.rowCount)return ctx.send(400,{error:'Account type must belong to the selected subledger account type'});
   if(subledgerFamily){
     const requiredFamily=await ctx.broker('core_erp','query',{
       text:`SELECT 1 FROM erp_ledger_family
             WHERE tenant_id=$1 AND organisation_id=$2 AND ledger_family_code=$3 AND is_active=true`,
       values:[access.tenantId,orgId,subledgerFamily]
     });
-    if(!requiredFamily.rowCount)return ctx.send(400,{error:'Required subledger family must exist and be active for this organisation'});
+    if(!requiredFamily.rowCount)return ctx.send(400,{error:'Required subledger account type must exist and be active for this organisation'});
   }
   if(legalEntityId){
     const entity=await ctx.broker('core_erp','query',{

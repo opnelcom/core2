@@ -1,5 +1,5 @@
 'use strict';
-const {authTenant}=require('../_shared/erp');
+const {authTenant,requireBusinessAccess}=require('../_shared/erp');
 
 function accountAmountSql(statementType){
   if(statementType==='income')return `CASE
@@ -255,6 +255,9 @@ async function ledgerBalances(ctx,access){
 module.exports=async ctx=>{
   const access=await authTenant(ctx);
   if(access.status)return ctx.send(access.status,access.body);
+  const orgId=ctx.query.organisation_id;
+  const denied=await requireBusinessAccess(ctx,access,orgId);
+  if(denied)return ctx.send(denied.status,denied.body);
   const report=ctx.query.report||'financial_statement';
   if(report==='ledger')return ledgerBalances(ctx,access);
   if(report==='financial_statement')return financialStatement(ctx,access);

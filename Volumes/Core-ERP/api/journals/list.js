@@ -1,5 +1,5 @@
 'use strict';
-const {authTenant}=require('../_shared/erp');
+const {authTenant,requireModuleAccess}=require('../_shared/erp');
 
 module.exports=async ctx=>{
   const access=await authTenant(ctx);
@@ -7,6 +7,10 @@ module.exports=async ctx=>{
   const orgId=ctx.query.organisation_id;
   if(!orgId)return ctx.send(400,{error:'organisation_id is required'});
   const transactionTypeId=ctx.query.transaction_type_id||null;
+  if(transactionTypeId){
+    const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:orgId,resourceKind:'transaction_type',resourceCode:transactionTypeId});
+    if(moduleDenied)return ctx.send(moduleDenied.status,moduleDenied.body);
+  }
   const r=await ctx.broker('core_erp','query',{
     text:`SELECT j.*,tt.type_name transaction_type_name,fp.period_code,d.division_name source_division_name,
                  COALESCE(sum(l.debit_amount),0) debit_total,COALESCE(sum(l.credit_amount),0) credit_total
