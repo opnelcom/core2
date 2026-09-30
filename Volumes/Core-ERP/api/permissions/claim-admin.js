@@ -1,11 +1,10 @@
 'use strict';
-const {authTenant,isTenantAdministrator}=require('../_shared/erp');
+const {authTenant}=require('../_shared/erp');
 
 module.exports=async ctx=>{
   if(ctx.req.method!=='POST')return ctx.send(405,{error:'POST required'});
   const access=await authTenant(ctx);
   if(access.status)return ctx.send(access.status,access.body);
-  if(!isTenantAdministrator(access))return ctx.send(403,{error:'Tenant administrator access is required to assign the first Security Administrator'});
   const orgId=ctx.body.organisation_id;
   if(!orgId)return ctx.send(400,{error:'organisation_id is required'});
 

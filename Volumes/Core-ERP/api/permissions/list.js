@@ -7,7 +7,7 @@ module.exports=async ctx=>{
   if(access.status)return ctx.send(access.status,access.body);
   const orgId=ctx.query.organisation_id;
   if(!orgId)return ctx.send(400,{error:'organisation_id is required'});
-  const [roles,permissions,users,roleModules]=await Promise.all([
+  const [roles,permissions,users]=await Promise.all([
     ctx.broker('core_erp','query',{
       text:`SELECT *
             FROM erp_role
@@ -19,16 +19,26 @@ module.exports=async ctx=>{
       text:`SELECT rp.*,
                    d.division_code,
                    d.division_name,
-                   lf.family_name AS ledger_family_name,
+                   sat.type_name AS subledger_account_type_name,
+                   aot.type_name AS accounting_object_type_name,
+                   adt.type_name AS accounting_dimension_type_name,
                    tt.type_code AS transaction_type_code,
                    tt.type_name AS transaction_type_name,
                    tg.group_name AS transaction_group_name
             FROM erp_role_permission rp
             LEFT JOIN erp_division d ON d.division_id=rp.division_id
-            LEFT JOIN erp_ledger_family lf ON lf.tenant_id=rp.tenant_id
-              AND lf.organisation_id=rp.organisation_id
-              AND lf.ledger_family_code=rp.resource_code
-              AND rp.resource_kind='master_data'
+            LEFT JOIN erp_subledger_account_type sat ON sat.tenant_id=rp.tenant_id
+              AND sat.organisation_id=rp.organisation_id
+              AND sat.subledger_account_type_id::text=rp.resource_code
+              AND rp.resource_kind='subledger_account'
+            LEFT JOIN erp_accounting_object_type aot ON aot.tenant_id=rp.tenant_id
+              AND aot.organisation_id=rp.organisation_id
+              AND aot.accounting_object_type_id::text=rp.resource_code
+              AND rp.resource_kind='accounting_object'
+            LEFT JOIN erp_accounting_dimension_type adt ON adt.tenant_id=rp.tenant_id
+              AND adt.organisation_id=rp.organisation_id
+              AND adt.accounting_dimension_type_id::text=rp.resource_code
+              AND rp.resource_kind='accounting_dimension'
             LEFT JOIN erp_transaction_type tt ON tt.tenant_id=rp.tenant_id
               AND tt.organisation_id=rp.organisation_id
               AND tt.transaction_type_id::text=rp.resource_code
@@ -44,14 +54,7 @@ module.exports=async ctx=>{
             WHERE tenant_id=$1 AND organisation_id=$2
             ORDER BY lower(email),valid_from`,
       values:[access.tenantId,orgId]
-    }),
-    ctx.broker('core_erp','query',{
-      text:`SELECT rm.role_id,rm.module_id,m.module_code,m.module_name
-            FROM erp_role_module rm JOIN erp_module m ON m.module_id=rm.module_id
-            JOIN erp_role r ON r.role_id=rm.role_id
-            WHERE r.tenant_id=$1 AND r.organisation_id=$2 ORDER BY r.role_name,m.sort_order,m.module_name`,
-      values:[access.tenantId,orgId]
     })
   ]);
-  return {roles:roles.rows,role_permissions:permissions.rows,role_users:users.rows,role_modules:roleModules.rows};
+  return {roles:roles.rows,role_permissions:permissions.rows,role_users:users.rows};
 };

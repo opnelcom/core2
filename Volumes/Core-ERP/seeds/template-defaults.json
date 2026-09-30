@@ -40,7 +40,8 @@
       "opex_project": ["project_management", "procurement", "finance"],
       "cost_centre": ["finance", "hr_payroll"],
       "profit_centre": ["finance", "sales"],
-      "contract": ["contract_management", "sales", "procurement", "hr_payroll", "asset_management", "finance"]
+      "contract": ["contract_management", "sales", "procurement", "hr_payroll", "asset_management", "finance"],
+      "utility_meter": ["property_management", "finance"]
     },
     "accountingDimensionTypes": {
       "revenue_type": ["sales", "finance"],
@@ -51,7 +52,9 @@
       "mscoa_region": ["public_sector", "finance"],
       "mscoa_function": ["public_sector", "finance"],
       "mscoa_costing": ["public_sector", "finance"],
-      "mscoa_outcome": ["public_sector", "project_management", "finance"]
+      "mscoa_outcome": ["public_sector", "project_management", "finance"],
+      "service": ["property_management", "finance"],
+      "charge_component": ["property_management", "finance"]
     },
     "transactionGroups": {
       "journal": ["finance"],
@@ -73,6 +76,7 @@
       "customer_cash_payment": ["treasury_cash"],
       "supplier_payment": ["treasury_cash"],
       "supplier_cash_payment": ["treasury_cash"],
+      "municipal_services_invoice": ["property_management"],
       "petty_cash_expense": ["procurement"],
       "pos_cash_to_safe": ["sales"],
       "safe_cash_to_pos": ["sales"],
@@ -3788,6 +3792,23 @@
           }
         ],
         [
+          "MUNICIPAL",
+          "Municipal Services",
+          "account_group",
+          "OPEX",
+          450,
+          {
+            "accounts": [
+              "5700",
+              "5710",
+              "5720",
+              "5730",
+              "5740",
+              "5750"
+            ]
+          }
+        ],
+        [
           "OTHER",
           "Other Income / Expense",
           "header",
@@ -3848,6 +3869,7 @@
                 "PAYROLL",
                 "DEPN",
                 "CASH_SHORT",
+                "MUNICIPAL",
                 "INTEREST",
                 "TAX"
               ]
@@ -3917,7 +3939,13 @@
               "5100",
               "5190",
               "5200",
-              "5300"
+              "5300",
+              "5700",
+              "5710",
+              "5720",
+              "5730",
+              "5740",
+              "5750"
             ]
           }
         ],
@@ -5417,6 +5445,14 @@
       210
     ],
     [
+      "municipal_services_invoice",
+      "purchasing",
+      "Municipal services invoice",
+      "Proof-of-concept supplier invoice with line-specific GL, object and dimension requirements.",
+      215,
+      false
+    ],
+    [
       "supplier_payment",
       "purchasing",
       "Supplier bank payment",
@@ -5627,7 +5663,7 @@
       920
     ]
   ],
-  "postingRuleSeeds": [
+  "lineDefinitionSeeds": [
     [
       "manual_journal",
       1,
@@ -6275,6 +6311,42 @@
       true,
       "bank",
       "Owner payment"
+    ],
+    [
+      "municipal_services_invoice", 1, "debit", "5700", false, null, "Property rates", "optional", "property_rates"
+    ],
+    [
+      "municipal_services_invoice", 2, "credit", "5700", false, null, "Property rates rebate", "optional", "property_rates_rebate"
+    ],
+    [
+      "municipal_services_invoice", 3, "debit", "5710", false, null, "Electricity consumption", "optional", "electricity_consumption"
+    ],
+    [
+      "municipal_services_invoice", 4, "debit", "5710", false, null, "Electricity network charge", "optional", "electricity_network"
+    ],
+    [
+      "municipal_services_invoice", 5, "debit", "5710", false, null, "Electricity service charge", "optional", "electricity_service_charge"
+    ],
+    [
+      "municipal_services_invoice", 6, "debit", "5720", false, null, "Water consumption", "optional", "water_consumption"
+    ],
+    [
+      "municipal_services_invoice", 7, "debit", "5720", false, null, "Demand management levy", "optional", "water_demand_levy"
+    ],
+    [
+      "municipal_services_invoice", 8, "debit", "5730", false, null, "Sewerage", "optional", "sewerage"
+    ],
+    [
+      "municipal_services_invoice", 9, "debit", "5740", false, null, "Refuse removal", "optional", "refuse_removal"
+    ],
+    [
+      "municipal_services_invoice", 10, "debit", "5750", false, null, "Pre-termination notice", "optional", "pretermination_notice"
+    ],
+    [
+      "municipal_services_invoice", 11, "debit", "2200", false, null, "Input VAT", "optional", "input_vat"
+    ],
+    [
+      "municipal_services_invoice", 12, "credit", "2000", true, "vendor", "Creditor control", "generated", "creditor_control", "balancing"
     ]
   ],
   "chartTemplate": [
@@ -6494,6 +6566,24 @@
       "expense",
       false,
       null
+    ],
+    [
+      "5700", "Property Rates", "expense", false, null
+    ],
+    [
+      "5710", "Electricity Expense", "expense", false, null
+    ],
+    [
+      "5720", "Water Expense", "expense", false, null
+    ],
+    [
+      "5730", "Sewerage Expense", "expense", false, null
+    ],
+    [
+      "5740", "Refuse Removal Expense", "expense", false, null
+    ],
+    [
+      "5750", "Municipal Fees", "expense", false, null
     ]
   ],
   "customerSchema": {
@@ -6651,6 +6741,10 @@
     [
       "contract",
       "Contract"
+    ],
+    [
+      "utility_meter",
+      "Utility Meter"
     ]
   ],
   "accountingDimensionTypeSeeds": [
@@ -6689,7 +6783,60 @@
     [
       "mscoa_outcome",
       "MSCOA Outcome"
+    ],
+    [
+      "service",
+      "Service"
+    ],
+    [
+      "charge_component",
+      "Charge Component"
     ]
+  ],
+  "accountingDimensionSeeds": [
+    ["service", "property_rates", "Property Rates"],
+    ["service", "electricity", "Electricity"],
+    ["service", "water", "Water"],
+    ["service", "sanitation", "Sanitation"],
+    ["service", "waste_management", "Waste Management"],
+    ["service", "administration", "Administration"],
+    ["service", "tax", "Tax"],
+    ["charge_component", "assessment", "Assessment"],
+    ["charge_component", "rebate", "Rebate"],
+    ["charge_component", "consumption", "Consumption"],
+    ["charge_component", "network_charge", "Network Charge"],
+    ["charge_component", "service_charge", "Service Charge"],
+    ["charge_component", "demand_levy", "Demand Management Levy"],
+    ["charge_component", "sewerage", "Sewerage"],
+    ["charge_component", "refuse_collection", "Refuse Collection"],
+    ["charge_component", "notice_fee", "Notice Fee"],
+    ["charge_component", "input_vat", "Input VAT"]
+  ],
+  "legalEntitySeeds": [
+    ["organisation", "Template Organisation (Pty) Ltd", "Template Organisation"],
+    ["municipality", "City of Johannesburg Metropolitan Municipality", "City of Johannesburg"]
+  ],
+  "subledgerAccountSeeds": [
+    ["vendor", "COJ-DEMO", "City of Johannesburg", "City of Johannesburg"]
+  ],
+  "accountingObjectSeeds": [
+    ["property", "DEMO-PROPERTY", "Demo Municipal Property"],
+    ["utility_meter", "ELEC-METER-001", "Demo Electricity Meter"],
+    ["utility_meter", "WATER-METER-001", "Demo Water Meter"],
+    ["cost_centre", "FACILITIES", "Facilities"]
+  ],
+  "municipalLineClassificationSeeds": [
+    ["property_rates", "property_rates", "assessment", true, false, true],
+    ["property_rates_rebate", "property_rates", "rebate", true, false, true],
+    ["electricity_consumption", "electricity", "consumption", true, true, true],
+    ["electricity_network", "electricity", "network_charge", true, true, true],
+    ["electricity_service_charge", "electricity", "service_charge", true, true, true],
+    ["water_consumption", "water", "consumption", true, true, true],
+    ["water_demand_levy", "water", "demand_levy", true, true, true],
+    ["sewerage", "sanitation", "sewerage", true, false, true],
+    ["refuse_removal", "waste_management", "refuse_collection", true, false, true],
+    ["pretermination_notice", "administration", "notice_fee", true, false, true],
+    ["input_vat", "tax", "input_vat", false, false, false]
   ],
   "accountingObjectTypeMetadata": {
     "property": {

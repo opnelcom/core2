@@ -55,13 +55,12 @@ module.exports=async ctx=>{
 
   if(mappedAccounts.size){
     const accounts=await ctx.broker('core_erp','query',{
-      text:`SELECT ledger_account_id
-            FROM erp_ledger_account
+      text:`SELECT gl_account_id
+            FROM erp_gl_account
             WHERE tenant_id=$1
               AND organisation_id=$2
-              AND ledger_family_code='gl'
               AND workflow_status <> 'deleted'
-              AND ledger_account_id=ANY($3::uuid[])`,
+              AND gl_account_id=ANY($3::uuid[])`,
       values:[access.tenantId,orgId,[...mappedAccounts]]
     });
     if(accounts.rowCount!==mappedAccounts.size)return ctx.send(400,{error:'One or more mapped GL accounts are invalid'});
@@ -112,11 +111,11 @@ module.exports=async ctx=>{
     inserted.set(row.client_key,line.rows[0].financial_statement_line_id);
     if(row.account_ids.length){
       await ctx.broker('core_erp','query',{
-        text:`INSERT INTO erp_financial_statement_line_account(tenant_id,organisation_id,financial_statement_format_id,financial_statement_line_id,ledger_account_id)
-              SELECT $1,$2,$3,$4,ledger_account_id
-              FROM erp_ledger_account
-              WHERE tenant_id=$1 AND organisation_id=$2 AND ledger_account_id=ANY($5::uuid[])
-              ON CONFLICT(tenant_id,organisation_id,financial_statement_format_id,ledger_account_id) DO NOTHING`,
+        text:`INSERT INTO erp_financial_statement_line_account(tenant_id,organisation_id,financial_statement_format_id,financial_statement_line_id,gl_account_id)
+              SELECT $1,$2,$3,$4,gl_account_id
+              FROM erp_gl_account
+              WHERE tenant_id=$1 AND organisation_id=$2 AND gl_account_id=ANY($5::uuid[])
+              ON CONFLICT(tenant_id,organisation_id,financial_statement_format_id,gl_account_id) DO NOTHING`,
         values:[access.tenantId,orgId,formatId,line.rows[0].financial_statement_line_id,row.account_ids]
       });
     }

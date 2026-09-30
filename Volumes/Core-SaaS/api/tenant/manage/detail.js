@@ -3,10 +3,11 @@ const {adminRoles,requireTenantAccess}=require('../../_shared/tenant');
 const {ensureTenantAuditColumns}=require('../../_shared/tenant-schema');
 
 module.exports=async ctx=>{
+  if(!ctx.auth())return ctx.send(401,{error:'Authentication required'});
+  await ensureTenantAuditColumns(ctx);
   const tenantId=ctx.query.tenant_id||ctx.body.tenant_id||ctx.cookies.current_tenant;
   const access=await requireTenantAccess(ctx,tenantId);
   if(access.status)return ctx.send(access.status,access.body);
-  await ensureTenantAuditColumns(ctx);
   const canManage=access.canManage;
   const appTypes=access.auth.user_type==='administration_user'
     ? ['public_application','administration_application']
@@ -15,7 +16,7 @@ module.exports=async ctx=>{
   await ctx.broker('core_saas','query',{text:`ALTER TABLE core_application ADD COLUMN IF NOT EXISTS application_icon_svg text`});
 
   const tenant=await ctx.broker('core_saas','query',{
-    text:`SELECT t.tenant_id,t.tenant_name,t.tenant_type,t.theme_id,th.theme_name,th.css_file,t.status,
+    text:`SELECT t.tenant_id,t.tenant_name,t.tenant_description,t.tenant_type,t.tenant_icon_preset,t.tenant_icon_svg,t.theme_id,th.theme_name,th.css_file,t.status,
                  t.created_by_user_id,t.updated_by_user_id,$2::text tenant_user_type
           FROM core_tenant t
           LEFT JOIN core_theme th ON th.theme_id=t.theme_id

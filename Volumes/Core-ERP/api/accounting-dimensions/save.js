@@ -1,5 +1,5 @@
 'use strict';
-const {authTenant,clean,nullable,parseJson,validateSchema,requireModuleAccess}=require('../_shared/erp');
+const {authTenant,clean,nullable,parseJson,validateSchema,requireModuleAccess,requireResourcePermission}=require('../_shared/erp');
 
 module.exports=async ctx=>{
   if(ctx.req.method!=='POST')return ctx.send(405,{error:'POST required'});
@@ -14,6 +14,8 @@ module.exports=async ctx=>{
   if(!orgId||!typeId||!divisionId||!code||!name)return ctx.send(400,{error:'Organisation, type, division, code and name are required'});
   const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:orgId,resourceKind:'accounting_dimension_type',resourceCode:typeId});
   if(moduleDenied)return ctx.send(moduleDenied.status,moduleDenied.body);
+  const permissionDenied=await requireResourcePermission(ctx,access,{organisationId:orgId,divisionId,resourceKind:'accounting_dimension',resourceCode:typeId,workflowStatus:'*'});
+  if(permissionDenied)return ctx.send(permissionDenied.status,permissionDenied.body);
   const type=await ctx.broker('core_erp','query',{text:`SELECT * FROM erp_accounting_dimension_type WHERE tenant_id=$1 AND organisation_id=$2 AND accounting_dimension_type_id=$3`,values:[access.tenantId,orgId,typeId]});
   if(!type.rowCount)return ctx.send(404,{error:'Accounting dimension type not found'});
   let data;

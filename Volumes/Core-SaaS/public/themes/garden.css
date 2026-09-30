@@ -13,9 +13,9 @@
   --theme-success:#16794c;
   --theme-danger:#b42318;
   --theme-shadow:0 20px 60px rgba(23,32,51,.14);
-  --theme-page-overlay:linear-gradient(180deg,rgba(31,95,63,.70) 0%,rgba(47,133,90,.40) 38%,rgba(243,250,246,.72) 100%);
+  --theme-page-overlay:linear-gradient(180deg,rgba(5,20,13,.28) 0%,rgba(8,38,24,.18) 42%,rgba(3,14,9,.44) 100%);
   --theme-page-opacity:1;
-  --theme-header-photo:url("https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1800&q=80");
+  --theme-header-photo:url("/themes/assets/garden-dark-foliage-background.png");
   --theme-header-position:center 42%;
   --theme-header-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20900%20180%22%3E%3Crect%20width%3D%22900%22%20height%3D%22180%22%20fill%3D%22%23e8f6ec%22%2F%3E%3Cpath%20d%3D%22M520%20150%20C560%2070%20620%2040%20690%2070%20C730%2012%20820%2020%20862%2092%20C890%20102%20904%20128%20892%20150z%22%20fill%3D%22%232f855a%22%20opacity%3D%22.42%22%2F%3E%3Cpath%20d%3D%22M70%20150%20C90%2095%20145%2074%20198%20101%20C220%2048%20290%2036%20336%2090%20C380%2089%20418%20114%20428%20150z%22%20fill%3D%22%231f5f3f%22%20opacity%3D%22.34%22%2F%3E%3Cpath%20d%3D%22M148%20150%20V88%20M148%20112%20C112%2092%2092%2078%2072%2050%20M148%20112%20C188%2090%20210%2070%20232%2042%20M148%20132%20C112%20124%2094%20114%2074%2096%20M148%20132%20C194%20122%20222%20110%20252%2090%22%20stroke%3D%22%231f5f3f%22%20stroke-width%3D%229%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.38%22%2F%3E%3Cpath%20d%3D%22M650%20150%20V82%20M650%20108%20C610%2084%20586%2062%20560%2034%20M650%20110%20C704%2078%20736%2054%20766%2024%20M650%20134%20C604%20124%20570%20110%20532%2092%20M650%20134%20C708%20124%20752%20108%20800%2086%22%20stroke%3D%22%232f855a%22%20stroke-width%3D%2211%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.46%22%2F%3E%3C%2Fsvg%3E");
   --theme-body-background:linear-gradient(135deg,rgba(17,106,123,.08),transparent 38%),linear-gradient(315deg,rgba(184,115,51,.10),transparent 34%),var(--theme-page);
@@ -41,6 +41,10 @@
   --theme-secondary-hover-color:var(--theme-brand-dark);
   --theme-secondary-hover-border:#8fb0b9;
   --theme-toolbar-color:var(--theme-brand-dark);
+  --theme-app-active-background:linear-gradient(135deg,#a3f05a,#64d62e);
+  --theme-app-active-color:#132600;
+  --theme-app-active-border:rgba(205,255,165,.82);
+  --theme-app-active-shadow:0 0 0 1px rgba(163,240,90,.18),0 0 20px rgba(100,214,46,.38),inset 0 1px 0 rgba(255,255,255,.48);
   --theme-brand-mark-background:var(--theme-brand-dark);
   --theme-brand-mark-color:#ffffff;
   --theme-brand-mark-shadow:0 12px 34px rgba(10,63,75,.24);

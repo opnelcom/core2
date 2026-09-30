@@ -1,7 +1,7 @@
 'use strict';
 const {authTenant,clean}=require('../../_shared/erp');
 
-const entityKinds=new Set(['ledger_account','master_data_record','journal','legal_entity']);
+const entityKinds=new Set(['gl_account','subledger_account','journal','legal_entity']);
 
 function parseDataUrl(value){
   const match=String(value||'').match(/^data:([^;,]+);base64,(.+)$/);
@@ -11,8 +11,8 @@ function parseDataUrl(value){
 
 async function requireEntity(ctx,access,orgId,kind,id){
   const tables={
-    ledger_account:['erp_ledger_account','ledger_account_id'],
-    master_data_record:['erp_master_data_record','master_data_record_id'],
+    gl_account:['erp_gl_account','gl_account_id'],
+    subledger_account:['erp_subledger_account','subledger_account_id'],
     journal:['erp_journal','journal_id'],
     legal_entity:['erp_legal_entity','legal_entity_id']
   };

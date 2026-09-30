@@ -1,5 +1,5 @@
 'use strict';
-const {authTenant,clean,nullable,parseJson,validateSchema,requireModuleAccess}=require('../_shared/erp');
+const {authTenant,clean,nullable,parseJson,validateSchema,requireModuleAccess,requireResourcePermission,defaultWorkflowStepCode}=require('../_shared/erp');
 
 module.exports=async ctx=>{
   if(ctx.req.method!=='POST')return ctx.send(405,{error:'POST required'});
@@ -15,6 +15,8 @@ module.exports=async ctx=>{
   if(!orgId||!typeId||!divisionId||!code||!name)return ctx.send(400,{error:'Organisation, type, division, code and name are required'});
   const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:orgId,resourceKind:'accounting_object_type',resourceCode:typeId});
   if(moduleDenied)return ctx.send(moduleDenied.status,moduleDenied.body);
+  const permissionDenied=await requireResourcePermission(ctx,access,{organisationId:orgId,divisionId,resourceKind:'accounting_object',resourceCode:typeId,workflowStatus:'*'});
+  if(permissionDenied)return ctx.send(permissionDenied.status,permissionDenied.body);
   const type=await ctx.broker('core_erp','query',{text:`SELECT * FROM erp_accounting_object_type WHERE tenant_id=$1 AND organisation_id=$2 AND accounting_object_type_id=$3`,values:[access.tenantId,orgId,typeId]});
   if(!type.rowCount)return ctx.send(404,{error:'Accounting object type not found'});
   if(parentId){
@@ -48,14 +50,15 @@ module.exports=async ctx=>{
   try{data=parseJson(ctx.body.additional_data,{});}catch{return ctx.send(400,{error:'Additional data must be valid JSON'});}
   const errors=validateSchema(type.rows[0].schema_json,data);
   if(errors.length)return ctx.send(400,{error:'Additional data is invalid',errors});
-  const values=[access.tenantId,orgId,divisionId,typeId,parentId,code,name,nullable(ctx.body.valid_from),nullable(ctx.body.valid_to),JSON.stringify(data),access.auth.email];
+  const initialStep=await defaultWorkflowStepCode(ctx,access,{organisationId:orgId,typeTable:'erp_accounting_object_type',typeIdColumn:'accounting_object_type_id',typeId});
+  const values=[access.tenantId,orgId,divisionId,typeId,parentId,code,name,nullable(ctx.body.valid_from),nullable(ctx.body.valid_to),JSON.stringify(data),access.auth.email,initialStep];
   const text=id
     ? `UPDATE erp_accounting_object
        SET owner_division_id=$3,accounting_object_type_id=$4,parent_accounting_object_id=$5,object_code=$6,object_name=$7,valid_from=COALESCE($8::date,CURRENT_DATE),valid_to=$9::date,additional_data=$10::jsonb,updated_by_email=$11,updated_at=now()
-       WHERE tenant_id=$1 AND organisation_id=$2 AND accounting_object_id=$12
+       WHERE tenant_id=$1 AND organisation_id=$2 AND accounting_object_id=$13
        RETURNING *`
     : `INSERT INTO erp_accounting_object(tenant_id,organisation_id,owner_division_id,accounting_object_type_id,parent_accounting_object_id,object_code,object_name,workflow_status,valid_from,valid_to,additional_data,created_by_email,updated_by_email)
-       VALUES($1,$2,$3,$4,$5,$6,$7,'draft',COALESCE($8::date,CURRENT_DATE),$9::date,$10::jsonb,$11,$11) RETURNING *`;
+       VALUES($1,$2,$3,$4,$5,$6,$7,$12,COALESCE($8::date,CURRENT_DATE),$9::date,$10::jsonb,$11,$11) RETURNING *`;
   const r=await ctx.broker('core_erp','query',{text,values:id?[...values,id]:values});
   if(!r.rowCount)return ctx.send(404,{error:'Accounting object not found'});
   return {record:r.rows[0]};

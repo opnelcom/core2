@@ -1,4 +1,47 @@
 SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
+    DO $$
+    BEGIN
+      IF to_regclass('public.erp_account_model_migration') IS NULL THEN
+        -- The account model is intentionally a clean break. Retaining rows here
+        -- would leave ambiguous identifiers and permission scopes behind.
+        DROP TABLE IF EXISTS erp_document_intake CASCADE;
+        DROP TABLE IF EXISTS erp_supporting_document CASCADE;
+        DROP TABLE IF EXISTS erp_journal_line CASCADE;
+        DROP TABLE IF EXISTS erp_journal CASCADE;
+        DROP TABLE IF EXISTS erp_posting_rule CASCADE;
+        DROP TABLE IF EXISTS erp_transaction_line_definition CASCADE;
+        DROP TABLE IF EXISTS erp_financial_statement_line_account CASCADE;
+        DROP TABLE IF EXISTS erp_master_data_record CASCADE;
+        DROP TABLE IF EXISTS erp_master_data_type CASCADE;
+        DROP TABLE IF EXISTS erp_user_role CASCADE;
+        DROP TABLE IF EXISTS erp_role_module CASCADE;
+        DROP TABLE IF EXISTS erp_role_permission CASCADE;
+        DROP TABLE IF EXISTS erp_role CASCADE;
+        DROP TABLE IF EXISTS erp_subledger_account_type_module CASCADE;
+        DROP TABLE IF EXISTS erp_ledger_family_module CASCADE;
+        DROP TABLE IF EXISTS erp_subledger_account CASCADE;
+        DROP TABLE IF EXISTS erp_gl_account CASCADE;
+        DROP TABLE IF EXISTS erp_subledger_account_type CASCADE;
+        DROP TABLE IF EXISTS erp_gl_account_type CASCADE;
+        DROP TABLE IF EXISTS erp_ledger_account CASCADE;
+        DROP TABLE IF EXISTS erp_ledger_account_type CASCADE;
+        DROP TABLE IF EXISTS erp_ledger_family CASCADE;
+        DROP TABLE IF EXISTS erp_organisation_ledger_family CASCADE;
+      END IF;
+      IF to_regclass('public.erp_line_definition_migration') IS NULL THEN
+        -- Clean replacement authorised for the empty development database.
+        DROP TABLE IF EXISTS erp_journal_line_accounting_dimension CASCADE;
+        DROP TABLE IF EXISTS erp_journal_line_accounting_object CASCADE;
+        DROP TABLE IF EXISTS erp_journal_line CASCADE;
+        DROP TABLE IF EXISTS erp_journal CASCADE;
+        DROP TABLE IF EXISTS erp_transaction_line_definition_dimension_type CASCADE;
+        DROP TABLE IF EXISTS erp_transaction_line_definition_object_type CASCADE;
+        DROP TABLE IF EXISTS erp_transaction_line_definition CASCADE;
+        DROP TABLE IF EXISTS erp_posting_rule CASCADE;
+      END IF;
+    END $$;
+    DROP TABLE IF EXISTS erp_master_data_record CASCADE;
+    DROP TABLE IF EXISTS erp_master_data_type CASCADE;
     CREATE EXTENSION IF NOT EXISTS pgcrypto;
     DO $$
     BEGIN
@@ -16,13 +59,6 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
          ) THEN
         DROP TABLE erp_country CASCADE;
       END IF;
-      IF to_regclass('public.erp_ledger_family') IS NOT NULL
-         AND NOT EXISTS (
-           SELECT 1 FROM information_schema.columns
-           WHERE table_schema='public' AND table_name='erp_ledger_family' AND column_name='organisation_id'
-         ) THEN
-        DROP TABLE erp_ledger_family CASCADE;
-      END IF;
       IF to_regclass('public.erp_organisation_currency') IS NOT NULL
          AND to_regclass('public.erp_currency') IS NULL THEN
         ALTER TABLE erp_organisation_currency RENAME TO erp_currency;
@@ -30,10 +66,6 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       IF to_regclass('public.erp_organisation_country') IS NOT NULL
          AND to_regclass('public.erp_country') IS NULL THEN
         ALTER TABLE erp_organisation_country RENAME TO erp_country;
-      END IF;
-      IF to_regclass('public.erp_organisation_ledger_family') IS NOT NULL
-         AND to_regclass('public.erp_ledger_family') IS NULL THEN
-        ALTER TABLE erp_organisation_ledger_family RENAME TO erp_ledger_family;
       END IF;
     END $$;
 
@@ -217,21 +249,6 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       PRIMARY KEY(tenant_id,organisation_id,country_code)
     );
 
-    CREATE TABLE IF NOT EXISTS erp_ledger_family(
-      tenant_id uuid NOT NULL,
-      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
-      ledger_family_code text NOT NULL,
-      family_name text NOT NULL,
-      requires_standard_account_type boolean NOT NULL DEFAULT false,
-      requires_legal_entity boolean NOT NULL DEFAULT false,
-      schema_json jsonb NOT NULL DEFAULT '{}'::jsonb,
-      is_active boolean NOT NULL DEFAULT true,
-      is_seeded boolean NOT NULL DEFAULT false,
-      created_at timestamptz NOT NULL DEFAULT now(),
-      updated_at timestamptz NOT NULL DEFAULT now(),
-      PRIMARY KEY(tenant_id,organisation_id,ledger_family_code)
-    );
-
     CREATE TABLE IF NOT EXISTS erp_module(
       module_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       tenant_id uuid NOT NULL,
@@ -248,9 +265,6 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       UNIQUE(tenant_id,organisation_id,module_code)
     );
     ALTER TABLE erp_module ADD COLUMN IF NOT EXISTS module_icon_svg text NOT NULL DEFAULT '';
-    ALTER TABLE erp_ledger_family ADD COLUMN IF NOT EXISTS requires_legal_entity boolean NOT NULL DEFAULT false;
-    ALTER TABLE erp_ledger_family ADD COLUMN IF NOT EXISTS schema_json jsonb NOT NULL DEFAULT '{}'::jsonb;
-
     CREATE TABLE IF NOT EXISTS erp_gl_account_type(
       gl_account_type_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       tenant_id uuid NOT NULL,
@@ -271,25 +285,30 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
       type_code text NOT NULL,
       type_name text NOT NULL,
+      type_description text NOT NULL DEFAULT '',
+      workflow_path_id uuid,
       requires_legal_entity boolean NOT NULL DEFAULT false,
       schema_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+      ui_schema_json jsonb NOT NULL DEFAULT '{}'::jsonb,
       is_seeded boolean NOT NULL DEFAULT false,
       is_active boolean NOT NULL DEFAULT true,
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now(),
       UNIQUE(tenant_id,organisation_id,type_code)
     );
+    ALTER TABLE erp_subledger_account_type ADD COLUMN IF NOT EXISTS type_description text NOT NULL DEFAULT '';
+    ALTER TABLE erp_subledger_account_type ADD COLUMN IF NOT EXISTS workflow_path_id uuid;
+    ALTER TABLE erp_subledger_account_type ADD COLUMN IF NOT EXISTS ui_schema_json jsonb NOT NULL DEFAULT '{}'::jsonb;
 
     CREATE TABLE IF NOT EXISTS erp_gl_account(
       gl_account_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       tenant_id uuid NOT NULL,
       organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
-      owner_division_id uuid NOT NULL REFERENCES erp_division(division_id),
       account_code text NOT NULL,
       account_name text NOT NULL,
       gl_account_type_id uuid REFERENCES erp_gl_account_type(gl_account_type_id),
       requires_subledger boolean NOT NULL DEFAULT false,
-      required_subledger_type_code text,
+      required_subledger_account_type_id uuid REFERENCES erp_subledger_account_type(subledger_account_type_id),
       workflow_status text NOT NULL DEFAULT 'draft' CHECK(workflow_status IN('draft','submitted','approved','rejected','blocked','archived','deleted')),
       valid_from date NOT NULL DEFAULT CURRENT_DATE,
       valid_to date,
@@ -302,6 +321,7 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       updated_at timestamptz NOT NULL DEFAULT now(),
       UNIQUE(tenant_id,organisation_id,account_code)
     );
+    ALTER TABLE erp_gl_account DROP COLUMN IF EXISTS owner_division_id;
 
     CREATE TABLE IF NOT EXISTS erp_subledger_account(
       subledger_account_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -331,6 +351,8 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
       type_code text NOT NULL,
       type_name text NOT NULL,
+      type_description text NOT NULL DEFAULT '',
+      workflow_path_id uuid,
       schema_json jsonb NOT NULL DEFAULT '{}'::jsonb,
       ui_schema_json jsonb NOT NULL DEFAULT '{}'::jsonb,
       is_seeded boolean NOT NULL DEFAULT false,
@@ -339,6 +361,8 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       updated_at timestamptz NOT NULL DEFAULT now(),
       UNIQUE(tenant_id,organisation_id,type_code)
     );
+    ALTER TABLE erp_accounting_object_type ADD COLUMN IF NOT EXISTS type_description text NOT NULL DEFAULT '';
+    ALTER TABLE erp_accounting_object_type ADD COLUMN IF NOT EXISTS workflow_path_id uuid;
 
     CREATE TABLE IF NOT EXISTS erp_accounting_object(
       accounting_object_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -371,6 +395,8 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
       type_code text NOT NULL,
       type_name text NOT NULL,
+      type_description text NOT NULL DEFAULT '',
+      workflow_path_id uuid,
       schema_json jsonb NOT NULL DEFAULT '{}'::jsonb,
       ui_schema_json jsonb NOT NULL DEFAULT '{}'::jsonb,
       is_seeded boolean NOT NULL DEFAULT false,
@@ -379,6 +405,8 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       updated_at timestamptz NOT NULL DEFAULT now(),
       UNIQUE(tenant_id,organisation_id,type_code)
     );
+    ALTER TABLE erp_accounting_dimension_type ADD COLUMN IF NOT EXISTS type_description text NOT NULL DEFAULT '';
+    ALTER TABLE erp_accounting_dimension_type ADD COLUMN IF NOT EXISTS workflow_path_id uuid;
 
     CREATE TABLE IF NOT EXISTS erp_accounting_dimension(
       accounting_dimension_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -446,89 +474,139 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
     );
     CREATE INDEX IF NOT EXISTS erp_tax_rate_lookup_idx ON erp_tax_rate(tenant_id,organisation_id,tax_type_id,valid_from DESC);
 
-    CREATE TABLE IF NOT EXISTS erp_ledger_account_type(
-      account_type_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    DO $$
+    DECLARE constraint_name text;
+    DECLARE table_name text;
+    BEGIN
+      FOREACH table_name IN ARRAY ARRAY['erp_accounting_object'] LOOP
+        SELECT conname INTO constraint_name
+        FROM pg_constraint
+        WHERE conrelid=table_name::regclass
+          AND contype='c'
+          AND pg_get_constraintdef(oid) LIKE '%workflow_status%'
+        LIMIT 1;
+        IF constraint_name IS NOT NULL THEN
+          EXECUTE format('ALTER TABLE %I DROP CONSTRAINT %I',table_name,constraint_name);
+        END IF;
+      END LOOP;
+    END $$;
+
+    CREATE TABLE IF NOT EXISTS erp_workflow_path(
+      workflow_path_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       tenant_id uuid NOT NULL,
-      organisation_id uuid REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
-      ledger_family_code text NOT NULL,
-      account_type_code text NOT NULL,
-      account_type_name text NOT NULL,
-      is_required boolean NOT NULL DEFAULT false,
-      is_seeded boolean NOT NULL DEFAULT false,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      path_name text NOT NULL,
+      initial_step_code text NOT NULL,
       is_active boolean NOT NULL DEFAULT true,
-      created_at timestamptz NOT NULL DEFAULT now(),
-      updated_at timestamptz NOT NULL DEFAULT now()
-    );
-    CREATE UNIQUE INDEX IF NOT EXISTS erp_account_type_live_idx ON erp_ledger_account_type(tenant_id,organisation_id,ledger_family_code,account_type_code) WHERE is_active=true;
-
-    CREATE TABLE IF NOT EXISTS erp_ledger_account(
-      ledger_account_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-      tenant_id uuid NOT NULL,
-      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
-      owner_division_id uuid NOT NULL REFERENCES erp_division(division_id),
-      ledger_family_code text NOT NULL,
-      account_code text NOT NULL,
-      account_name text NOT NULL,
-      account_type_id uuid REFERENCES erp_ledger_account_type(account_type_id),
-      legal_entity_id uuid REFERENCES erp_legal_entity(legal_entity_id),
-      requires_subledger boolean NOT NULL DEFAULT false,
-      required_subledger_family_code text,
-      workflow_status text NOT NULL DEFAULT 'draft' CHECK(workflow_status IN('draft','submitted','approved','rejected','blocked','archived','deleted')),
-      effective_from date NOT NULL DEFAULT CURRENT_DATE,
-      effective_to date,
-      additional_data jsonb NOT NULL DEFAULT '{}'::jsonb,
-      created_by_email text,
-      updated_by_email text,
-      approved_by_email text,
-      approved_at timestamptz,
-      created_at timestamptz NOT NULL DEFAULT now(),
-      updated_at timestamptz NOT NULL DEFAULT now()
-    );
-    ALTER TABLE erp_ledger_account ADD COLUMN IF NOT EXISTS legal_entity_id uuid REFERENCES erp_legal_entity(legal_entity_id);
-    CREATE UNIQUE INDEX IF NOT EXISTS erp_ledger_account_live_code_idx ON erp_ledger_account(tenant_id,organisation_id,ledger_family_code,account_code) WHERE workflow_status <> 'deleted';
-    CREATE INDEX IF NOT EXISTS erp_ledger_account_lookup_idx ON erp_ledger_account(tenant_id,organisation_id,ledger_family_code,workflow_status,account_name);
-    CREATE INDEX IF NOT EXISTS erp_ledger_account_legal_entity_idx ON erp_ledger_account(tenant_id,organisation_id,legal_entity_id,ledger_family_code) WHERE workflow_status <> 'deleted';
-
-    CREATE TABLE IF NOT EXISTS erp_master_data_type(
-      master_data_type_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-      tenant_id uuid NOT NULL,
-      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
-      ledger_family_code text NOT NULL,
-      type_code text NOT NULL,
-      type_name text NOT NULL,
-      schema_json jsonb NOT NULL DEFAULT '{}'::jsonb,
-      ui_schema_json jsonb NOT NULL DEFAULT '{}'::jsonb,
-      schema_version integer NOT NULL DEFAULT 1,
-      workflow_status text NOT NULL DEFAULT 'approved' CHECK(workflow_status IN('draft','submitted','approved','rejected','blocked','archived','deleted')),
+      is_seeded boolean NOT NULL DEFAULT false,
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now(),
-      UNIQUE(tenant_id,organisation_id,type_code)
+      UNIQUE(tenant_id,organisation_id,path_name)
     );
 
-    CREATE TABLE IF NOT EXISTS erp_master_data_record(
-      master_data_record_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    CREATE TABLE IF NOT EXISTS erp_workflow_step(
+      workflow_step_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       tenant_id uuid NOT NULL,
       organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
-      owner_division_id uuid NOT NULL REFERENCES erp_division(division_id),
-      master_data_type_id uuid NOT NULL REFERENCES erp_master_data_type(master_data_type_id),
-      ledger_account_id uuid REFERENCES erp_ledger_account(ledger_account_id),
-      record_code text NOT NULL,
-      display_name text NOT NULL,
-      workflow_status text NOT NULL DEFAULT 'draft' CHECK(workflow_status IN('draft','submitted','approved','rejected','blocked','archived','deleted')),
-      schema_version integer NOT NULL DEFAULT 1,
-      additional_data jsonb NOT NULL DEFAULT '{}'::jsonb,
-      top_level_search jsonb NOT NULL DEFAULT '{}'::jsonb,
-      effective_from date NOT NULL DEFAULT CURRENT_DATE,
-      effective_to date,
-      created_by_email text,
-      updated_by_email text,
-      approved_by_email text,
-      approved_at timestamptz,
+      workflow_path_id uuid NOT NULL REFERENCES erp_workflow_path(workflow_path_id) ON DELETE CASCADE,
+      step_code text NOT NULL,
+      step_label text NOT NULL,
+      colour text NOT NULL DEFAULT '#667085',
+      sort_order integer NOT NULL DEFAULT 0,
       created_at timestamptz NOT NULL DEFAULT now(),
-      updated_at timestamptz NOT NULL DEFAULT now()
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE(workflow_path_id,step_code)
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS erp_master_data_record_live_code_idx ON erp_master_data_record(tenant_id,organisation_id,master_data_type_id,record_code) WHERE workflow_status <> 'deleted';
-    CREATE INDEX IF NOT EXISTS erp_master_data_record_search_idx ON erp_master_data_record USING gin(top_level_search);
+
+    CREATE TABLE IF NOT EXISTS erp_workflow_next(
+      workflow_next_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      workflow_path_id uuid NOT NULL REFERENCES erp_workflow_path(workflow_path_id) ON DELETE CASCADE,
+      current_step_code text NOT NULL,
+      next_step_code text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE(workflow_path_id,current_step_code,next_step_code)
+    );
+
+    CREATE TABLE IF NOT EXISTS erp_workflow_history(
+      workflow_history_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      object_type text NOT NULL,
+      object_id uuid NOT NULL,
+      previous_step_code text,
+      new_step_code text NOT NULL,
+      user_email text,
+      comment text,
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS erp_workflow_history_object_idx ON erp_workflow_history(tenant_id,organisation_id,object_type,object_id,created_at DESC);
+
+    INSERT INTO erp_workflow_path(tenant_id,organisation_id,path_name,initial_step_code,is_active,is_seeded)
+    SELECT organisation.tenant_id,organisation.organisation_id,'Default workflow','draft',true,true
+    FROM erp_organisation organisation
+    ON CONFLICT(tenant_id,organisation_id,path_name) DO NOTHING;
+
+    INSERT INTO erp_workflow_step(tenant_id,organisation_id,workflow_path_id,step_code,step_label,colour,sort_order)
+    SELECT path.tenant_id,path.organisation_id,path.workflow_path_id,step.step_code,step.step_label,step.colour,step.sort_order
+    FROM erp_workflow_path path
+    CROSS JOIN (VALUES
+      ('draft','Draft','#475467',10),
+      ('submitted','Submitted','#4f46e5',20),
+      ('approved','Approved','#2f7d68',30),
+      ('rejected','Rejected','#b42318',40),
+      ('blocked','Blocked','#a15c07',50),
+      ('archived','Archived','#667085',60),
+      ('deleted','Deleted','#344054',70)
+    ) AS step(step_code,step_label,colour,sort_order)
+    WHERE path.path_name='Default workflow'
+    ON CONFLICT(workflow_path_id,step_code) DO UPDATE
+    SET step_label=excluded.step_label,colour=excluded.colour,sort_order=excluded.sort_order,updated_at=now();
+
+    INSERT INTO erp_workflow_next(tenant_id,organisation_id,workflow_path_id,current_step_code,next_step_code)
+    SELECT path.tenant_id,path.organisation_id,path.workflow_path_id,next.current_step_code,next.next_step_code
+    FROM erp_workflow_path path
+    CROSS JOIN (VALUES
+      ('draft','submitted'),
+      ('draft','deleted'),
+      ('submitted','approved'),
+      ('submitted','rejected'),
+      ('submitted','blocked'),
+      ('rejected','submitted'),
+      ('rejected','blocked'),
+      ('rejected','deleted'),
+      ('approved','blocked'),
+      ('approved','archived'),
+      ('blocked','approved'),
+      ('blocked','archived')
+    ) AS next(current_step_code,next_step_code)
+    WHERE path.path_name='Default workflow'
+    ON CONFLICT(workflow_path_id,current_step_code,next_step_code) DO NOTHING;
+
+    UPDATE erp_subledger_account_type type
+    SET workflow_path_id=path.workflow_path_id
+    FROM erp_workflow_path path
+    WHERE type.workflow_path_id IS NULL
+      AND path.tenant_id=type.tenant_id
+      AND path.organisation_id=type.organisation_id
+      AND path.path_name='Default workflow';
+
+    UPDATE erp_accounting_object_type type
+    SET workflow_path_id=path.workflow_path_id
+    FROM erp_workflow_path path
+    WHERE type.workflow_path_id IS NULL
+      AND path.tenant_id=type.tenant_id
+      AND path.organisation_id=type.organisation_id
+      AND path.path_name='Default workflow';
+
+    UPDATE erp_accounting_dimension_type type
+    SET workflow_path_id=path.workflow_path_id
+    FROM erp_workflow_path path
+    WHERE type.workflow_path_id IS NULL
+      AND path.tenant_id=type.tenant_id
+      AND path.organisation_id=type.organisation_id
+      AND path.path_name='Default workflow';
 
     CREATE TABLE IF NOT EXISTS erp_transaction_group(
       transaction_group_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -556,30 +634,60 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       UNIQUE(tenant_id,organisation_id,type_code)
     );
 
-    CREATE TABLE IF NOT EXISTS erp_posting_rule(
-      posting_rule_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    DROP TABLE IF EXISTS erp_posting_rule CASCADE;
+    CREATE TABLE IF NOT EXISTS erp_transaction_line_definition(
+      transaction_line_definition_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       tenant_id uuid NOT NULL,
       organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
       transaction_type_id uuid NOT NULL REFERENCES erp_transaction_type(transaction_type_id) ON DELETE CASCADE,
       line_order integer NOT NULL DEFAULT 0,
+      line_code text NOT NULL,
       debit_credit text NOT NULL CHECK(debit_credit IN('debit','credit')),
-      default_gl_account_id uuid REFERENCES erp_ledger_account(ledger_account_id),
-      requires_subledger boolean NOT NULL DEFAULT false,
-      subledger_family_code text,
+      gl_account_id uuid NOT NULL REFERENCES erp_gl_account(gl_account_id),
+      occurrence text NOT NULL DEFAULT 'required' CHECK(occurrence IN('required','optional','repeatable','generated')),
+      subledger_requirement text NOT NULL DEFAULT 'not_used' CHECK(subledger_requirement IN('not_used','optional','mandatory')),
+      subledger_account_type_id uuid REFERENCES erp_subledger_account_type(subledger_account_type_id),
       amount_source text NOT NULL DEFAULT 'manual',
       line_description text NOT NULL DEFAULT '',
-      is_required boolean NOT NULL DEFAULT true,
-      UNIQUE(transaction_type_id,line_order)
+      UNIQUE(transaction_type_id,line_order),
+      UNIQUE(transaction_type_id,line_code),
+      CHECK((subledger_requirement='not_used' AND subledger_account_type_id IS NULL) OR (subledger_requirement<>'not_used' AND subledger_account_type_id IS NOT NULL))
+    );
+    CREATE INDEX IF NOT EXISTS erp_transaction_line_definition_type_idx ON erp_transaction_line_definition(tenant_id,organisation_id,transaction_type_id,line_order);
+
+    CREATE TABLE IF NOT EXISTS erp_transaction_line_definition_object_type(
+      transaction_line_definition_object_type_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      transaction_line_definition_id uuid NOT NULL REFERENCES erp_transaction_line_definition(transaction_line_definition_id) ON DELETE CASCADE,
+      accounting_object_type_id uuid NOT NULL REFERENCES erp_accounting_object_type(accounting_object_type_id),
+      requirement text NOT NULL DEFAULT 'optional' CHECK(requirement IN('optional','mandatory')),
+      value_behaviour text NOT NULL DEFAULT 'captured' CHECK(value_behaviour IN('captured','defaulted','fixed')),
+      accounting_object_id uuid REFERENCES erp_accounting_object(accounting_object_id),
+      sort_order integer NOT NULL DEFAULT 0,
+      UNIQUE(transaction_line_definition_id,accounting_object_type_id),
+      CHECK((value_behaviour='captured' AND accounting_object_id IS NULL) OR (value_behaviour<>'captured' AND accounting_object_id IS NOT NULL))
+    );
+
+    CREATE TABLE IF NOT EXISTS erp_transaction_line_definition_dimension_type(
+      transaction_line_definition_dimension_type_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      transaction_line_definition_id uuid NOT NULL REFERENCES erp_transaction_line_definition(transaction_line_definition_id) ON DELETE CASCADE,
+      accounting_dimension_type_id uuid NOT NULL REFERENCES erp_accounting_dimension_type(accounting_dimension_type_id),
+      requirement text NOT NULL DEFAULT 'optional' CHECK(requirement IN('optional','mandatory')),
+      value_behaviour text NOT NULL DEFAULT 'captured' CHECK(value_behaviour IN('captured','defaulted','fixed')),
+      accounting_dimension_id uuid REFERENCES erp_accounting_dimension(accounting_dimension_id),
+      sort_order integer NOT NULL DEFAULT 0,
+      UNIQUE(transaction_line_definition_id,accounting_dimension_type_id),
+      CHECK((value_behaviour='captured' AND accounting_dimension_id IS NULL) OR (value_behaviour<>'captured' AND accounting_dimension_id IS NOT NULL))
     );
     ALTER TABLE erp_transaction_type ADD COLUMN IF NOT EXISTS is_financial boolean NOT NULL DEFAULT true;
 
-    CREATE TABLE IF NOT EXISTS erp_ledger_family_module(
-      tenant_id uuid NOT NULL,
-      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
-      ledger_family_code text NOT NULL,
+    CREATE TABLE IF NOT EXISTS erp_subledger_account_type_module(
+      subledger_account_type_id uuid NOT NULL REFERENCES erp_subledger_account_type(subledger_account_type_id) ON DELETE CASCADE,
       module_id uuid NOT NULL REFERENCES erp_module(module_id) ON DELETE CASCADE,
-      PRIMARY KEY(tenant_id,organisation_id,ledger_family_code,module_id),
-      FOREIGN KEY(tenant_id,organisation_id,ledger_family_code) REFERENCES erp_ledger_family(tenant_id,organisation_id,ledger_family_code) ON DELETE CASCADE
+      PRIMARY KEY(subledger_account_type_id,module_id)
     );
     CREATE TABLE IF NOT EXISTS erp_accounting_object_type_module(
       accounting_object_type_id uuid NOT NULL REFERENCES erp_accounting_object_type(accounting_object_type_id) ON DELETE CASCADE,
@@ -596,9 +704,6 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       module_id uuid NOT NULL REFERENCES erp_module(module_id) ON DELETE CASCADE,
       PRIMARY KEY(transaction_type_id,module_id)
     );
-    ALTER TABLE erp_posting_rule ADD COLUMN IF NOT EXISTS requires_subledger boolean NOT NULL DEFAULT false;
-    ALTER TABLE erp_posting_rule ADD COLUMN IF NOT EXISTS subledger_family_code text;
-
     CREATE TABLE IF NOT EXISTS erp_journal(
       journal_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       tenant_id uuid NOT NULL,
@@ -606,6 +711,10 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       transaction_type_id uuid REFERENCES erp_transaction_type(transaction_type_id),
       fiscal_period_id uuid NOT NULL REFERENCES erp_fiscal_period(fiscal_period_id),
       source_division_id uuid NOT NULL REFERENCES erp_division(division_id),
+      supplier_subledger_account_id uuid REFERENCES erp_subledger_account(subledger_account_id),
+      vat_recipient_legal_entity_id uuid REFERENCES erp_legal_entity(legal_entity_id),
+      supplier_invoice_number text NOT NULL DEFAULT '',
+      supplier_invoice_date date,
       journal_number text,
       journal_date date NOT NULL DEFAULT CURRENT_DATE,
       description text NOT NULL DEFAULT '',
@@ -644,10 +753,11 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       tenant_id uuid NOT NULL,
       organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id),
       journal_id uuid NOT NULL REFERENCES erp_journal(journal_id) ON DELETE CASCADE,
+      transaction_line_definition_id uuid REFERENCES erp_transaction_line_definition(transaction_line_definition_id),
       line_number integer NOT NULL,
       division_id uuid NOT NULL REFERENCES erp_division(division_id),
-      gl_account_id uuid NOT NULL REFERENCES erp_ledger_account(ledger_account_id),
-      subledger_account_id uuid REFERENCES erp_ledger_account(ledger_account_id),
+      gl_account_id uuid NOT NULL REFERENCES erp_gl_account(gl_account_id),
+      subledger_account_id uuid REFERENCES erp_subledger_account(subledger_account_id),
       description text NOT NULL DEFAULT '',
       debit_amount numeric(18,2) NOT NULL DEFAULT 0,
       credit_amount numeric(18,2) NOT NULL DEFAULT 0,
@@ -657,6 +767,26 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       CHECK((debit_amount > 0 AND credit_amount = 0) OR (credit_amount > 0 AND debit_amount = 0))
     );
     CREATE INDEX IF NOT EXISTS erp_journal_line_subledger_idx ON erp_journal_line(tenant_id,organisation_id,subledger_account_id);
+
+    CREATE TABLE IF NOT EXISTS erp_journal_line_accounting_object(
+      journal_line_accounting_object_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      journal_line_id uuid NOT NULL REFERENCES erp_journal_line(journal_line_id) ON DELETE CASCADE,
+      accounting_object_type_id uuid NOT NULL REFERENCES erp_accounting_object_type(accounting_object_type_id),
+      accounting_object_id uuid NOT NULL REFERENCES erp_accounting_object(accounting_object_id),
+      UNIQUE(journal_line_id,accounting_object_type_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS erp_journal_line_accounting_dimension(
+      journal_line_accounting_dimension_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      journal_line_id uuid NOT NULL REFERENCES erp_journal_line(journal_line_id) ON DELETE CASCADE,
+      accounting_dimension_type_id uuid NOT NULL REFERENCES erp_accounting_dimension_type(accounting_dimension_type_id),
+      accounting_dimension_id uuid NOT NULL REFERENCES erp_accounting_dimension(accounting_dimension_id),
+      UNIQUE(journal_line_id,accounting_dimension_type_id)
+    );
 
     CREATE TABLE IF NOT EXISTS erp_financial_statement_format(
       financial_statement_format_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -696,16 +826,16 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
       financial_statement_format_id uuid NOT NULL REFERENCES erp_financial_statement_format(financial_statement_format_id) ON DELETE CASCADE,
       financial_statement_line_id uuid NOT NULL REFERENCES erp_financial_statement_line(financial_statement_line_id) ON DELETE CASCADE,
-      ledger_account_id uuid NOT NULL REFERENCES erp_ledger_account(ledger_account_id) ON DELETE CASCADE,
+      gl_account_id uuid NOT NULL REFERENCES erp_gl_account(gl_account_id) ON DELETE CASCADE,
       created_at timestamptz NOT NULL DEFAULT now(),
-      UNIQUE(tenant_id,organisation_id,financial_statement_format_id,ledger_account_id)
+      UNIQUE(tenant_id,organisation_id,financial_statement_format_id,gl_account_id)
     );
 
     CREATE TABLE IF NOT EXISTS erp_supporting_document(
       document_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       tenant_id uuid NOT NULL,
       organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
-      entity_kind text NOT NULL CHECK(entity_kind IN('ledger_account','master_data_record','journal','legal_entity')),
+      entity_kind text NOT NULL CHECK(entity_kind IN('gl_account','subledger_account','journal','legal_entity')),
       entity_id uuid NOT NULL,
       document_type text NOT NULL DEFAULT 'other',
       file_name text NOT NULL,
@@ -720,14 +850,14 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       updated_at timestamptz NOT NULL DEFAULT now()
     );
     ALTER TABLE erp_supporting_document DROP CONSTRAINT IF EXISTS erp_supporting_document_entity_kind_check;
-    ALTER TABLE erp_supporting_document ADD CONSTRAINT erp_supporting_document_entity_kind_check CHECK(entity_kind IN('ledger_account','master_data_record','journal','legal_entity'));
+    ALTER TABLE erp_supporting_document ADD CONSTRAINT erp_supporting_document_entity_kind_check CHECK(entity_kind IN('gl_account','subledger_account','journal','legal_entity'));
     CREATE INDEX IF NOT EXISTS erp_supporting_document_entity_idx ON erp_supporting_document(tenant_id,organisation_id,entity_kind,entity_id,deleted,created_at DESC);
 
     CREATE TABLE IF NOT EXISTS erp_document_intake(
       intake_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       tenant_id uuid NOT NULL,
       organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
-      target_kind text NOT NULL CHECK(target_kind IN('legal_entity','ledger_account','journal')),
+      target_kind text NOT NULL CHECK(target_kind IN('legal_entity','gl_account','subledger_account','journal')),
       source_file_name text NOT NULL,
       source_mime_type text NOT NULL,
       source_file_size integer NOT NULL DEFAULT 0,
@@ -743,6 +873,8 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       confirmed_at timestamptz,
       updated_at timestamptz NOT NULL DEFAULT now()
     );
+    ALTER TABLE erp_document_intake DROP CONSTRAINT IF EXISTS erp_document_intake_target_kind_check;
+    ALTER TABLE erp_document_intake ADD CONSTRAINT erp_document_intake_target_kind_check CHECK(target_kind IN('legal_entity','gl_account','subledger_account','journal'));
     CREATE INDEX IF NOT EXISTS erp_document_intake_lookup_idx ON erp_document_intake(tenant_id,organisation_id,target_kind,status,created_at DESC);
 
     CREATE TABLE IF NOT EXISTS erp_organisation_openai_setting(
@@ -781,7 +913,7 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       organisation_id uuid REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
       role_id uuid NOT NULL REFERENCES erp_role(role_id) ON DELETE CASCADE,
       division_id uuid REFERENCES erp_division(division_id),
-      resource_kind text NOT NULL,
+      resource_kind text NOT NULL CHECK(resource_kind IN('gl_account','legal_entity','subledger_account','accounting_object','accounting_dimension','transaction')),
       resource_code text NOT NULL DEFAULT '*',
       workflow_status text NOT NULL DEFAULT '*',
       action_code text NOT NULL,
@@ -789,6 +921,15 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       valid_from date NOT NULL DEFAULT CURRENT_DATE,
       valid_to date
     );
+    DO $$
+    BEGIN
+      IF to_regclass('public.erp_role_permission') IS NOT NULL THEN
+        DELETE FROM erp_role_permission
+        WHERE resource_kind NOT IN('gl_account','legal_entity','subledger_account','accounting_object','accounting_dimension','transaction');
+      END IF;
+    END $$;
+    ALTER TABLE erp_role_permission DROP CONSTRAINT IF EXISTS erp_role_permission_resource_kind_check;
+    ALTER TABLE erp_role_permission ADD CONSTRAINT erp_role_permission_resource_kind_check CHECK(resource_kind IN('gl_account','legal_entity','subledger_account','accounting_object','accounting_dimension','transaction'));
 
     CREATE TABLE IF NOT EXISTS erp_user_role(
       user_role_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -806,3 +947,17 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       module_id uuid NOT NULL REFERENCES erp_module(module_id) ON DELETE CASCADE,
       PRIMARY KEY(role_id,module_id)
     );
+    CREATE TABLE IF NOT EXISTS erp_account_model_migration(
+      migration_code text PRIMARY KEY,
+      applied_at timestamptz NOT NULL DEFAULT now()
+    );
+    INSERT INTO erp_account_model_migration(migration_code)
+    VALUES('dedicated_gl_and_subledger_accounts_v1')
+    ON CONFLICT(migration_code) DO NOTHING;
+    CREATE TABLE IF NOT EXISTS erp_line_definition_migration(
+      migration_code text PRIMARY KEY,
+      applied_at timestamptz NOT NULL DEFAULT now()
+    );
+    INSERT INTO erp_line_definition_migration(migration_code)
+    VALUES('transaction_line_definitions_v1')
+    ON CONFLICT(migration_code) DO NOTHING;

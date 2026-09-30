@@ -2,7 +2,7 @@
 const {authTenant,clean,nullable,bool,parseJson}=require('../../_shared/erp');
 const {decryptKey,loadOpenAISetting}=require('../../_shared/openai-settings');
 
-const targetKinds=new Set(['legal_entity','ledger_account','journal']);
+const targetKinds=new Set(['legal_entity','gl_account','subledger_account','journal']);
 const legalEntityTypes=new Set(['individual','company','partnership','joint_venture','government_organisation','trust','non_profit']);
 
 function parseDataUrl(value){

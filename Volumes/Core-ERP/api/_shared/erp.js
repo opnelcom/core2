@@ -6,6 +6,7 @@ const auth=require('./erp/auth');
 const access=require('./erp/access');
 const utils=require('./erp/utils');
 const journals=require('./erp/journals');
+const workflow=require('./erp/workflow');
 
 module.exports={
   ...schema,
@@ -13,5 +14,6 @@ module.exports={
   ...auth,
   ...access,
   ...utils,
-  ...journals
+  ...journals,
+  ...workflow
 };

@@ -41,6 +41,10 @@
   --theme-secondary-hover-color:var(--theme-ink);
   --theme-secondary-hover-border:var(--theme-brand);
   --theme-toolbar-color:var(--theme-accent);
+  --theme-app-active-background:linear-gradient(135deg,#ff8290,#ff4d62);
+  --theme-app-active-color:#330811;
+  --theme-app-active-border:rgba(255,184,193,.8);
+  --theme-app-active-shadow:0 0 0 1px rgba(255,130,144,.2),0 0 22px rgba(255,77,98,.46),inset 0 1px 0 rgba(255,255,255,.48);
   --theme-brand-mark-background:linear-gradient(135deg,var(--theme-brand-dark),var(--theme-brand));
   --theme-brand-mark-color:var(--theme-ink);
   --theme-brand-mark-shadow:0 0 26px var(--theme-glow);
@@ -136,6 +140,30 @@ button:hover,.primary-action:hover,.square-action:hover,.add-grid-button:hover{
   background:var(--theme-secondary-hover-background);
   color:var(--theme-secondary-hover-color);
   border-color:var(--theme-secondary-hover-border);
+}
+.application-icon-list{
+  border:0 !important;
+  box-shadow:none !important;
+}
+.application-icon-button,
+.application-icon-button:hover,
+.application-icon-button:focus-visible,
+.application-launcher-panel .home-action,
+.application-launcher-panel .home-action:hover,
+.application-launcher-panel .home-action:focus-visible{
+  border:0 !important;
+  box-shadow:none !important;
+}
+.application-icon-button.active,
+.application-icon-button.active:hover,
+.application-icon-button.active:focus-visible,
+.application-launcher-panel .home-action.active,
+.application-launcher-panel .home-action.active:hover,
+.application-launcher-panel .home-action.active:focus-visible{
+  border:1px solid var(--theme-app-active-border) !important;
+  background:var(--theme-app-active-background) !important;
+  color:var(--theme-app-active-color) !important;
+  box-shadow:var(--theme-app-active-shadow) !important;
 }
 .brand-mark,.avatar:not(.has-photo){
   background:var(--theme-brand-mark-background);

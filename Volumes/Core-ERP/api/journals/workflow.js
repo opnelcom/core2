@@ -62,16 +62,30 @@ module.exports=async ctx=>{
     await checkPeriodOpen(ctx,access.tenantId,journal.fiscal_period_id);
     const r=await ctx.broker('core_erp','query',{
       text:`WITH reversal AS (
-              INSERT INTO erp_journal(tenant_id,organisation_id,transaction_type_id,fiscal_period_id,source_division_id,journal_date,description,workflow_status,currency_code,exchange_rate,reversing_journal_id,created_by_email,updated_by_email,submitted_by_email,approved_by_email,approved_at)
-              SELECT tenant_id,organisation_id,transaction_type_id,fiscal_period_id,source_division_id,CURRENT_DATE,'Reversal: '||description,'approved',currency_code,exchange_rate,journal_id,$3,$3,$3,$3,now()
+              INSERT INTO erp_journal(tenant_id,organisation_id,transaction_type_id,fiscal_period_id,source_division_id,supplier_subledger_account_id,vat_recipient_legal_entity_id,supplier_invoice_number,supplier_invoice_date,journal_date,description,workflow_status,currency_code,exchange_rate,reversing_journal_id,created_by_email,updated_by_email,submitted_by_email,approved_by_email,approved_at)
+              SELECT tenant_id,organisation_id,transaction_type_id,fiscal_period_id,source_division_id,supplier_subledger_account_id,vat_recipient_legal_entity_id,supplier_invoice_number,supplier_invoice_date,CURRENT_DATE,'Reversal: '||description,'approved',currency_code,exchange_rate,journal_id,$3,$3,$3,$3,now()
               FROM erp_journal WHERE tenant_id=$1 AND journal_id=$2
               RETURNING *
             ),
-            copied AS (
-              INSERT INTO erp_journal_line(tenant_id,organisation_id,journal_id,line_number,division_id,gl_account_id,subledger_account_id,description,debit_amount,credit_amount,currency_code)
-              SELECT l.tenant_id,l.organisation_id,reversal.journal_id,l.line_number,l.division_id,l.gl_account_id,l.subledger_account_id,'Reversal: '||l.description,l.credit_amount,l.debit_amount,l.currency_code
-              FROM erp_journal_line l CROSS JOIN reversal
+            line_map AS MATERIALIZED (
+              SELECT l.*,gen_random_uuid() new_journal_line_id
+              FROM erp_journal_line l
               WHERE l.tenant_id=$1 AND l.journal_id=$2
+            ),
+            copied AS (
+              INSERT INTO erp_journal_line(journal_line_id,tenant_id,organisation_id,journal_id,transaction_line_definition_id,line_number,division_id,gl_account_id,subledger_account_id,description,debit_amount,credit_amount,currency_code)
+              SELECT l.new_journal_line_id,l.tenant_id,l.organisation_id,reversal.journal_id,NULL,l.line_number,l.division_id,l.gl_account_id,l.subledger_account_id,'Reversal: '||l.description,l.credit_amount,l.debit_amount,l.currency_code
+              FROM line_map l CROSS JOIN reversal
+            ),
+            copied_objects AS (
+              INSERT INTO erp_journal_line_accounting_object(tenant_id,organisation_id,journal_line_id,accounting_object_type_id,accounting_object_id)
+              SELECT allocation.tenant_id,allocation.organisation_id,map.new_journal_line_id,allocation.accounting_object_type_id,allocation.accounting_object_id
+              FROM erp_journal_line_accounting_object allocation JOIN line_map map ON map.journal_line_id=allocation.journal_line_id
+            ),
+            copied_dimensions AS (
+              INSERT INTO erp_journal_line_accounting_dimension(tenant_id,organisation_id,journal_line_id,accounting_dimension_type_id,accounting_dimension_id)
+              SELECT allocation.tenant_id,allocation.organisation_id,map.new_journal_line_id,allocation.accounting_dimension_type_id,allocation.accounting_dimension_id
+              FROM erp_journal_line_accounting_dimension allocation JOIN line_map map ON map.journal_line_id=allocation.journal_line_id
             )
             UPDATE erp_journal SET workflow_status='reversed',reversed_by_email=$3,reversed_at=now(),updated_by_email=$3,updated_at=now()
             WHERE tenant_id=$1 AND journal_id=$2

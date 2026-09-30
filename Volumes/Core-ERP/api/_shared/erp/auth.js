@@ -2,7 +2,7 @@
 
 const {ensureTenantSeed}=require('./seeding');
 
-async function authTenant(ctx){
+async function authTenant(ctx,organisationIdOverride=null){
   const auth=ctx.auth();
   if(!auth)return {status:401,body:{error:'Authentication required'}};
   const tenantId=ctx.cookies.current_tenant;
@@ -22,7 +22,7 @@ async function authTenant(ctx){
   const result={auth,tenantId,role:access.rows[0].tenant_user_type};
   await ensureTenantSeed(ctx,result);
   result.tenantAdministrator=['administrator','administration_user','admin','owner'].includes(String(result.role||'').toLowerCase());
-  const organisationId=ctx.body?.organisation_id||ctx.query?.organisation_id||ctx.body?.target_organisation_id||ctx.body?.access_organisation_id||null;
+  const organisationId=organisationIdOverride||ctx.body?.organisation_id||ctx.query?.organisation_id||ctx.body?.target_organisation_id||ctx.body?.access_organisation_id||null;
   result.organisationId=organisationId;
   result.setupAdministrator=false;
   if(organisationId){

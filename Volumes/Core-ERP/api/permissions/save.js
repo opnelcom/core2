@@ -62,23 +62,28 @@ module.exports=async ctx=>{
       values:[access.tenantId,orgId,roleId]
     },
     {
-      text:`DELETE FROM erp_role_module WHERE role_id=$3`,
-      values:[access.tenantId,orgId,roleId]
+      text:`DELETE FROM erp_role_module WHERE role_id=$1`,
+      values:[roleId]
     }
   ];
   moduleIds.forEach(moduleId=>statements.push({text:`INSERT INTO erp_role_module(role_id,module_id) VALUES($1,$2)`,values:[roleId,moduleId]}));
   const addPermission=(kind,row)=>{
     const divisionId=nullable(row.division_id);
-    const resourceCode=kind==='master_data'?clean(row.ledger_family_code):clean(row.transaction_type_id);
+    const resourceCode=clean(row.resource_code||row.transaction_type_id,'*');
     const workflow=clean(row.workflow_status,'*');
-    if(!divisionId||!resourceCode)return;
+    const organisationScoped=kind==='gl_account'||kind==='legal_entity';
+    if((!organisationScoped&&!divisionId)||!resourceCode)return;
     statements.push({
       text:`INSERT INTO erp_role_permission(tenant_id,organisation_id,role_id,division_id,resource_kind,resource_code,workflow_status,action_code,applies_to_children)
             VALUES($1,$2,$3,$4,$5,$6,$7,$8,true)`,
-      values:[access.tenantId,orgId,roleId,divisionId,kind,resourceCode,workflow,workflow==='view'?'view':'manage']
+      values:[access.tenantId,orgId,roleId,organisationScoped?null:divisionId,kind,resourceCode,workflow,workflow==='view'?'view':'manage']
     });
   };
-  masterPermissions.forEach(row=>addPermission('master_data',row));
+  const masterKinds=new Set(['gl_account','legal_entity','subledger_account','accounting_object','accounting_dimension']);
+  masterPermissions.forEach(row=>{
+    const kind=clean(row.resource_kind);
+    if(masterKinds.has(kind))addPermission(kind,row);
+  });
   transactionPermissions.forEach(row=>addPermission('transaction',row));
   roleUsers.forEach(row=>{
     const email=clean(row.email).toLowerCase();

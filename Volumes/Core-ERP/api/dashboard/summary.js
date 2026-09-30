@@ -14,8 +14,8 @@ module.exports=async ctx=>{
   const [divisions,legalEntities,glAccounts,subledgers,periods,journals,adminUsers]=await Promise.all([
     count(`SELECT count(*) FROM erp_division WHERE tenant_id=$1 AND organisation_id=$2 AND workflow_status <> 'deleted'`),
     count(`SELECT count(*) FROM erp_legal_entity WHERE tenant_id=$1 AND organisation_id=$2 AND workflow_status <> 'deleted'`),
-    count(`SELECT count(*) FROM erp_ledger_account WHERE tenant_id=$1 AND organisation_id=$2 AND ledger_family_code='gl' AND workflow_status <> 'deleted'`),
-    count(`SELECT count(*) FROM erp_ledger_account WHERE tenant_id=$1 AND organisation_id=$2 AND ledger_family_code<>'gl' AND workflow_status <> 'deleted'`),
+    count(`SELECT count(*) FROM erp_gl_account WHERE tenant_id=$1 AND organisation_id=$2 AND workflow_status <> 'deleted'`),
+    count(`SELECT count(*) FROM erp_subledger_account WHERE tenant_id=$1 AND organisation_id=$2 AND workflow_status <> 'deleted'`),
     count(`SELECT count(*) FROM erp_fiscal_period WHERE tenant_id=$1 AND organisation_id=$2`),
     count(`SELECT count(*) FROM erp_journal WHERE tenant_id=$1 AND organisation_id=$2 AND workflow_status <> 'deleted'`),
     count(`SELECT count(DISTINCT lower(ur.email))

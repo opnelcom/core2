@@ -3,13 +3,13 @@ const {authTenant,requireBusinessAccess}=require('../_shared/erp');
 
 function accountAmountSql(statementType){
   if(statementType==='income')return `CASE
-    WHEN t.account_type_code='revenue' THEN COALESCE(sum(l.credit_amount-l.debit_amount),0)
-    WHEN t.account_type_code='expense' THEN COALESCE(sum(l.debit_amount-l.credit_amount),0)
+    WHEN t.type_code='revenue' THEN COALESCE(sum(l.credit_amount-l.debit_amount),0)
+    WHEN t.type_code='expense' THEN COALESCE(sum(l.debit_amount-l.credit_amount),0)
     ELSE COALESCE(sum(l.credit_amount-l.debit_amount),0)
   END`;
   if(statementType==='balance')return `CASE
-    WHEN t.account_type_code='asset' THEN COALESCE(sum(l.debit_amount-l.credit_amount),0)
-    WHEN t.account_type_code IN('liability','equity') THEN COALESCE(sum(l.credit_amount-l.debit_amount),0)
+    WHEN t.type_code='asset' THEN COALESCE(sum(l.debit_amount-l.credit_amount),0)
+    WHEN t.type_code IN('liability','equity') THEN COALESCE(sum(l.credit_amount-l.debit_amount),0)
     ELSE COALESCE(sum(l.debit_amount-l.credit_amount),0)
   END`;
   return `COALESCE(sum(l.debit_amount-l.credit_amount),0)`;
@@ -147,13 +147,13 @@ async function financialStatement(ctx,access){
             SELECT m.financial_statement_line_id,
                    ${accountAmountSql(statementType)} amount
             FROM visible_lines l
-            JOIN erp_ledger_account a ON a.ledger_account_id=l.gl_account_id
-            LEFT JOIN erp_ledger_account_type t ON t.account_type_id=a.account_type_id
-            JOIN erp_financial_statement_line_account m ON m.ledger_account_id=a.ledger_account_id
+            JOIN erp_gl_account a ON a.gl_account_id=l.gl_account_id
+            LEFT JOIN erp_gl_account_type t ON t.gl_account_type_id=a.gl_account_type_id
+            JOIN erp_financial_statement_line_account m ON m.gl_account_id=a.gl_account_id
               AND m.tenant_id=$1
               AND m.organisation_id=$2
               AND m.financial_statement_format_id=$3
-            GROUP BY m.financial_statement_line_id,t.account_type_code`,
+            GROUP BY m.financial_statement_line_id,t.type_code`,
       values:[access.tenantId,orgId,formatId,bounds.start_date,bounds.end_date,divisionId,access.auth.email]
     });
   }
@@ -231,22 +231,22 @@ async function ledgerBalances(ctx,access){
           )
           SELECT a.account_code,
                  a.account_name,
-                 t.account_type_code,
-                 t.account_type_name,
+                 t.type_code account_type_code,
+                 t.type_name account_type_name,
                  COALESCE(sum(l.debit_amount),0) debit_total,
                  COALESCE(sum(l.credit_amount),0) credit_total,
                  COALESCE(sum(l.debit_amount-l.credit_amount),0) balance
           FROM visible_lines l
           JOIN erp_journal j ON j.journal_id=l.journal_id
           JOIN erp_fiscal_period fp ON fp.fiscal_period_id=j.fiscal_period_id
-          JOIN erp_ledger_account a ON a.ledger_account_id=l.gl_account_id
-          LEFT JOIN erp_ledger_account_type t ON t.account_type_id=a.account_type_id
+          JOIN erp_gl_account a ON a.gl_account_id=l.gl_account_id
+          LEFT JOIN erp_gl_account_type t ON t.gl_account_type_id=a.gl_account_type_id
           WHERE j.tenant_id=$1
             AND j.organisation_id=$2
             AND fp.fiscal_year_id=$3
-          GROUP BY a.account_code,a.account_name,t.account_type_code,t.account_type_name
+          GROUP BY a.account_code,a.account_name,t.type_code,t.type_name
           HAVING COALESCE(sum(l.debit_amount),0) <> 0 OR COALESCE(sum(l.credit_amount),0) <> 0
-          ORDER BY t.account_type_code,a.account_code`,
+          ORDER BY t.type_code,a.account_code`,
     values:[access.tenantId,orgId,fiscalYearId,divisionId,access.auth.email]
   });
   return {report:'ledger',rows:r.rows};

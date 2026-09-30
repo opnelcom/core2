@@ -38,10 +38,12 @@ module.exports=async ctx=>{
   const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:journal.rows[0].organisation_id,resourceKind:'transaction_type',resourceCode:journal.rows[0].transaction_type_id});
   if(moduleDenied)return ctx.send(moduleDenied.status,moduleDenied.body);
   const lines=await ctx.broker('core_erp','query',{
-    text:`SELECT l.*,gl.account_code gl_account_code,gl.account_name gl_account_name,sub.account_code subledger_account_code,sub.account_name subledger_account_name,d.division_name
+    text:`SELECT l.*,gl.account_code gl_account_code,gl.account_name gl_account_name,sub.account_code subledger_account_code,sub.account_name subledger_account_name,d.division_name,
+                 COALESCE((SELECT jsonb_agg(jsonb_build_object('accounting_object_type_id',allocation.accounting_object_type_id,'accounting_object_id',allocation.accounting_object_id,'type_name',type.type_name,'object_code',object.object_code,'object_name',object.object_name) ORDER BY type.type_name) FROM erp_journal_line_accounting_object allocation JOIN erp_accounting_object_type type ON type.accounting_object_type_id=allocation.accounting_object_type_id JOIN erp_accounting_object object ON object.accounting_object_id=allocation.accounting_object_id WHERE allocation.journal_line_id=l.journal_line_id),'[]'::jsonb) accounting_objects,
+                 COALESCE((SELECT jsonb_agg(jsonb_build_object('accounting_dimension_type_id',allocation.accounting_dimension_type_id,'accounting_dimension_id',allocation.accounting_dimension_id,'type_name',type.type_name,'dimension_code',dimension.dimension_code,'dimension_name',dimension.dimension_name) ORDER BY type.type_name) FROM erp_journal_line_accounting_dimension allocation JOIN erp_accounting_dimension_type type ON type.accounting_dimension_type_id=allocation.accounting_dimension_type_id JOIN erp_accounting_dimension dimension ON dimension.accounting_dimension_id=allocation.accounting_dimension_id WHERE allocation.journal_line_id=l.journal_line_id),'[]'::jsonb) accounting_dimensions
           FROM erp_journal_line l
-          JOIN erp_ledger_account gl ON gl.ledger_account_id=l.gl_account_id
-          LEFT JOIN erp_ledger_account sub ON sub.ledger_account_id=l.subledger_account_id
+          JOIN erp_gl_account gl ON gl.gl_account_id=l.gl_account_id
+          LEFT JOIN erp_subledger_account sub ON sub.subledger_account_id=l.subledger_account_id
           JOIN erp_division d ON d.division_id=l.division_id
           WHERE l.tenant_id=$1 AND l.journal_id=$2
           ORDER BY l.line_number`,

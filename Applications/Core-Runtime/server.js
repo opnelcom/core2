@@ -37,7 +37,13 @@ function cookies(header=''){ return Object.fromEntries(header.split(';').map(v=>
 function send(res,status,body,headers={}){ const data=Buffer.from(typeof body==='string'?body:JSON.stringify(body)); res.writeHead(status,{'content-type':typeof body==='string'?'text/plain; charset=utf-8':'application/json; charset=utf-8','content-length':data.length,...headers}); res.end(data); }
 async function body(req){ const parts=[]; let size=0; for await(const c of req){size+=c.length;if(size>maxBodyBytes)throw Object.assign(new Error('Body too large'),{status:413});parts.push(c);} const raw=Buffer.concat(parts).toString('utf8'); if(!raw)return {}; const ct=req.headers['content-type']||''; if(ct.includes('application/json')) return JSON.parse(raw); if(ct.includes('application/x-www-form-urlencoded')) return Object.fromEntries(new URLSearchParams(raw)); return {raw}; }
 function safeJoin(base,p){const f=path.normalize(path.join(base,p));return f.startsWith(base)?f:null;}
-function contentType(file){return ({'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'})[path.extname(file)]||'application/octet-stream';}
+function contentType(file){return ({'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.ico':'image/x-icon','.woff':'font/woff','.woff2':'font/woff2'})[path.extname(file).toLowerCase()]||'application/octet-stream';}
+function staticCacheControl(file){
+ const ext=path.extname(file).toLowerCase();
+ if(['.png','.jpg','.jpeg','.webp','.gif','.svg','.ico','.woff','.woff2'].includes(ext))return 'public, max-age=86400, stale-while-revalidate=604800';
+ if(ext==='.css')return 'public, max-age=300, stale-while-revalidate=3600';
+ return 'no-cache';
+}
 function clearContentApiCache(){
  if(String(config.nodeEnv||process.env.NODE_ENV||'').toLowerCase()!=='development')return;
  const apiPrefix=apiRoot+path.sep;
@@ -71,7 +77,14 @@ const server=http.createServer(async(req,res)=>{
     return;
   }
   let rel=decodeURIComponent(u.pathname); if(rel==='/'||rel.endsWith('/'))rel+='index.html'; let file=safeJoin(publicRoot,rel); if(!file||!fs.existsSync(file)||fs.statSync(file).isDirectory()){file=path.join(publicRoot,'index.html');}
-  if(!fs.existsSync(file))return send(res,404,'Not found'); const stat=fs.statSync(file);res.writeHead(200,{'content-type':contentType(file),'content-length':stat.size});fs.createReadStream(file).pipe(res);
+  if(!fs.existsSync(file))return send(res,404,'Not found');
+  const stat=fs.statSync(file);
+  const etag=`W/"${stat.size.toString(16)}-${Math.trunc(stat.mtimeMs).toString(16)}"`;
+  const staticHeaders={'cache-control':staticCacheControl(file),'etag':etag,'last-modified':stat.mtime.toUTCString()};
+  if(req.headers['if-none-match']===etag){res.writeHead(304,staticHeaders);return res.end();}
+  res.writeHead(200,{'content-type':contentType(file),'content-length':stat.size,...staticHeaders});
+  if(req.method==='HEAD')return res.end();
+  fs.createReadStream(file).pipe(res);
  }catch(e){log('error',e.message,{requestId,stack:e.stack});if(!res.writableEnded)send(res,e.status||500,{error:e.message,details:e.details});}
 });
 server.listen(port,'0.0.0.0',()=>log('info',`Listening on ${port}`));

@@ -48,6 +48,10 @@
   --theme-secondary-hover-color:#f0fffb;
   --theme-secondary-hover-border:rgba(124,255,145,.58);
   --theme-toolbar-color:#9dfff3;
+  --theme-app-active-background:linear-gradient(135deg,#42f5cf,#12cfae);
+  --theme-app-active-color:#043027;
+  --theme-app-active-border:rgba(155,255,231,.8);
+  --theme-app-active-shadow:0 0 0 1px rgba(66,245,207,.18),0 0 22px rgba(18,207,174,.44),inset 0 1px 0 rgba(255,255,255,.48);
   --theme-brand-mark-background:linear-gradient(135deg,#043946,#15d7bb 68%,#70ff8f);
   --theme-brand-mark-color:#f0fffb;
   --theme-brand-mark-shadow:0 0 30px rgba(112,255,143,.36),0 16px 44px rgba(0,18,26,.42);
@@ -169,7 +173,7 @@ button:hover,.primary-action:hover,.square-action:hover,.add-grid-button:hover{
   box-shadow:0 18px 30px rgba(0,15,22,.38),0 8px 16px rgba(0,15,22,.24),0 0 28px rgba(44,255,208,.26),inset 0 1px 0 rgba(255,255,255,.16),inset 0 -1px 0 rgba(0,20,28,.14);
 }
 .application-home-copy strong{
-  font-weight:700;
+  font-weight:500;
   line-height:1.18;
 }
 .application-home-copy small{

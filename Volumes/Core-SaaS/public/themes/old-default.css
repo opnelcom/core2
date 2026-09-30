@@ -41,6 +41,10 @@
   --theme-secondary-hover-color:var(--theme-brand-dark);
   --theme-secondary-hover-border:#8fb0b9;
   --theme-toolbar-color:var(--theme-brand-dark);
+  --theme-app-active-background:linear-gradient(135deg,#46e4f5,#22d3ee);
+  --theme-app-active-color:#062932;
+  --theme-app-active-border:rgba(165,248,255,.8);
+  --theme-app-active-shadow:0 0 0 1px rgba(70,228,245,.18),0 0 20px rgba(34,211,238,.4),inset 0 1px 0 rgba(255,255,255,.48);
   --theme-brand-mark-background:var(--theme-brand-dark);
   --theme-brand-mark-color:#ffffff;
   --theme-brand-mark-shadow:0 12px 34px rgba(10,63,75,.24);

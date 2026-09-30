@@ -14,6 +14,7 @@ function requireAdmin(access){
 }
 
 async function hasResourcePermission(ctx,access,{organisationId,divisionId,resourceKind,resourceCode,workflowStatus}){
+  if(isAdministrator(access))return true;
   if(!organisationId||!divisionId||!resourceKind||!resourceCode||!workflowStatus)return false;
   const result=await ctx.broker('core_erp','query',{
     text:`WITH RECURSIVE ancestors AS (
@@ -62,7 +63,33 @@ async function requireResourcePermission(ctx,access,options){
   return {status:403,body:{error:'You do not have permission for this ERP operation'}};
 }
 
+async function hasOrganisationResourcePermission(ctx,access,{organisationId,resourceKind,resourceCode,workflowStatus}){
+  if(isAdministrator(access))return true;
+  if(!organisationId||!resourceKind||!resourceCode||!workflowStatus)return false;
+  const result=await ctx.broker('core_erp','query',{
+    text:`SELECT 1 FROM erp_user_role ur
+          JOIN erp_role role ON role.role_id=ur.role_id
+          JOIN erp_role_permission permission ON permission.role_id=role.role_id
+          WHERE ur.tenant_id=$1 AND ur.organisation_id=$2 AND lower(ur.email)=lower($6)
+            AND role.is_active=true AND ur.valid_from<=CURRENT_DATE AND (ur.valid_to IS NULL OR ur.valid_to>=CURRENT_DATE)
+            AND permission.division_id IS NULL
+            AND permission.resource_kind=$3
+            AND (permission.resource_code=$4 OR permission.resource_code='*')
+            AND (permission.workflow_status=$5 OR permission.workflow_status='*')
+            AND permission.valid_from<=CURRENT_DATE AND (permission.valid_to IS NULL OR permission.valid_to>=CURRENT_DATE)
+          LIMIT 1`,
+    values:[access.tenantId,organisationId,resourceKind,resourceCode,workflowStatus,access.auth.email]
+  });
+  return !!result.rowCount;
+}
+
+async function requireOrganisationResourcePermission(ctx,access,options){
+  if(await hasOrganisationResourcePermission(ctx,access,options))return null;
+  return {status:403,body:{error:'You do not have permission for this organisation-level ERP operation'}};
+}
+
 async function requireBusinessAccess(ctx,access,organisationId){
+  if(isAdministrator(access))return null;
   const result=await ctx.broker('core_erp','query',{
     text:`SELECT 1 FROM erp_user_role ur
           JOIN erp_role role ON role.role_id=ur.role_id
@@ -79,8 +106,9 @@ async function requireBusinessAccess(ctx,access,organisationId){
 }
 
 async function requireModuleAccess(ctx,access,{organisationId,resourceKind,resourceCode}){
+  if(isAdministrator(access))return null;
   const links={
-    ledger_family:{table:'erp_ledger_family_module',condition:'link.ledger_family_code=$4'},
+    subledger_account_type:{table:'erp_subledger_account_type_module',condition:'link.subledger_account_type_id=$4::uuid'},
     accounting_object_type:{table:'erp_accounting_object_type_module',condition:'link.accounting_object_type_id=$4::uuid'},
     accounting_dimension_type:{table:'erp_accounting_dimension_type_module',condition:'link.accounting_dimension_type_id=$4::uuid'},
     transaction_type:{table:'erp_transaction_type_module',condition:'link.transaction_type_id=$4::uuid'}
@@ -101,4 +129,4 @@ async function requireModuleAccess(ctx,access,{organisationId,resourceKind,resou
   return {status:403,body:{error:'Your assigned roles do not provide access to a module linked to this ERP resource'}};
 }
 
-module.exports={isAdministrator,isTenantAdministrator,requireAdmin,hasResourcePermission,requireResourcePermission,requireBusinessAccess,requireModuleAccess};
+module.exports={isAdministrator,isTenantAdministrator,requireAdmin,hasResourcePermission,requireResourcePermission,hasOrganisationResourcePermission,requireOrganisationResourcePermission,requireBusinessAccess,requireModuleAccess};

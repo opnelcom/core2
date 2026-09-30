@@ -6,11 +6,11 @@ module.exports=async ctx=>{
   if(access.status)return ctx.send(access.status,access.body);
   const orgId=ctx.query.organisation_id;
   if(!orgId)return ctx.send(400,{error:'organisation_id is required'});
-  const r=await ctx.broker('core_erp','query',{
-    text:`SELECT * FROM erp_master_data_type
-          WHERE tenant_id=$1 AND organisation_id=$2 AND workflow_status <> 'deleted'
-          ORDER BY type_name`,
+  const result=await ctx.broker('core_erp','query',{
+    text:`SELECT * FROM erp_gl_account_type
+          WHERE tenant_id=$1 AND organisation_id=$2
+          ORDER BY type_code`,
     values:[access.tenantId,orgId]
   });
-  return {types:r.rows};
+  return {gl_account_types:result.rows};
 };

@@ -8,7 +8,7 @@ module.exports=async ctx=>{
   await ensureTenantAuditColumns(ctx);
 
   const r=await ctx.broker('core_saas','query',{
-    text:`SELECT t.tenant_id,t.tenant_name,t.tenant_type,t.status,t.theme_id,th.theme_name,th.css_file,tu.tenant_user_type,
+    text:`SELECT t.tenant_id,t.tenant_name,t.tenant_description,t.tenant_type,t.tenant_icon_preset,t.tenant_icon_svg,t.status,t.theme_id,th.theme_name,th.css_file,tu.tenant_user_type,
                  tu.status tenant_user_status,t.created_by_user_id,t.updated_by_user_id,t.created_at,t.updated_at
           FROM core_tenant t
           JOIN core_tenant_user tu ON tu.tenant_id=t.tenant_id

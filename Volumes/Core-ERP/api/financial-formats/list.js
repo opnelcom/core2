@@ -25,7 +25,7 @@ module.exports=async ctx=>{
     ctx.broker('core_erp','query',{
       text:`SELECT m.*,a.account_code,a.account_name
             FROM erp_financial_statement_line_account m
-            JOIN erp_ledger_account a ON a.ledger_account_id=m.ledger_account_id
+            JOIN erp_gl_account a ON a.gl_account_id=m.gl_account_id
             WHERE m.tenant_id=$1 AND m.organisation_id=$2
             ORDER BY a.account_code`,
       values

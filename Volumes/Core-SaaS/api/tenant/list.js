@@ -7,7 +7,7 @@ module.exports=async ctx=>{
   if(!a)return ctx.send(401,{error:'Authentication required'});
   await ensureTenantAuditColumns(ctx);
   const r=await ctx.broker('core_saas','query',{
-    text:`SELECT t.tenant_id,t.tenant_name,t.tenant_type,t.status,t.theme_id,th.theme_name,th.css_file,tu.tenant_user_type
+    text:`SELECT t.tenant_id,t.tenant_name,t.tenant_description,t.tenant_type,t.tenant_icon_preset,t.tenant_icon_svg,t.status,t.theme_id,th.theme_name,th.css_file,tu.tenant_user_type
           FROM core_tenant t
           JOIN core_tenant_user tu ON tu.tenant_id=t.tenant_id
           LEFT JOIN core_theme th ON th.theme_id=t.theme_id

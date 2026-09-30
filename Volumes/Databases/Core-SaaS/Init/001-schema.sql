@@ -5,6 +5,9 @@ ALTER TABLE core_user ADD COLUMN IF NOT EXISTS profile_photo_data_url text;
 CREATE TABLE IF NOT EXISTS core_tenant(tenant_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_name text NOT NULL,tenant_type text NOT NULL CHECK(tenant_type IN('personal_tenant','public_tenant')),theme_id uuid REFERENCES core_theme(theme_id),status text NOT NULL DEFAULT 'active',created_by_user_id uuid REFERENCES core_user(user_id),updated_by_user_id uuid REFERENCES core_user(user_id),created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now());
 ALTER TABLE core_tenant ADD COLUMN IF NOT EXISTS created_by_user_id uuid REFERENCES core_user(user_id);
 ALTER TABLE core_tenant ADD COLUMN IF NOT EXISTS updated_by_user_id uuid REFERENCES core_user(user_id);
+ALTER TABLE core_tenant ADD COLUMN IF NOT EXISTS tenant_icon_svg text;
+ALTER TABLE core_tenant ADD COLUMN IF NOT EXISTS tenant_icon_preset text DEFAULT 'organisation';
+ALTER TABLE core_tenant ADD COLUMN IF NOT EXISTS tenant_description text;
 CREATE TABLE IF NOT EXISTS core_tenant_user(tenant_user_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id uuid NOT NULL REFERENCES core_tenant(tenant_id) ON DELETE CASCADE,email text NOT NULL,tenant_user_type text NOT NULL CHECK(tenant_user_type IN('owner','tenant_user','tenant_administrator')),status text NOT NULL DEFAULT 'active',added_by_user_id uuid REFERENCES core_user(user_id),added_at timestamptz NOT NULL DEFAULT now(),created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),UNIQUE(tenant_id,email));
 CREATE TABLE IF NOT EXISTS core_application(application_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),application_code text UNIQUE NOT NULL,application_name text NOT NULL,application_description text,application_icon_svg text,application_type text NOT NULL CHECK(application_type IN('public_application','administration_application')),route_prefix text NOT NULL,status text NOT NULL DEFAULT 'active',created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now());
 ALTER TABLE core_application ADD COLUMN IF NOT EXISTS application_description text;
@@ -19,7 +22,8 @@ INSERT INTO core_theme(theme_name,css_file) VALUES
 ('Garden Industry','garden.css'),
 ('Electrical Industry','electrical.css'),
 ('Financial Industry','financial.css'),
-('Data Chef','data-chef.css')
+('Data Chef','data-chef.css'),
+('Smart Home','smart-home.css')
 ON CONFLICT(theme_name) DO UPDATE SET css_file=excluded.css_file,status='active',updated_at=now();
 INSERT INTO core_application(application_code,application_name,application_description,application_icon_svg,application_type,route_prefix) VALUES
 ('core-saas','Core','Launch applications, switch tenants, and access your workspace from one central hub.','<svg viewBox="0 0 48 48" role="img" aria-label="Core"><rect class="app-icon-stroke" x="9" y="9" width="12" height="12" rx="3"/><rect class="app-icon-stroke" x="27" y="9" width="12" height="12" rx="3"/><rect class="app-icon-stroke" x="9" y="27" width="12" height="12" rx="3"/><rect class="app-icon-stroke" x="27" y="27" width="12" height="12" rx="3"/><path class="app-icon-line" d="M21 15h6M15 21v6M33 21v6M21 33h6"/></svg>','public_application','/'),
