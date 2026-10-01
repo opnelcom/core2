@@ -33,6 +33,11 @@ existing installations, add `core-reference` as an active public application
 in Core Administration; the SaaS database initialization seed only runs when
 the database volume is first created.
 
+The Reference globe bundles Three.js locally (MIT license header in
+`Volumes/Core-Reference/public/vendor/three.min.js`) and uses Natural Earth
+1:110m country boundaries for map selection. Natural Earth map data is public
+domain.
+
 When `nodeEnv` is not `production`, registration returns the activation token in the JSON result. If SMTP host settings are empty, the SMTP service logs the activation message instead of sending it. The account whose email matches `bootstrapAdminEmail` in `Volumes/Core-SaaS/config/config.json` is promoted to `administration_user` during activation.
 
 ## Clean database reset

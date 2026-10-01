@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <title>Terra — Spinning Globe</title>
+    <title>Earth — Spinning Globe</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -55,6 +55,10 @@
         display: block;
         width: 100%;
         height: 100%;
+      }
+      canvas:focus-visible {
+        outline: 2px solid var(--line);
+        outline-offset: -4px;
       }
 
       header {
@@ -105,6 +109,99 @@
         gap: 8px;
         pointer-events: auto;
       }
+      #place-picker {
+        position: fixed;
+        top: 78px;
+        right: 32px;
+        z-index: 2;
+        width: min(270px, calc(100% - 36px));
+        padding: 10px;
+        border: 1px solid rgba(94, 234, 212, 0.24);
+        border-radius: 4px;
+        background: rgba(11, 15, 26, 0.9);
+        backdrop-filter: blur(10px);
+        color: var(--text);
+        pointer-events: auto;
+      }
+      #place-picker label {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--text-dim);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 9px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      #place-search {
+        width: 100%;
+        min-height: 34px;
+        border: 1px solid rgba(94, 234, 212, 0.25);
+        border-radius: 3px;
+        padding: 7px 9px;
+        background: rgba(5, 7, 13, 0.88);
+        color: var(--text);
+        font:
+          11px "IBM Plex Mono",
+          monospace;
+      }
+      #place-search:focus-visible,
+      .place-option:focus-visible {
+        outline: 2px solid var(--line);
+        outline-offset: 2px;
+      }
+      #place-results {
+        max-height: 190px;
+        margin-top: 5px;
+        overflow: auto;
+        border: 1px solid rgba(94, 234, 212, 0.18);
+        background: #0b0f1a;
+      }
+      #place-results[hidden],
+      #place-info[hidden] {
+        display: none;
+      }
+      .place-option {
+        display: flex;
+        width: 100%;
+        justify-content: space-between;
+        gap: 12px;
+        border: 0;
+        border-bottom: 1px solid rgba(94, 234, 212, 0.1);
+        border-radius: 0;
+        padding: 8px;
+        background: transparent;
+        color: var(--text);
+        cursor: pointer;
+        text-align: left;
+        font-size: 11px;
+      }
+      .place-option:hover {
+        background: rgba(94, 234, 212, 0.1);
+      }
+      .place-option small {
+        color: var(--line);
+        font:
+          9px "IBM Plex Mono",
+          monospace;
+        text-transform: uppercase;
+      }
+      #place-info {
+        margin-top: 7px;
+        color: var(--text);
+        font-size: 11px;
+        line-height: 1.45;
+      }
+      #place-info strong,
+      #place-info span {
+        display: block;
+      }
+      #place-info span {
+        margin-top: 3px;
+        color: var(--text-dim);
+        font:
+          9px "IBM Plex Mono",
+          monospace;
+      }
       .btn {
         background: var(--panel);
         border: 1px solid rgba(94, 234, 212, 0.25);
@@ -144,16 +241,54 @@
         #coords {
           display: none;
         }
+        #controls {
+          gap: 5px;
+        }
+        #place-picker {
+          top: 68px;
+          right: 18px;
+          width: min(220px, calc(100% - 36px));
+        }
+        .btn {
+          padding: 8px 9px;
+          font-size: 10px;
+        }
       }
     </style>
   </head>
   <body>
-    <div id="canvas-wrap"><canvas id="globe"></canvas></div>
+    <div id="canvas-wrap">
+      <canvas
+        id="globe"
+        tabindex="0"
+        aria-label="Interactive globe. Use arrow keys to rotate, plus and minus to zoom, 0 to reset, or search for and select countries and cities."
+      ></canvas>
+    </div>
 
     <header>
-      <h1>TERRA</h1>
-      <p>drag or swipe to rotate &middot; scroll to zoom</p>
+      <h1>EARTH</h1>
+      <p>
+        drag to rotate &middot; search or click a country &middot; scroll to
+        zoom
+      </p>
     </header>
+
+    <div id="place-picker">
+      <label for="place-search">Find a country or city</label>
+      <input
+        id="place-search"
+        type="search"
+        autocomplete="off"
+        aria-autocomplete="list"
+        aria-controls="place-results"
+        placeholder="Search places"
+      />
+      <div id="place-results" role="listbox" aria-label="Places" hidden></div>
+      <div id="place-info" role="status" aria-live="polite" hidden>
+        <strong id="place-name"></strong>
+        <span id="place-detail"></span>
+      </div>
+    </div>
 
     <div id="hud">
       <div id="coords">
@@ -161,11 +296,54 @@
         <span id="lon">0.0</span>&deg;
       </div>
       <div id="controls">
-        <button class="btn active" id="labelBtn">Labels: On</button>
+        <button
+          class="btn"
+          id="spinBtn"
+          type="button"
+          title="Toggle automatic rotation"
+          aria-pressed="false"
+        >
+          Spin: Off
+        </button>
+        <button
+          class="btn"
+          id="resetBtn"
+          type="button"
+          title="Reset globe view"
+        >
+          Reset
+        </button>
+        <button
+          class="btn active"
+          id="labelBtn"
+          type="button"
+          title="Toggle map labels"
+          aria-pressed="true"
+        >
+          Labels: On
+        </button>
+        <button
+          class="btn"
+          id="zoomOutBtn"
+          type="button"
+          title="Zoom out"
+          aria-label="Zoom out"
+        >
+          −
+        </button>
+        <button
+          class="btn"
+          id="zoomInBtn"
+          type="button"
+          title="Zoom in"
+          aria-label="Zoom in"
+        >
+          +
+        </button>
       </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="vendor/three.min.js"></script>
     <script>
       const BORDERS = [
         [
@@ -15037,6 +15215,7 @@
       labelBtn.addEventListener("click", () => {
         labelsVisible = !labelsVisible;
         labelBtn.classList.toggle("active", labelsVisible);
+        labelBtn.setAttribute("aria-pressed", String(labelsVisible));
         labelBtn.textContent = "Labels: " + (labelsVisible ? "On" : "Off");
         updateLabelDensity();
       });
@@ -15164,22 +15343,368 @@
         });
       }
 
+      const selectedMarker = new THREE.Sprite(dotMaterial);
+      selectedMarker.position.set(0, 0, 0);
+      selectedMarker.userData.baseW = DOT_BASE_SIZE * 1.8;
+      selectedMarker.userData.baseH = DOT_BASE_SIZE * 1.8;
+      selectedMarker.visible = false;
+      globe.add(selectedMarker);
+
+      const placeSearch = document.getElementById("place-search");
+      const placeResults = document.getElementById("place-results");
+      const placeInfo = document.getElementById("place-info");
+      const placeName = document.getElementById("place-name");
+      const placeDetail = document.getElementById("place-detail");
+      const countryFactsByAlpha3 = new Map();
+      let countryFeatures = [];
+      let placeItems = [];
+      let placeDataReady = false;
+      let placeDataError = "";
+
+      function normalizePlaceName(value) {
+        return String(value || "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "");
+      }
+
+      function pointInRing(lon, lat, ring) {
+        let inside = false;
+        let previous = ring.length - 1;
+        const unwrap = (value) => {
+          let delta = value - lon;
+          while (delta > 180) delta -= 360;
+          while (delta < -180) delta += 360;
+          return lon + delta;
+        };
+        for (let index = 0; index < ring.length; index++) {
+          const [currentLon, currentLat] = ring[index];
+          const [previousLon, previousLat] = ring[previous];
+          const currentX = unwrap(currentLon);
+          const previousX = unwrap(previousLon);
+          if (
+            currentLat > lat !== previousLat > lat &&
+            lon <
+              ((previousX - currentX) * (lat - currentLat)) /
+                (previousLat - currentLat) +
+                currentX
+          ) {
+            inside = !inside;
+          }
+          previous = index;
+        }
+        return inside;
+      }
+
+      function pointInGeometry(lon, lat, geometry) {
+        if (!geometry) return false;
+        const polygons =
+          geometry.type === "Polygon"
+            ? [geometry.coordinates]
+            : geometry.type === "MultiPolygon"
+              ? geometry.coordinates
+              : [];
+        return polygons.some((rings) => {
+          if (!rings.length || !pointInRing(lon, lat, rings[0])) return false;
+          return !rings.slice(1).some((ring) => pointInRing(lon, lat, ring));
+        });
+      }
+
+      function countryAt(lon, lat) {
+        return countryFeatures.find((feature) =>
+          pointInGeometry(lon, lat, feature.geometry),
+        );
+      }
+
+      function featureCenter(feature, country) {
+        const aliases = new Set(
+          [
+            feature.properties.ADMIN,
+            feature.properties.NAME,
+            feature.properties.NAME_EN,
+            country?.name,
+          ]
+            .filter(Boolean)
+            .map(normalizePlaceName),
+        );
+        const label = LABELS.find(([name]) =>
+          aliases.has(normalizePlaceName(name)),
+        );
+        if (label && pointInGeometry(label[1], label[2], feature.geometry)) {
+          return { lon: label[1], lat: label[2] };
+        }
+
+        const polygons =
+          feature.geometry.type === "Polygon"
+            ? [feature.geometry.coordinates]
+            : feature.geometry.coordinates;
+        const largestRing = polygons
+          .map((rings) => rings[0])
+          .sort((a, b) => b.length - a.length)[0];
+        let x = 0;
+        let y = 0;
+        let z = 0;
+        largestRing.forEach(([lon, lat]) => {
+          const latRad = (lat * Math.PI) / 180;
+          const lonRad = (lon * Math.PI) / 180;
+          x += Math.cos(latRad) * Math.cos(lonRad);
+          y += Math.sin(latRad);
+          z -= Math.cos(latRad) * Math.sin(lonRad);
+        });
+        return {
+          lon: (Math.atan2(-z, x) * 180) / Math.PI,
+          lat: (Math.atan2(y, Math.hypot(x, z)) * 180) / Math.PI,
+        };
+      }
+
+      function buildPlaceItems() {
+        placeItems = countryFeatures.map((feature) => {
+          const code = String(feature.properties.ISO_A3 || "").toUpperCase();
+          const country = countryFactsByAlpha3.get(code) || null;
+          const center = featureCenter(feature, country);
+          return {
+            type: "country",
+            name: country?.name || feature.properties.ADMIN,
+            lat: center.lat,
+            lon: center.lon,
+            country,
+            feature,
+          };
+        });
+        CITIES.forEach(([name, lon, lat]) => {
+          placeItems.push({ type: "city", name, lon, lat });
+        });
+      }
+
+      function renderPlaceResults(query) {
+        placeResults.replaceChildren();
+        const normalized = normalizePlaceName(query);
+        if (!normalized) {
+          placeResults.hidden = true;
+          return;
+        }
+        if (!placeDataReady) {
+          const status = document.createElement("div");
+          status.className = "place-option";
+          status.textContent = placeDataError || "Loading places…";
+          placeResults.append(status);
+          placeResults.hidden = false;
+          return;
+        }
+        const matches = placeItems
+          .filter((place) =>
+            normalizePlaceName(place.name).includes(normalized),
+          )
+          .sort((a, b) => {
+            const aExact = normalizePlaceName(a.name) === normalized ? 0 : 1;
+            const bExact = normalizePlaceName(b.name) === normalized ? 0 : 1;
+            return aExact - bExact || a.name.localeCompare(b.name);
+          })
+          .slice(0, 8);
+        matches.forEach((place) => {
+          const option = document.createElement("button");
+          option.type = "button";
+          option.className = "place-option";
+          option.setAttribute("role", "option");
+          const name = document.createElement("span");
+          name.textContent = place.name;
+          const kind = document.createElement("small");
+          kind.textContent = place.type;
+          option.append(name, kind);
+          option.addEventListener("click", () => selectPlace(place));
+          placeResults.append(option);
+        });
+        if (!matches.length) {
+          const empty = document.createElement("div");
+          empty.className = "place-option";
+          empty.textContent = "No mapped places found";
+          placeResults.append(empty);
+        }
+        placeResults.hidden = false;
+      }
+
+      function nearestCountry(place) {
+        return countryAt(place.lon, place.lat);
+      }
+
+      function updateSelectedMarkerScale() {
+        const factor = (camera.position.z / LABEL_REF_Z) * LABEL_WORLD_SCALE;
+        selectedMarker.scale.set(
+          selectedMarker.userData.baseW * factor,
+          selectedMarker.userData.baseH * factor,
+          1,
+        );
+      }
+
+      function selectPlace(
+        place,
+        clickedLon = place.lon,
+        clickedLat = place.lat,
+      ) {
+        const feature = place.feature || nearestCountry(place);
+        const code = String(feature?.properties.ISO_A3 || "").toUpperCase();
+        const country = place.country || countryFactsByAlpha3.get(code);
+        const fallbackName = feature?.properties.ADMIN || "Country";
+        placeName.textContent =
+          place.type === "city"
+            ? `${place.name} · ${country?.name || fallbackName}`
+            : country?.name || place.name || fallbackName;
+        placeDetail.textContent = country
+          ? [country.code, country.region, country.currency]
+              .filter(Boolean)
+              .join(" · ")
+          : `${clickedLat.toFixed(2)}°, ${clickedLon.toFixed(2)}°`;
+        placeInfo.hidden = false;
+        placeSearch.value = place.name;
+        placeResults.hidden = true;
+
+        const direction = latLonToVec(clickedLat, clickedLon, 1).normalize();
+        const facing = new THREE.Quaternion().setFromUnitVectors(
+          direction,
+          new THREE.Vector3(0, 0, 1),
+        );
+        const facingEuler = new THREE.Euler().setFromQuaternion(facing, "XYZ");
+        rotation.x = facingEuler.x;
+        rotation.y = facingEuler.y;
+        rotation.z = facingEuler.z;
+        autoSpin = false;
+        velX = 0;
+        velY = 0;
+        zoomOffset = Math.min(zoomOffset, -5);
+        camera.position.z = Math.max(7, fitDistance() + zoomOffset);
+        selectedMarker.position.copy(
+          latLonToVec(clickedLat, clickedLon, R * 1.07),
+        );
+        selectedMarker.visible = true;
+        applyRotation();
+        updateLabelScale();
+        updateLabelDensity();
+        updateCityScale();
+        updateCityLabelDensity();
+        updateSelectedMarkerScale();
+        updateSpinButton();
+        updateCoords();
+      }
+
+      Promise.all([
+        fetch(new URL("countries.json", window.location.href)).then(
+          (response) => {
+            if (!response.ok)
+              throw new Error("Country facts could not be loaded.");
+            return response.json();
+          },
+        ),
+        fetch(
+          new URL("assets/countries-110m.geojson", window.location.href),
+        ).then((response) => {
+          if (!response.ok)
+            throw new Error("Country boundaries could not be loaded.");
+          return response.json();
+        }),
+      ])
+        .then(([countries, geometry]) => {
+          countries.forEach((country) =>
+            countryFactsByAlpha3.set(country.alpha3.toUpperCase(), country),
+          );
+          countryFeatures = geometry.features.filter(
+            (feature) => feature.geometry && feature.properties,
+          );
+          buildPlaceItems();
+          placeDataReady = true;
+          renderPlaceResults(placeSearch.value);
+        })
+        .catch((error) => {
+          placeDataError = error.message;
+          renderPlaceResults(placeSearch.value);
+        });
+
+      placeSearch.addEventListener("input", () =>
+        renderPlaceResults(placeSearch.value),
+      );
+      placeSearch.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowDown" && !placeResults.hidden) {
+          event.preventDefault();
+          placeResults.querySelector("button")?.focus();
+        } else if (event.key === "Enter") {
+          const first = placeResults.querySelector("button.place-option");
+          if (first && !placeResults.hidden) {
+            event.preventDefault();
+            first.click();
+          }
+        } else if (event.key === "Escape") {
+          placeResults.hidden = true;
+        }
+      });
+
+      document.addEventListener("click", (event) => {
+        if (!event.target.closest("#place-picker")) placeResults.hidden = true;
+      });
+
       // ---------- Interaction ----------
       let dragging = false;
       let prevX = 0,
         prevY = 0;
       let velX = 0,
         velY = 0;
-      const rotation = { x: -0.15, y: 0 };
+      const rotation = { x: -0.15, y: 0, z: 0 };
+      const reducedMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      );
+      let autoSpin = !reducedMotion.matches;
+      const spinBtn = document.getElementById("spinBtn");
+      const resetBtn = document.getElementById("resetBtn");
+
+      function updateSpinButton() {
+        spinBtn.classList.toggle("active", autoSpin);
+        spinBtn.setAttribute("aria-pressed", String(autoSpin));
+        spinBtn.textContent = "Spin: " + (autoSpin ? "On" : "Off");
+      }
 
       function applyRotation() {
-        globe.rotation.x = rotation.x;
-        globe.rotation.y = rotation.y;
+        globe.rotation.set(rotation.x, rotation.y, rotation.z);
       }
       applyRotation();
+      updateSpinButton();
+
+      function resetView() {
+        rotation.x = -0.15;
+        rotation.y = 0;
+        rotation.z = 0;
+        velX = 0;
+        velY = 0;
+        zoomOffset = 0;
+        camera.position.z = fitDistance();
+        autoSpin = !reducedMotion.matches;
+        applyRotation();
+        updateLabelScale();
+        updateLabelDensity();
+        updateCityScale();
+        updateCityLabelDensity();
+        selectedMarker.visible = false;
+        placeInfo.hidden = true;
+        placeSearch.value = "";
+        placeResults.hidden = true;
+        updateSpinButton();
+        updateCoords();
+      }
+
+      spinBtn.addEventListener("click", () => {
+        autoSpin = !autoSpin;
+        if (autoSpin) {
+          velX = 0;
+          velY = 0;
+        }
+        updateSpinButton();
+      });
+      resetBtn.addEventListener("click", resetView);
 
       function pointerDown(x, y) {
         dragging = true;
+        autoSpin = false;
+        velX = 0;
+        velY = 0;
+        updateSpinButton();
         prevX = x;
         prevY = y;
         wrap.classList.add("grabbing");
@@ -15188,10 +15713,10 @@
         if (!dragging) return;
         const dx = x - prevX,
           dy = y - prevY;
-        velX = dx * 0.005;
-        velY = dy * 0.005;
-        rotation.y += velX;
-        rotation.x += velY;
+        velX = THREE.MathUtils.clamp(dx * 0.0008, -0.12, 0.12);
+        velY = THREE.MathUtils.clamp(dy * 0.0008, -0.12, 0.12);
+        rotation.y += dx * 0.005;
+        rotation.x += dy * 0.005;
         rotation.x = Math.max(-1.4, Math.min(1.4, rotation.x));
         applyRotation();
         prevX = x;
@@ -15200,8 +15725,6 @@
       }
       function pointerUp() {
         dragging = false;
-        velX = 0;
-        velY = 0;
         wrap.classList.remove("grabbing");
       }
 
@@ -15220,7 +15743,48 @@
         updateLabelDensity();
         updateCityScale();
         updateCityLabelDensity();
+        updateSelectedMarkerScale();
       }
+
+      document
+        .getElementById("zoomInBtn")
+        .addEventListener("click", () => applyZoom(-1.5));
+      document
+        .getElementById("zoomOutBtn")
+        .addEventListener("click", () => applyZoom(1.5));
+
+      const countryRaycaster = new THREE.Raycaster();
+      const globePointer = new THREE.Vector2();
+      canvas.addEventListener("click", (event) => {
+        if (event.target !== canvas || !countryFeatures.length) return;
+        const bounds = canvas.getBoundingClientRect();
+        globePointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
+        globePointer.y = 1 - ((event.clientY - bounds.top) / bounds.height) * 2;
+        countryRaycaster.setFromCamera(globePointer, camera);
+        const hit = countryRaycaster.intersectObject(ocean, false)[0];
+        if (!hit) return;
+        const point = globe.worldToLocal(hit.point.clone());
+        const lat =
+          (Math.asin(THREE.MathUtils.clamp(point.y / R, -1, 1)) * 180) /
+          Math.PI;
+        const lon = (Math.atan2(-point.z, point.x) * 180) / Math.PI;
+        const feature = countryAt(lon, lat);
+        if (!feature) return;
+        const code = String(feature.properties.ISO_A3 || "").toUpperCase();
+        const country = countryFactsByAlpha3.get(code) || null;
+        selectPlace(
+          {
+            type: "country",
+            name: country?.name || feature.properties.ADMIN,
+            feature,
+            country,
+            lon,
+            lat,
+          },
+          lon,
+          lat,
+        );
+      });
 
       let pinchDist = null;
       function touchDist(touches) {
@@ -15270,6 +15834,48 @@
         { passive: false },
       );
 
+      document.addEventListener("keydown", (event) => {
+        if (
+          event.target.closest(
+            "button, input, select, textarea, [contenteditable='true']",
+          )
+        )
+          return;
+        const step = 0.08;
+        if (
+          [
+            "ArrowUp",
+            "ArrowDown",
+            "ArrowLeft",
+            "ArrowRight",
+            "+",
+            "=",
+            "-",
+            "_",
+            "0",
+          ].includes(event.key)
+        ) {
+          event.preventDefault();
+          autoSpin = false;
+          velX = 0;
+          velY = 0;
+          if (event.key === "ArrowUp") rotation.x -= step;
+          if (event.key === "ArrowDown") rotation.x += step;
+          if (event.key === "ArrowLeft") rotation.y -= step;
+          if (event.key === "ArrowRight") rotation.y += step;
+          rotation.x = Math.max(-1.4, Math.min(1.4, rotation.x));
+          if (event.key === "+" || event.key === "=") applyZoom(-1.2);
+          if (event.key === "-" || event.key === "_") applyZoom(1.2);
+          if (event.key === "0") {
+            resetView();
+            return;
+          }
+          applyRotation();
+          updateCoords();
+          updateSpinButton();
+        }
+      });
+
       function updateCoords() {
         document.getElementById("lat").textContent = (
           (-rotation.x * 180) /
@@ -15284,7 +15890,24 @@
       // ---------- Animate ----------
       function animate() {
         requestAnimationFrame(animate);
-        renderer.render(scene, camera);
+        if (!document.hidden) {
+          if (!dragging && autoSpin) {
+            rotation.y += 0.00035;
+            applyRotation();
+            updateCoords();
+          } else if (!dragging && Math.abs(velX) + Math.abs(velY) > 0.0001) {
+            rotation.y += velX;
+            rotation.x = Math.max(-1.4, Math.min(1.4, rotation.x + velY));
+            velX *= 0.94;
+            velY *= 0.94;
+            applyRotation();
+            updateCoords();
+          } else if (!dragging) {
+            velX = 0;
+            velY = 0;
+          }
+          renderer.render(scene, camera);
+        }
       }
       resize();
       updateCoords();

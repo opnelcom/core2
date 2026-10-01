@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="Reference">
+    <circle class="app-icon-stroke" cx="24" cy="17" r="10" fill="none" stroke="currentColor"
+        stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path class="app-icon-line"
+        d="M14 17h20M24 7c3.2 2.8 4.8 6.1 4.8 10S27.2 24.2 24 27c-3.2-2.8-4.8-6.1-4.8-10S20.8 9.8 24 7z"
+        fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"
+        stroke-linejoin="round" />
+    <path class="app-icon-stroke"
+        d="M5.5 27c6-2.2 12.1-1.4 18.5 2.4v12c-6.4-3.8-12.5-4.6-18.5-2.4zM42.5 27c-6-2.2-12.1-1.4-18.5 2.4v12c6.4-3.8 12.5-4.6 18.5-2.4z"
+        fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"
+        stroke-linejoin="round" />
+    <path class="app-icon-line" d="M24 29.4v12" fill="none" stroke="currentColor" stroke-width="2.4"
+        stroke-linecap="round" stroke-linejoin="round" />
+</svg>
