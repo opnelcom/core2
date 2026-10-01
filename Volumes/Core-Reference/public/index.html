@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#102c32" />
+    <base href="/reference/" />
+    <title>Core Reference</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="reference-shell">
+      <header class="app-header">
+        <a class="brand" href="/" aria-label="Core Reference home">
+          <span class="brand-mark" aria-hidden="true">R</span>
+          <span
+            ><strong>Reference</strong
+            ><small>CORE / PERSONAL TOOLS</small></span
+          >
+        </a>
+        <div class="header-meta">
+          <span class="live-dot"></span><span>LOCAL TOOLS</span>
+        </div>
+      </header>
+      <div class="app-layout">
+        <aside class="sidebar">
+          <p class="nav-label">Explore</p>
+          <nav class="tool-nav" aria-label="Reference tools">
+            <button class="nav-item active" type="button" data-view="globe">
+              <span class="nav-icon">◉</span>Globe
+            </button>
+            <button class="nav-item" type="button" data-view="countries">
+              <span class="nav-icon">◎</span>Countries
+            </button>
+            <button class="nav-item" type="button" data-view="diagram">
+              <span class="nav-icon">◌</span>Ring diagram
+            </button>
+            <span class="nav-divider"></span>
+            <button class="nav-item" type="button" data-view="units">
+              <span class="nav-icon">↔</span>Unit converter
+            </button>
+            <button class="nav-item" type="button" data-view="time">
+              <span class="nav-icon">◷</span>World clock
+            </button>
+            <button class="nav-item" type="button" data-view="coordinates">
+              <span class="nav-icon">⌖</span>Coordinates
+            </button>
+            <span class="nav-divider"></span>
+            <button class="nav-item" type="button" data-view="base64">
+              <span class="nav-icon">01</span>Base64
+            </button>
+            <button class="nav-item" type="button" data-view="text">
+              <span class="nav-icon">{ }</span>Text tools
+            </button>
+          </nav>
+          <div class="sidebar-foot">
+            <span>NO ACCOUNT DATA</span><span>BUILT FOR EVERYDAY LOOKUPS</span>
+          </div>
+        </aside>
+
+        <main class="workspace">
+          <section
+            class="view active"
+            id="view-globe"
+            data-title="The world, in motion"
+            data-kicker="01 / PLANET EARTH"
+          >
+            <header class="view-heading">
+              <div>
+                <p class="kicker">01 / PLANET EARTH</p>
+                <h1>The world, in motion</h1>
+                <p class="view-subtitle">
+                  Rotate the globe. Drag to explore, scroll to zoom.
+                </p>
+              </div>
+            </header>
+            <div class="embedded-tool globe-frame">
+              <iframe
+                title="Interactive spinning globe"
+                src="globe.html"
+                loading="eager"
+              ></iframe>
+            </div>
+          </section>
+
+          <section
+            class="view"
+            id="view-countries"
+            data-title="Country reference"
+            data-kicker="02 / ATLAS"
+          >
+            <header class="view-heading">
+              <div>
+                <p class="kicker">02 / ATLAS</p>
+                <h1>Country reference</h1>
+                <p class="view-subtitle">
+                  Search names, ISO codes, regions, currencies, and calling
+                  codes.
+                </p>
+              </div>
+              <label class="search-box"
+                ><span>Find a country</span
+                ><input
+                  id="country-search"
+                  type="search"
+                  placeholder="Name, code, currency…"
+                  autocomplete="off"
+              /></label>
+            </header>
+            <div class="country-layout">
+              <div class="country-list-panel">
+                <div class="list-heading">
+                  <span>COUNTRY</span><span>ALPHA-2</span>
+                </div>
+                <div
+                  id="country-list"
+                  class="country-list"
+                  role="listbox"
+                  aria-label="Countries"
+                ></div>
+              </div>
+              <article
+                id="country-detail"
+                class="country-detail"
+                aria-live="polite"
+              >
+                <div class="detail-empty">
+                  <span class="detail-globe">◎</span>
+                  <h2>Choose a country</h2>
+                  <p>Country facts appear here.</p>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section
+            class="view"
+            id="view-diagram"
+            data-title="Ring diagram editor"
+            data-kicker="03 / VISUALISE"
+          >
+            <header class="view-heading compact-heading">
+              <div>
+                <p class="kicker">03 / VISUALISE</p>
+                <h1>Ring diagram editor</h1>
+              </div>
+            </header>
+            <div class="embedded-tool diagram-frame">
+              <iframe
+                title="Ring diagram editor"
+                src="diagram-editor.html"
+                loading="lazy"
+              ></iframe>
+            </div>
+          </section>
+
+          <section
+            class="view"
+            id="view-units"
+            data-title="Unit converter"
+            data-kicker="04 / MEASURE"
+          >
+            <header class="view-heading">
+              <div>
+                <p class="kicker">04 / MEASURE</p>
+                <h1>Unit converter</h1>
+                <p class="view-subtitle">
+                  Quick conversions, calculated in your browser.
+                </p>
+              </div>
+            </header>
+            <div class="converter-panel">
+              <label class="field"
+                ><span>Category</span
+                ><select id="unit-category"></select
+              ></label>
+              <div class="conversion-row">
+                <label class="field"
+                  ><span>From</span
+                  ><input
+                    id="unit-value"
+                    type="number"
+                    value="1"
+                    step="any" /><select id="unit-from"></select></label
+                ><button
+                  id="unit-swap"
+                  class="swap-button"
+                  type="button"
+                  aria-label="Swap units"
+                  title="Swap units"
+                >
+                  ⇄</button
+                ><label class="field"
+                  ><span>To</span
+                  ><input id="unit-result" type="text" readonly /><select
+                    id="unit-to"
+                  ></select
+                ></label>
+              </div>
+              <p class="conversion-note" id="unit-note" aria-live="polite"></p>
+            </div>
+          </section>
+
+          <section
+            class="view"
+            id="view-time"
+            data-title="World clock"
+            data-kicker="05 / TIME"
+          >
+            <header class="view-heading">
+              <div>
+                <p class="kicker">05 / TIME</p>
+                <h1>World clock</h1>
+                <p class="view-subtitle">
+                  Live local times with daylight-saving rules from your browser.
+                </p>
+              </div>
+              <label class="search-box"
+                ><span>Add a time zone</span
+                ><select id="timezone-add"></select
+              ></label>
+            </header>
+            <div id="clock-list" class="clock-list"></div>
+          </section>
+
+          <section
+            class="view"
+            id="view-coordinates"
+            data-title="Coordinate tools"
+            data-kicker="06 / POSITION"
+          >
+            <header class="view-heading">
+              <div>
+                <p class="kicker">06 / POSITION</p>
+                <h1>Coordinate tools</h1>
+                <p class="view-subtitle">
+                  Convert coordinate notation and measure great-circle distance.
+                </p>
+              </div>
+            </header>
+            <div class="coordinate-grid">
+              <section class="tool-panel">
+                <p class="panel-kicker">FORMAT CONVERTER</p>
+                <h2>Decimal degrees ↔ DMS</h2>
+                <div class="coordinate-fields">
+                  <label class="field"
+                    ><span>Latitude</span
+                    ><input
+                      id="coord-lat"
+                      type="number"
+                      value="51.5072"
+                      step="any"
+                      min="-90"
+                      max="90" /></label
+                  ><label class="field"
+                    ><span>Longitude</span
+                    ><input
+                      id="coord-lon"
+                      type="number"
+                      value="-0.1276"
+                      step="any"
+                      min="-180"
+                      max="180"
+                  /></label>
+                </div>
+                <div class="coordinate-result">
+                  <span>DMS</span><strong id="coord-dms"></strong
+                  ><button id="copy-dms" class="small-action" type="button">
+                    Copy
+                  </button>
+                </div>
+                <div class="coordinate-fields dms-inputs">
+                  <label class="field"
+                    ><span>Latitude DMS</span
+                    ><input
+                      id="coord-dms-lat"
+                      value="51 30 26.0 N"
+                      spellcheck="false" /></label
+                  ><label class="field"
+                    ><span>Longitude DMS</span
+                    ><input
+                      id="coord-dms-lon"
+                      value="0 7 39.4 W"
+                      spellcheck="false"
+                  /></label>
+                </div>
+                <button
+                  id="coord-from-dms"
+                  class="small-action convert-button"
+                  type="button"
+                >
+                  Convert DMS to decimal
+                </button>
+                <p
+                  id="coord-dms-status"
+                  class="status-line"
+                  aria-live="polite"
+                ></p>
+              </section>
+              <section class="tool-panel">
+                <p class="panel-kicker">DISTANCE & BEARING</p>
+                <h2>Between two points</h2>
+                <div class="coordinate-fields">
+                  <label class="field"
+                    ><span>Point A · lat, lon</span
+                    ><input
+                      id="point-a"
+                      value="51.5072, -0.1276"
+                      spellcheck="false" /></label
+                  ><label class="field"
+                    ><span>Point B · lat, lon</span
+                    ><input
+                      id="point-b"
+                      value="40.7128, -74.0060"
+                      spellcheck="false"
+                  /></label>
+                </div>
+                <div class="coordinate-result">
+                  <span>Distance / initial bearing</span
+                  ><strong id="distance-result"></strong>
+                </div>
+              </section>
+            </div>
+          </section>
+
+          <section
+            class="view"
+            id="view-base64"
+            data-title="Base64 encoder / decoder"
+            data-kicker="07 / ENCODE"
+          >
+            <header class="view-heading">
+              <div>
+                <p class="kicker">07 / ENCODE</p>
+                <h1>Base64</h1>
+                <p class="view-subtitle">
+                  Encode or decode UTF-8 text without sending it anywhere.
+                </p>
+              </div>
+              <div class="action-row">
+                <button id="base64-encode" type="button">Encode</button
+                ><button
+                  id="base64-decode"
+                  class="button-secondary"
+                  type="button"
+                >
+                  Decode</button
+                ><button
+                  id="base64-swap"
+                  class="button-secondary"
+                  type="button"
+                >
+                  Swap
+                </button>
+              </div>
+            </header>
+            <div class="text-grid">
+              <label class="text-field"
+                ><span>Input</span
+                ><textarea
+                  id="base64-input"
+                  spellcheck="false"
+                  placeholder="Type or paste text"
+                ></textarea></label
+              ><label class="text-field"
+                ><span>Output</span
+                ><textarea
+                  id="base64-output"
+                  spellcheck="false"
+                  placeholder="Result"
+                  readonly
+                ></textarea>
+              </label>
+            </div>
+            <p id="base64-status" class="status-line" aria-live="polite"></p>
+          </section>
+
+          <section
+            class="view"
+            id="view-text"
+            data-title="Text utilities"
+            data-kicker="08 / FORMAT"
+          >
+            <header class="view-heading">
+              <div>
+                <p class="kicker">08 / FORMAT</p>
+                <h1>Text utilities</h1>
+                <p class="view-subtitle">
+                  Format JSON, encode URLs, generate identifiers, and hash text.
+                </p>
+              </div>
+              <div class="action-row">
+                <button id="json-format" type="button">Format JSON</button
+                ><button id="url-encode" class="button-secondary" type="button">
+                  URL encode</button
+                ><button id="url-decode" class="button-secondary" type="button">
+                  URL decode
+                </button>
+              </div>
+            </header>
+            <div class="text-grid">
+              <label class="text-field"
+                ><span>Input</span
+                ><textarea
+                  id="text-input"
+                  spellcheck="false"
+                  placeholder="Paste text or JSON"
+                ></textarea></label
+              ><label class="text-field"
+                ><span>Output</span
+                ><textarea
+                  id="text-output"
+                  spellcheck="false"
+                  placeholder="Result"
+                ></textarea>
+              </label>
+            </div>
+            <div class="action-row text-actions">
+              <button id="uuid-generate" class="button-secondary" type="button">
+                Generate UUID</button
+              ><button id="sha-hash" class="button-secondary" type="button">
+                SHA-256</button
+              ><button id="text-copy" class="button-secondary" type="button">
+                Copy output
+              </button>
+            </div>
+            <p id="text-status" class="status-line" aria-live="polite"></p>
+          </section>
+        </main>
+      </div>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>

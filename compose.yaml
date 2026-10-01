@@ -297,6 +297,26 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  core-reference:
+    image: core-runtime:1.0
+    restart: unless-stopped
+    init: true
+    expose:
+      - "3000"
+    volumes:
+      - ./Volumes/Core-Reference:/app/content:ro
+      - ./Volumes/Core-Reference/logs:/app/logs
+    networks:
+      - core-application
+    healthcheck:
+      test: ["CMD", "node", "/app/healthcheck.js"]
+      interval: 60s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+
   core-gateway:
     image: core-gateway:1.0
     build:
@@ -318,6 +338,7 @@ services:
       core-objectsphere: { condition: service_healthy }
       core-tasks: { condition: service_healthy }
       core-tools: { condition: service_healthy }
+      core-reference: { condition: service_healthy }
     healthcheck:
       test:
         [

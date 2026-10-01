@@ -6,7 +6,7 @@
   let searchTerm = "";
   let draggedId = null;
   let activeView = "about";
-  let openObjectTileByParent = new Map();
+  let objectTilePath = [];
   let activeItemPanel = "object";
   let eventScope = "direct";
   let editingEventId = null;
@@ -328,6 +328,17 @@
 
     const children = childrenByParent();
     const roots = children.get("root") || [];
+    const objects = itemMap();
+    const validPath = [];
+    let expectedParentId = null;
+    for (const id of objectTilePath) {
+      const item = objects.get(id);
+      if (!item || (item.parent_item_id || null) !== expectedParentId) break;
+      validPath.push(id);
+      expectedParentId = id;
+    }
+    objectTilePath = validPath;
+
     grid.innerHTML = "";
     if (!roots.length) {
       const empty = document.createElement("p");
@@ -337,30 +348,46 @@
       return;
     }
 
-    function renderLevel(levelItems, target) {
-      levelItems.forEach((item) => {
+    function renderLevel(levelItems, target, depth) {
+      const selectedId = objectTilePath[depth];
+      const visibleItems = selectedId
+        ? levelItems.filter((item) => item.item_id === selectedId)
+        : levelItems;
+      visibleItems.forEach((item) => {
         const itemChildren = children.get(item.item_id) || [];
-        const parentKey = item.parent_item_id || "root";
         const isExpanded =
           itemChildren.length > 0 &&
-          openObjectTileByParent.get(parentKey) === item.item_id;
+          (depth === 0 || depth < objectTilePath.length);
         const tile = document.createElement("article");
         tile.className = "object-tile";
+        if (isExpanded) tile.classList.add("is-expanded");
 
         const label = document.createElement(
           itemChildren.length ? "button" : "div",
         );
         if (itemChildren.length) {
+          tile.classList.add("is-openable");
           label.type = "button";
           label.className = "object-tile-trigger";
           label.setAttribute("aria-expanded", String(isExpanded));
-          label.addEventListener("click", () => {
-            if (isExpanded) {
-              openObjectTileByParent.delete(parentKey);
+          const toggleTile = () => {
+            if (objectTilePath[depth] === item.item_id) {
+              objectTilePath = objectTilePath.slice(0, depth);
             } else {
-              openObjectTileByParent.set(parentKey, item.item_id);
+              objectTilePath = [
+                ...objectTilePath.slice(0, depth),
+                item.item_id,
+              ];
             }
             renderObjectTiles();
+          };
+          label.addEventListener("click", toggleTile);
+          tile.addEventListener("click", (event) => {
+            if (
+              event.target.closest(".object-tile-children,.object-tile-trigger")
+            )
+              return;
+            toggleTile();
           });
         } else {
           label.className = "object-tile-label";
@@ -371,14 +398,14 @@
         if (isExpanded) {
           const childTiles = document.createElement("div");
           childTiles.className = "object-tile-children";
-          renderLevel(itemChildren, childTiles);
+          renderLevel(itemChildren, childTiles, depth + 1);
           tile.append(childTiles);
         }
         target.append(tile);
       });
     }
 
-    renderLevel(roots, grid);
+    renderLevel(roots, grid, 0);
   }
 
   function isVisibleMatch(item) {

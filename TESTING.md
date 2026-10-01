@@ -10,6 +10,8 @@
 8. Open `/admin/` and confirm counts load.
 9. Open `/monitor/` and confirm service checks load.
 10. Open `/erp/`, add a note and refresh it.
+11. Open `/reference/` and verify the globe, country lookup, ring editor, unit
+    converter, world clock, coordinate tools, Base64, and text tools.
 
 Useful checks:
 

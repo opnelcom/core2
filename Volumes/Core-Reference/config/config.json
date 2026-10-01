@@ -1,0 +1,7 @@
+{
+  "name": "core-reference",
+  "port": 3000,
+  "logToFile": true,
+  "fileLogMode": "failures",
+  "nodeEnv": "production"
+}

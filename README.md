@@ -12,6 +12,7 @@ A runnable Docker-based Core foundation containing:
 - Core ERP tenant-scoped notes example
 - Core Tasks hierarchical task manager with rollup progress
 - Core Tools static utility app with no database requirement
+- Core Reference browser-only atlas and reference tools with no database requirement
 - PostgreSQL initialization schemas
 
 ## Start
@@ -26,6 +27,11 @@ docker compose ps
 ```
 
 Open `http://localhost/`.
+
+Core Reference is available from the application launcher at `/reference/`. On
+existing installations, add `core-reference` as an active public application
+in Core Administration; the SaaS database initialization seed only runs when
+the database volume is first created.
 
 When `nodeEnv` is not `production`, registration returns the activation token in the JSON result. If SMTP host settings are empty, the SMTP service logs the activation message instead of sending it. The account whose email matches `bootstrapAdminEmail` in `Volumes/Core-SaaS/config/config.json` is promoted to `administration_user` during activation.
 

@@ -36,6 +36,11 @@
       "target": "http://core-tools:3000",
       "stripPrefix": true
     },
+    {
+      "prefix": "/reference",
+      "target": "http://core-reference:3000",
+      "stripPrefix": true
+    },
     { "prefix": "/", "target": "http://core-saas:3000", "stripPrefix": false }
   ]
 }
