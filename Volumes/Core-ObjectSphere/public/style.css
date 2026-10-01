@@ -506,6 +506,61 @@ h1 {
   color: var(--brand);
   font-weight: 900;
 }
+.object-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: 12px;
+}
+.object-tile {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.object-tile-trigger,
+.object-tile-label {
+  display: block;
+  width: 100%;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 400;
+  text-align: left;
+}
+.object-tile-trigger {
+  cursor: pointer;
+}
+.object-tile-children {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.object-tile-trigger:hover,
+.object-tile-trigger:focus-visible {
+  color: var(--brand);
+}
+.object-tile-trigger:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+.object-tile-children .object-tile {
+  background: #f8fafc;
+}
+.object-tile-children .object-tile-children .object-tile {
+  background: #eef5f8;
+}
+.object-tile-children .object-tile-children .object-tile-children .object-tile {
+  background: #e2edf3;
+}
 .count-badge-0 {
   background: #edf3f7 !important;
   color: #64708a !important;
@@ -706,7 +761,9 @@ h1 {
 }
 .setup-type-grid-row {
   display: grid;
-  grid-template-columns: 34px minmax(230px, 1.5fr) minmax(180px, 1fr) minmax(110px, 0.45fr) auto;
+  grid-template-columns:
+    34px minmax(230px, 1.5fr) minmax(180px, 1fr) minmax(110px, 0.45fr)
+    auto;
   align-items: center;
   gap: 14px;
   width: 100%;
@@ -719,7 +776,9 @@ h1 {
 }
 .setup-event-type-grid-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.3fr) minmax(150px, 0.7fr) minmax(90px, 0.35fr) minmax(70px, 0.25fr) auto;
+  grid-template-columns:
+    minmax(220px, 1.3fr) minmax(150px, 0.7fr) minmax(90px, 0.35fr)
+    minmax(70px, 0.25fr) auto;
   align-items: center;
   gap: 14px;
   width: 100%;
@@ -834,7 +893,9 @@ h1 {
 .setup-attribute-grid-row {
   position: relative;
   display: grid;
-  grid-template-columns: 28px minmax(230px, 1.4fr) minmax(180px, 1fr) minmax(110px, 0.45fr) minmax(110px, 0.45fr) auto;
+  grid-template-columns:
+    28px minmax(230px, 1.4fr) minmax(180px, 1fr) minmax(110px, 0.45fr)
+    minmax(110px, 0.45fr) auto;
   align-items: center;
   gap: 14px;
   min-height: 54px;
@@ -1535,11 +1596,11 @@ h1 {
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255,255,255,0.94);
+  background: rgba(255, 255, 255, 0.94);
   color: var(--muted);
   font-weight: 800;
   text-align: center;
-  transform: translate(-50%,-50%);
+  transform: translate(-50%, -50%);
   pointer-events: none;
 }
 .location-map.map-tiles-loading::after {
@@ -1632,7 +1693,13 @@ h1 {
 .event-grid-row {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(140px, 0.9fr) minmax(130px, 0.75fr) minmax(220px, 1.4fr) minmax(180px, 1fr) minmax(92px, 0.45fr) minmax(100px, 0.5fr) minmax(130px, 0.7fr) auto;
+  grid-template-columns:
+    minmax(140px, 0.9fr) minmax(130px, 0.75fr) minmax(220px, 1.4fr)
+    minmax(180px, 1fr) minmax(92px, 0.45fr) minmax(100px, 0.5fr) minmax(
+      130px,
+      0.7fr
+    )
+    auto;
   gap: 10px;
   align-items: center;
   min-height: 54px;

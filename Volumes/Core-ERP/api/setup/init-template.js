@@ -1,9 +1,20 @@
-'use strict';
-const {authTenant,canInitialiseTemplateOrganisation,seedOrganisationDefaults}=require('../_shared/erp');
+"use strict";
+const {
+  authTenant,
+  canInitialiseTemplateOrganisation,
+  seedOrganisationDefaults,
+} = require("../_shared/erp");
 
-async function assignCurrentUserAsSecurityAdministrator(ctx,access,organisationId){
-  const result=await ctx.broker('core_erp','query',{
-    text:`INSERT INTO erp_user_role(tenant_id,organisation_id,role_id,email,valid_from,valid_to)
+const templateOrganisationIconSvg =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8 12 3l9 5"/><path d="M4 9h16M6 9v9m4-9v9m4-9v9m4-9v9M3 19h18"/></svg>';
+
+async function assignCurrentUserAsSecurityAdministrator(
+  ctx,
+  access,
+  organisationId,
+) {
+  const result = await ctx.broker("core_erp", "query", {
+    text: `INSERT INTO erp_user_role(tenant_id,organisation_id,role_id,email,valid_from,valid_to)
           SELECT $1,$2,role.role_id,lower($3),CURRENT_DATE,NULL
           FROM erp_role role
           WHERE role.tenant_id=$1
@@ -15,31 +26,41 @@ async function assignCurrentUserAsSecurityAdministrator(ctx,access,organisationI
           SET valid_from=LEAST(erp_user_role.valid_from,excluded.valid_from),
               valid_to=NULL
           RETURNING *`,
-    values:[access.tenantId,organisationId,access.auth.email]
+    values: [access.tenantId, organisationId, access.auth.email],
   });
-  if(!result.rowCount){
-    throw new Error('Security Administrator role was not created during template initialisation');
+  if (!result.rowCount) {
+    throw new Error(
+      "Security Administrator role was not created during template initialisation",
+    );
   }
 }
 
-module.exports=async ctx=>{
-  if(ctx.req.method!=='POST')return ctx.send(405,{error:'POST required'});
-  const access=await authTenant(ctx);
-  if(access.status)return ctx.send(access.status,access.body);
-  const allowed=await canInitialiseTemplateOrganisation(ctx,{tenantId:access.tenantId,email:access.auth.email});
-  if(!allowed)return ctx.send(403,{error:'Template initialisation requires ERP Setup Administrator access when an active administrator assignment exists'});
+module.exports = async (ctx) => {
+  if (ctx.req.method !== "POST")
+    return ctx.send(405, { error: "POST required" });
+  const access = await authTenant(ctx);
+  if (access.status) return ctx.send(access.status, access.body);
+  const allowed = await canInitialiseTemplateOrganisation(ctx, {
+    tenantId: access.tenantId,
+    email: access.auth.email,
+  });
+  if (!allowed)
+    return ctx.send(403, {
+      error:
+        "Template initialisation requires ERP Setup Administrator access when an active administrator assignment exists",
+    });
 
-  const existing=await ctx.broker('core_erp','query',{
-    text:`SELECT organisation_id
+  const existing = await ctx.broker("core_erp", "query", {
+    text: `SELECT organisation_id
           FROM erp_organisation
           WHERE tenant_id=$1 AND organisation_code='TEMPLATE'
           ORDER BY created_at
           LIMIT 1`,
-    values:[access.tenantId]
+    values: [access.tenantId],
   });
-  const existingId=existing.rows[0]?.organisation_id;
-  if(existingId){
-    const statements=[
+  const existingId = existing.rows[0]?.organisation_id;
+  if (existingId) {
+    const statements = [
       `DELETE FROM erp_journal_line WHERE tenant_id=$1 AND organisation_id=$2`,
       `DELETE FROM erp_journal WHERE tenant_id=$1 AND organisation_id=$2`,
       `DELETE FROM erp_transaction_line_definition WHERE tenant_id=$1 AND organisation_id=$2`,
@@ -72,26 +93,29 @@ module.exports=async ctx=>{
       `DELETE FROM erp_workflow_next WHERE tenant_id=$1 AND organisation_id=$2`,
       `DELETE FROM erp_workflow_step WHERE tenant_id=$1 AND organisation_id=$2`,
       `DELETE FROM erp_workflow_path WHERE tenant_id=$1 AND organisation_id=$2`,
-      `DELETE FROM erp_organisation WHERE tenant_id=$1 AND organisation_id=$2`
+      `DELETE FROM erp_organisation WHERE tenant_id=$1 AND organisation_id=$2`,
     ];
-    await ctx.broker('core_erp','transaction',{
-      statements:statements.map(text=>({text,values:[access.tenantId,existingId]}))
+    await ctx.broker("core_erp", "transaction", {
+      statements: statements.map((text) => ({
+        text,
+        values: [access.tenantId, existingId],
+      })),
     });
   }
 
-  const org=await ctx.broker('core_erp','query',{
-    text:`INSERT INTO erp_organisation(tenant_id,organisation_code,organisation_name,is_template,base_currency_code,workflow_status,created_by_email,updated_by_email,approved_by_email,approved_at)
-          VALUES($1,'TEMPLATE','Template Organisation',true,'ZAR','approved',$2,$2,$2,now())
+  const org = await ctx.broker("core_erp", "query", {
+    text: `INSERT INTO erp_organisation(tenant_id,organisation_code,organisation_name,is_template,organisation_icon_svg,base_currency_code,workflow_status,created_by_email,updated_by_email,approved_by_email,approved_at)
+        VALUES($1,'TEMPLATE','Template Organisation',true,$2,'ZAR','approved',$3,$3,$3,now())
           RETURNING *`,
-    values:[access.tenantId,access.auth.email]
+    values: [access.tenantId, templateOrganisationIconSvg, access.auth.email],
   });
-  const orgId=org.rows[0].organisation_id;
-  await ctx.broker('core_erp','query',{
-    text:`INSERT INTO erp_division(tenant_id,organisation_id,parent_division_id,division_code,division_name,workflow_status,created_by_email,updated_by_email)
+  const orgId = org.rows[0].organisation_id;
+  await ctx.broker("core_erp", "query", {
+    text: `INSERT INTO erp_division(tenant_id,organisation_id,parent_division_id,division_code,division_name,workflow_status,created_by_email,updated_by_email)
           VALUES($1,$2,NULL,'ROOT','Template Organisation','approved',$3,$3)`,
-    values:[access.tenantId,orgId,access.auth.email]
+    values: [access.tenantId, orgId, access.auth.email],
   });
-  await seedOrganisationDefaults(ctx,access,orgId);
-  await assignCurrentUserAsSecurityAdministrator(ctx,access,orgId);
-  return {ok:true,organisation:org.rows[0]};
+  await seedOrganisationDefaults(ctx, access, orgId);
+  await assignCurrentUserAsSecurityAdministrator(ctx, access, orgId);
+  return { ok: true, organisation: org.rows[0] };
 };

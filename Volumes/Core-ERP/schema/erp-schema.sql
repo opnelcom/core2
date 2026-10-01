@@ -74,6 +74,7 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       tenant_id uuid NOT NULL,
       organisation_code text NOT NULL,
       organisation_name text NOT NULL,
+      organisation_icon_svg text,
       is_template boolean NOT NULL DEFAULT false,
       base_currency_code text NOT NULL DEFAULT 'ZAR',
       workflow_status text NOT NULL DEFAULT 'draft' CHECK(workflow_status IN('draft','submitted','approved','rejected','blocked','archived','deleted')),
@@ -89,6 +90,7 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now()
     );
+    ALTER TABLE erp_organisation ADD COLUMN IF NOT EXISTS organisation_icon_svg text;
     CREATE UNIQUE INDEX IF NOT EXISTS erp_organisation_live_code_idx ON erp_organisation(tenant_id,organisation_code) WHERE workflow_status <> 'deleted';
 
     CREATE TABLE IF NOT EXISTS erp_division(
