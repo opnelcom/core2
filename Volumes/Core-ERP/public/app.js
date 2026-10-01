@@ -1,7 +1,7 @@
 (()=>{
 const $=id=>document.getElementById(id);
 let boot={organisations:[],currencies:[],countries:[],subledger_account_types:[]};
-let state={orgId:null,navigation:{roles:[],modules:[],permissions:[],is_administrator:false},modules:[],currencies:[],countries:[],taxTypes:[],taxRates:[],divisions:[],accounts:[],glAccountTypes:[],subledgerAccountTypes:[],masterTypes:[],masterRecords:[],accountingObjectTypes:[],accountingDimensionTypes:[],accountingObjects:[],accountingDimensions:[],legalEntities:[],legalEntityDetail:null,journals:[],years:[],periods:[],financialFormats:[],financialFormatLines:[],financialFormatMappings:[],transactionGroups:[],transactionTypes:[],lineDefinitions:[],workflowPaths:[],workflowSteps:[],workflowNext:[],roles:[],rolePermissions:[],roleUsers:[],dashboardSummary:null};
+let state={orgId:null,divisionId:null,includeChildren:false,navigation:{roles:[],modules:[],permissions:[],is_administrator:false},modules:[],currencies:[],countries:[],taxTypes:[],taxRates:[],divisions:[],accounts:[],glAccountTypes:[],subledgerAccountTypes:[],masterTypes:[],masterRecords:[],accountingObjectTypes:[],accountingDimensionTypes:[],accountingObjects:[],accountingDimensions:[],legalEntities:[],legalEntityDetail:null,journals:[],years:[],periods:[],financialFormats:[],financialFormatLines:[],financialFormatMappings:[],transactionGroups:[],transactionTypes:[],lineDefinitions:[],workflowPaths:[],workflowSteps:[],workflowNext:[],roles:[],rolePermissions:[],roleUsers:[],dashboardSummary:null};
 let selectedMasterRecord=null;
 let selectedAccountingObject=null;
 let selectedAccountingDimension=null;
@@ -20,6 +20,9 @@ let expandedLedgerFamilies=new Set();
 let expandedTransactionGroups=new Set();
 let loadedAccountFamilies=new Set();
 let loadedSlices={menu:false,dashboard:false,divisions:false,fiscal:false,countries:false,currencies:false,taxTypes:false,accountTypes:false,masterTypes:false,accountingObjectTypes:false,accountingDimensionTypes:false,legalEntities:false,financialFormats:false,transactions:false,permissions:false};
+let visibleOrganisationLimit=4;
+let collapsedDivisionIds=new Set();
+const dirtyForms=new WeakSet();
 const today=()=>new Date().toISOString().slice(0,10);
 const pretty=v=>String(v||'').replaceAll('_',' ');
 const setupViews=new Set(['setup','organisations','divisions','fiscal','countries','currencies','taxtypes','modules','ledgerfamilies','accountingobjecttypes','accountingdimensiontypes','financialformats','transactiongroups','transactiontypes','workflows','permissions']);
@@ -52,7 +55,17 @@ const menuIconSvg={
   accountingObject:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21"/></svg>',
   accountingDimension:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v18M12 3v18M17 3v18M3 7h18M3 12h18M3 17h18"/></svg>',
   transaction:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14l-3-3m3 3-3 3M19 17H5l3 3m-3-3 3-3"/></svg>',
-  report:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h10l4 4v14H5Z"/><path d="M15 3v5h4M8 17v-3m4 3v-6m4 6v-4"/></svg>'
+  report:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h10l4 4v14H5Z"/><path d="M15 3v5h4M8 17v-3m4 3v-6m4 6v-4"/></svg>',
+  organisation:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V7l8-4 8 4v14"/><path d="M8 10h2m4 0h2m-8 4h2m4 0h2M9 21v-3h6v3"/></svg>',
+  division:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="4" rx="1"/><rect x="3" y="17" width="6" height="4" rx="1"/><rect x="15" y="17" width="6" height="4" rx="1"/><path d="M12 7v5M6 17v-5h12v5"/></svg>',
+  calendar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18"/></svg>',
+  globe:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>',
+  currency:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5c-.8-.7-1.9-1-3.2-1-1.8 0-3.3.8-3.3 2.3 0 3.7 6.5 1.4 6.5 5 0 1.5-1.5 2.7-3.5 2.7-1.4 0-2.7-.5-3.6-1.3M12 5v14"/></svg>',
+  tax:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 18 12-12"/><circle cx="7.5" cy="7.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></svg>',
+  security:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.6 2.8 8 7 10 4.2-2 7-5.4 7-10V6Z"/><path d="m9 12 2 2 4-4"/></svg>',
+  workflow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="5" r="2"/><circle cx="18" cy="12" r="2"/><circle cx="6" cy="19" r="2"/><path d="M8 5h3a3 3 0 0 1 3 3v1a3 3 0 0 0 3 3M8 19h3a3 3 0 0 0 3-3v-1a3 3 0 0 1 3-3"/></svg>',
+  recovery:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7v5h5"/><path d="M5.5 16a8 8 0 1 0 .5-9l-2 5"/></svg>',
+  reset:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7v5h5"/><path d="M5.5 16a8 8 0 1 0 .5-9l-2 5"/><path d="M12 8v5m0 3h.01"/></svg>'
 };
 function fixedMenuIconMarkup(name,className='fixed-menu-icon'){return `<span class="${className}" aria-hidden="true">${menuIconSvg[name]||menuIconSvg.module}</span>`;}
 function moduleIconMarkup(value){const svg=sanitizedModuleSvg(value);return `<span class="module-menu-icon" aria-hidden="true">${svg||menuIconSvg.module}</span>`;}
@@ -92,6 +105,30 @@ function setPanelGlass(enabled,transparency=enabled?60:0){
   document.body.classList.toggle('panels-glass',amount>0);
   document.body.style.setProperty('--panel-glass-alpha',String(1-(amount/100)));
 }
+
+const themeStorageKey='erp.theme';
+function applyTheme(theme){
+  const dark=theme==='dark';
+  document.documentElement.dataset.theme=dark?'dark':'light';
+  const toggle=$('theme-toggle');
+  if(toggle){
+    toggle.innerHTML=`<span aria-hidden="true">${dark?'☀':'☾'}</span>`;
+    toggle.setAttribute('aria-label',dark?'Switch to light mode':'Switch to dark mode');
+    toggle.setAttribute('aria-pressed',dark?'true':'false');
+    toggle.title=dark?'Switch to light mode':'Switch to dark mode';
+  }
+}
+function initTheme(){
+  let theme='light';
+  try{theme=window.localStorage.getItem(themeStorageKey)==='dark'?'dark':'light';}catch{}
+  applyTheme(theme);
+  $('theme-toggle')?.addEventListener('click',()=>{
+    const next=document.documentElement.dataset.theme==='dark'?'light':'dark';
+    applyTheme(next);
+    try{window.localStorage.setItem(themeStorageKey,next);}catch{}
+  });
+}
+initTheme();
 
 const panelGlassParams=new URLSearchParams(location.search);
 setPanelGlass(panelGlassParams.get('panel_glass')==='1',panelGlassParams.get('panel_transparency')||60);
@@ -167,6 +204,36 @@ function initSidebarResize(){
   });
 }
 
+function initSidebarCollapse(){
+  const shell=document.querySelector('.erp-shell');
+  const toggle=$('sidebar-collapse-toggle');
+  if(!shell||!toggle)return;
+  const storageKey='erp.sidebarCollapsed';
+  const desktopQuery=window.matchMedia('(min-width:981px)');
+  let collapsed=false;
+  try{collapsed=window.localStorage.getItem(storageKey)==='1';}catch{}
+  const apply=()=>{
+    const active=desktopQuery.matches&&collapsed;
+    shell.classList.toggle('sidebar-collapsed',active);
+    toggle.setAttribute('aria-expanded',active?'false':'true');
+    toggle.setAttribute('aria-label',active?'Expand menu':'Collapse menu');
+    toggle.title=active?'Expand menu':'Collapse menu';
+  };
+  toggle.addEventListener('click',()=>{
+    collapsed=!collapsed;
+    try{window.localStorage.setItem(storageKey,collapsed?'1':'0');}catch{}
+    apply();
+  });
+  shell.querySelector('.sidebar')?.addEventListener('click',event=>{
+    if(!shell.classList.contains('sidebar-collapsed')||!event.target.closest('.menu-entry--group-toggle'))return;
+    collapsed=false;
+    try{window.localStorage.setItem(storageKey,'0');}catch{}
+    apply();
+  },true);
+  desktopQuery.addEventListener('change',apply);
+  apply();
+}
+
 function orgStorageKey(){
   return boot.tenant_id?`erp.currentOrg.${boot.tenant_id}`:'erp.currentOrg';
 }
@@ -180,9 +247,51 @@ function storeCurrentOrg(orgId=state.orgId){
 function resolveCurrentOrgId(){
   const exists=id=>boot.organisations.some(org=>org.organisation_id===id);
   if(exists(state.orgId))return state.orgId;
+  const params=new URLSearchParams(location.search);
+  const fromUrl=params.get('organisation_id');
+  if(exists(fromUrl))return fromUrl;
+  const preferred=boot.user_context?.organisation_id;
+  if(exists(preferred))return preferred;
   const stored=getStoredOrgId();
   if(exists(stored))return stored;
   return boot.organisations[0]?.organisation_id||null;
+}
+function organisationContext(orgId=state.orgId){
+  return boot.user_context?.organisations?.find(context=>context.organisation_id===orgId)||null;
+}
+function currentView(){
+  return document.querySelector('.view:not([hidden])')?.id?.replace(/^view-/,'')||'dashboard';
+}
+function syncContextUrl({push=false}={}){
+  const url=new URL(location.href);
+  if(state.orgId)url.searchParams.set('organisation_id',state.orgId);else url.searchParams.delete('organisation_id');
+  if(state.divisionId)url.searchParams.set('division_id',state.divisionId);else url.searchParams.delete('division_id');
+  url.searchParams.set('include_children',state.includeChildren?'1':'0');
+  url.searchParams.set('view',currentView());
+  history[push?'pushState':'replaceState']({organisation_id:state.orgId,division_id:state.divisionId},'',url);
+}
+function resolveDivisionContext(){
+  const exists=id=>state.divisions.some(division=>division.division_id===id);
+  const params=new URLSearchParams(location.search);
+  const urlOrg=params.get('organisation_id');
+  const urlDivision=params.get('division_id');
+  const saved=organisationContext();
+  state.divisionId=urlOrg===state.orgId&&exists(urlDivision)?urlDivision:(exists(saved?.division_id)?saved.division_id:state.divisions[0]?.division_id||null);
+  state.includeChildren=urlOrg===state.orgId&&params.has('include_children')?params.get('include_children')==='1':saved?.include_children===true;
+}
+function updateClientContextPreference(){
+  boot.user_context=boot.user_context||{organisation_id:null,organisations:[]};
+  boot.user_context.organisation_id=state.orgId;
+  const contexts=boot.user_context.organisations||(boot.user_context.organisations=[]);
+  let context=contexts.find(item=>item.organisation_id===state.orgId);
+  if(!context){context={organisation_id:state.orgId};contexts.push(context);}
+  context.division_id=state.divisionId;
+  context.include_children=state.includeChildren;
+}
+async function saveWorkspaceContext(){
+  if(!state.orgId)return;
+  updateClientContextPreference();
+  await api('context/save',{method:'POST',body:JSON.stringify({organisation_id:state.orgId,division_id:state.divisionId,include_children:state.includeChildren})});
 }
 function dateOnly(value){
   return String(value||'').slice(0,10);
@@ -212,7 +321,16 @@ function rowMatches(row,term){
   });
 }
 async function api(path,options={}){
-  const r=await fetch('/erp/api/'+path,{headers:{'content-type':'application/json'},...options});
+  let requestPath=path;
+  const method=String(options.method||'GET').toUpperCase();
+  if(method==='GET'&&state.orgId&&path!=='setup/bootstrap'){
+    const [pathname,query='']=path.split('?');
+    const params=new URLSearchParams(query);
+    if(state.divisionId&&!params.has('active_division_id'))params.set('active_division_id',state.divisionId);
+    if(!params.has('include_child_divisions'))params.set('include_child_divisions',state.includeChildren?'1':'0');
+    requestPath=`${pathname}?${params.toString()}`;
+  }
+  const r=await fetch('/erp/api/'+requestPath,{headers:{'content-type':'application/json'},...options});
   const j=await r.json();
   if(!r.ok)throw Object.assign(new Error(j.error||'Request failed'),{details:j});
   return j;
@@ -335,14 +453,6 @@ function installWorkflowUi(){
   installWorkflowPathField('ledger-family-form','ledger-family-workflow-path');
   installWorkflowPathField('accounting-object-type-form','accounting-object-type-workflow-path');
   installWorkflowPathField('accounting-dimension-type-form','accounting-dimension-type-workflow-path');
-  const setupSubnav=$('setup-subnav');
-  if(setupSubnav&&!setupSubnav.querySelector('[data-view="workflows"]')){
-    const button=document.createElement('button');
-    button.type='button';button.className='nav subnav-item';button.dataset.view='workflows';button.textContent='Workflows';
-    const permissions=setupSubnav.querySelector('[data-view="permissions"]');
-    setupSubnav.insertBefore(button,permissions||null);
-    button.addEventListener('click',()=>openView('workflows').catch(e=>alert(e.message)));
-  }
   if(!$('view-workflows')){
     const section=document.createElement('section');
     section.id='view-workflows';section.className='view';section.hidden=true;
@@ -663,19 +773,148 @@ function renderWorkflowHeader(targetId,row,onMove){
   if(row?.workflow_status)target.append(workflowStatusButton({row,onMove}));
 }
 function currentOrg(){return boot.organisations.find(o=>o.organisation_id===state.orgId)||boot.organisations[0];}
-function canBootstrapTemplateOrg(){return boot?.can_bootstrap_template_org===true;}
+function canBootstrapSetup(){return boot?.can_bootstrap_setup===true;}
+function canInitialiseTemplateOrg(){return boot?.can_initialise_template_org===true;}
 function currentOrganisationId(){
   return state.orgId||$('organisation-select')?.value||'';
 }
-function setSetupExpanded(expanded){
-  $('setup-subnav').hidden=!expanded;
-  $('setup-toggle').setAttribute('aria-expanded',expanded?'true':'false');
-  $('setup-toggle').classList.toggle('active',expanded&&setupViews.has(document.querySelector('.view:not([hidden])')?.id?.replace('view-','')));
+function hasDirtyForm(){
+  return [...document.querySelectorAll('form')].some(form=>!form.hidden&&!form.closest('[hidden]')&&dirtyForms.has(form));
+}
+function confirmContextChange(){
+  return !hasDirtyForm()||window.confirm('Switching organisation or division will discard your unsaved changes. Continue?');
+}
+function closeOrganisationMenu(){
+  if(!$('organisation-more-menu'))return;
+  $('organisation-more-menu').hidden=true;
+  $('organisation-more').setAttribute('aria-expanded','false');
+}
+function closeDivisionPicker(){
+  if(!$('division-picker-menu'))return;
+  $('division-picker-menu').hidden=true;
+  $('division-picker-button').setAttribute('aria-expanded','false');
+}
+function organisationLabel(org){return `${org.organisation_code} - ${org.organisation_name}`;}
+function renderOrganisationTabs(){
+  const tabs=$('organisation-tabs');
+  if(!tabs)return;
+  tabs.innerHTML='';
+  const visible=boot.organisations.slice(0,visibleOrganisationLimit);
+  const overflow=boot.organisations.slice(visibleOrganisationLimit);
+  visible.forEach(org=>{
+    const button=document.createElement('button');
+    button.type='button';button.className='organisation-tab';button.role='tab';
+    button.dataset.organisationId=org.organisation_id;
+    button.setAttribute('aria-selected',org.organisation_id===state.orgId?'true':'false');
+    button.title=organisationLabel(org);
+    const code=document.createElement('span');code.className='organisation-tab-code';code.textContent=org.organisation_code;
+    const name=document.createElement('span');name.className='organisation-tab-name';name.textContent=`– ${org.organisation_name}`;
+    button.append(code,name);
+    button.addEventListener('click',()=>switchWorkspaceOrganisation(org.organisation_id).catch(error=>alert(error.message)));
+    tabs.append(button);
+  });
+  const moreWrap=$('organisation-more-wrap');
+  moreWrap.hidden=!overflow.length;
+  $('organisation-more').classList.toggle('active',overflow.some(org=>org.organisation_id===state.orgId));
+  $('organisation-more').textContent=overflow.some(org=>org.organisation_id===state.orgId)?organisationLabel(currentOrg()):`More organisations (${overflow.length})`;
+  renderOrganisationOverflow();
+}
+function renderOrganisationOverflow(){
+  const target=$('organisation-more-list');
+  if(!target)return;
+  const term=String($('organisation-tab-search')?.value||'').trim().toLowerCase();
+  const items=boot.organisations.slice(visibleOrganisationLimit).filter(org=>!term||organisationLabel(org).toLowerCase().includes(term));
+  target.innerHTML='';
+  items.forEach(org=>{
+    const button=document.createElement('button');
+    button.type='button';button.className='organisation-more-option';button.role='option';
+    button.classList.toggle('active',org.organisation_id===state.orgId);
+    button.setAttribute('aria-selected',org.organisation_id===state.orgId?'true':'false');
+    const code=document.createElement('strong');code.textContent=org.organisation_code;
+    const name=document.createElement('small');name.textContent=org.organisation_name;
+    button.append(code,name);
+    button.addEventListener('click',()=>switchWorkspaceOrganisation(org.organisation_id).catch(error=>alert(error.message)));
+    target.append(button);
+  });
+  if(!items.length){const empty=document.createElement('p');empty.className='empty';empty.textContent='No matching organisations.';target.append(empty);}
+}
+function divisionPath(division){
+  if(Array.isArray(division?.path))return division.path.join(' / ');
+  const parents=[];let item=division;const seen=new Set();
+  while(item&&!seen.has(item.division_id)){seen.add(item.division_id);parents.unshift(item.division_name);item=state.divisions.find(candidate=>candidate.division_id===item.parent_division_id);}
+  return parents.join(' / ');
+}
+function renderDivisionTree(){
+  const target=$('division-tree');
+  if(!target)return;
+  const children=new Map();
+  state.divisions.forEach(division=>{const key=division.parent_division_id||'';if(!children.has(key))children.set(key,[]);children.get(key).push(division);});
+  target.innerHTML='';
+  const append=(division,depth,ancestorCollapsed=false)=>{
+    const childItems=children.get(division.division_id)||[];
+    if(!ancestorCollapsed){
+      const row=document.createElement('div');row.className='division-tree-item';row.role='treeitem';row.style.setProperty('--division-depth',depth);row.setAttribute('aria-level',String(depth+1));
+      const toggle=document.createElement('button');toggle.type='button';toggle.className='division-tree-toggle';toggle.disabled=!childItems.length;toggle.textContent=childItems.length?(collapsedDivisionIds.has(division.division_id)?'▸':'▾'):'•';toggle.setAttribute('aria-label',`${collapsedDivisionIds.has(division.division_id)?'Expand':'Collapse'} ${division.division_name}`);
+      toggle.addEventListener('click',()=>{if(collapsedDivisionIds.has(division.division_id))collapsedDivisionIds.delete(division.division_id);else collapsedDivisionIds.add(division.division_id);renderDivisionTree();});
+      const option=document.createElement('button');option.type='button';option.className='division-tree-option';option.setAttribute('aria-selected',division.division_id===state.divisionId?'true':'false');
+      const label=document.createElement('strong');label.textContent=`${division.division_name} (${division.division_code})`;
+      const path=document.createElement('small');path.textContent=divisionPath(division);
+      option.append(label,path);option.addEventListener('click',()=>selectWorkspaceDivision(division.division_id).catch(error=>alert(error.message)));
+      row.append(toggle,option);target.append(row);
+    }
+    const collapsed=ancestorCollapsed||collapsedDivisionIds.has(division.division_id);
+    childItems.forEach(child=>append(child,depth+1,collapsed));
+  };
+  (children.get('')||[]).forEach(root=>append(root,0));
+  if(!target.children.length){const empty=document.createElement('p');empty.className='empty';empty.textContent='No divisions are available.';target.append(empty);}
+}
+function renderWorkspaceContext(){
+  renderOrganisationTabs();
+  option($('organisation-select'),boot.organisations,'organisation_id',organisationLabel);
+  $('organisation-select').value=state.orgId||'';
+  const organisation=currentOrg();
+  const division=state.divisions.find(item=>item.division_id===state.divisionId);
+  $('division-picker-button').disabled=!state.divisions.length;
+  $('division-picker-button').textContent=division?`${division.division_name} (${division.division_code})`:'No divisions available';
+  $('include-child-divisions').checked=state.includeChildren;
+  $('include-child-divisions').disabled=!division;
+  const breadcrumb=[organisation?.organisation_name,division?divisionPath(division):''].filter(Boolean).join(' / ');
+  $('scope-summary').textContent=`${breadcrumb}${division&&state.includeChildren?' / Including child divisions':''}`;
+  renderDivisionTree();
+}
+async function switchWorkspaceOrganisation(orgId){
+  if(!orgId||orgId===state.orgId){closeOrganisationMenu();return;}
+  if(!confirmContextChange()){renderWorkspaceContext();return;}
+  state.orgId=orgId;state.divisionId=null;state.includeChildren=false;
+  storeCurrentOrg();closeOrganisationMenu();closeDivisionPicker();
+  selectedAccountScopeCode='gl';selectedTransactionTypeId='';selectedReport='financial_statement';
+  resetScreenState();
+  await loadOrgData();
+  await saveWorkspaceContext();
+  syncContextUrl({push:true});
+  show('dashboard');
+  loadDashboardData().catch(error=>alert(error.message));
+}
+async function selectWorkspaceDivision(divisionId){
+  if(!divisionId||divisionId===state.divisionId){closeDivisionPicker();return;}
+  if(!confirmContextChange())return;
+  state.divisionId=divisionId;closeDivisionPicker();resetScreenState();resetOrgLoadedState();
+  await loadMenuData(true);await ensureDivisions(true);
+  renderWorkspaceContext();await saveWorkspaceContext();syncContextUrl({push:true});
+  show('dashboard');loadDashboardData().catch(error=>alert(error.message));
 }
 function setMenuExpanded(toggleId,subnavId,expanded){
-  if(!$(toggleId)||!$(subnavId))return;
-  $(subnavId).hidden=!expanded;
-  $(toggleId).setAttribute('aria-expanded',expanded?'true':'false');
+  const toggle=$(toggleId);
+  const subnav=$(subnavId);
+  if(!toggle||!subnav)return;
+  subnav.hidden=!expanded;
+  toggle.setAttribute('aria-expanded',expanded?'true':'false');
+  if(toggle.dataset.menuKind&&toggle.dataset.menuGroup){
+    const groups=expandedMenuGroups(toggle.dataset.menuKind);
+    if(expanded){groups.clear();groups.add(toggle.dataset.menuGroup);}
+    else groups.delete(toggle.dataset.menuGroup);
+    localStorage.setItem(`erp.menuExpanded:${state.orgId}:${toggle.dataset.menuKind}`,JSON.stringify([...groups]));
+  }
 }
 function collapseDynamicMenus(exceptToggleId=''){
   [
@@ -691,9 +930,9 @@ function collapseDynamicMenus(exceptToggleId=''){
 function show(view){
   document.querySelectorAll('.view').forEach(v=>v.hidden=v.id!==`view-${view}`);
   document.querySelectorAll('.nav').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
-  setSetupExpanded(setupViews.has(view));
   $('reports-toggle')?.classList.toggle('active',view==='reports');
   $('page-title').textContent=document.querySelector(`[data-view="${view}"]`)?.textContent||$('page-title').textContent;
+  if(state.orgId)syncContextUrl();
 }
 async function openView(view){
   if(view==='dashboard'){
@@ -718,33 +957,58 @@ function labelForTransactionType(id){
   const type=state.transactionTypes.find(row=>row.transaction_type_id===id);
   return type?.type_name||'Transactions';
 }
-function technicalMenuItem(label,attributes,kind,depth=2){
-  return `<button type="button" class="nav technical-menu-item technical-menu-item--depth-${depth}" ${attributes}>${resourceIconMarkup(kind)}<span class="technical-menu-label">${label}</span></button>`;
+function menuAttribute(value){return String(value||'').replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;');}
+function menuItemMarkup({label,attributes='',icon='module',iconMarkup='',depth=1,action=false,danger=false,id=''}){
+  const classes=['nav','menu-entry','menu-entry--item',`menu-entry--depth-${depth}`];
+  if(depth===1&&!action)classes.push('menu-entry--link');
+  if(action)classes.push('menu-entry--action');
+  if(danger)classes.push('danger');
+  const iconHtml=iconMarkup||fixedMenuIconMarkup(icon,'menu-entry-icon');
+  return `<button type="button" class="${classes.join(' ')}"${id?` id="${id}"`:''} aria-label="${menuAttribute(label)}" title="${menuAttribute(label)}" ${attributes}>${iconHtml}<span class="menu-entry-label">${label}</span></button>`;
 }
-function decorateTechnicalMenu(){
-  const menu=$('technical-menu');
-  if(!menu)return;
-  [
-    ['[data-view="dashboard"]','dashboard','Dashboard','technical-menu-link'],
-    ['[data-view="legalentities"]','legalEntity','Legal Entities','technical-menu-link'],
-    ['[data-ledger-family="gl"]','glAccount','GL Accounts','technical-menu-link'],
-    ['#subledger-toggle','subledger','Sub Ledgers','technical-menu-toggle'],
-    ['#object-toggle','accountingObject','Accounting Objects','technical-menu-toggle'],
-    ['#dimension-toggle','accountingDimension','Accounting Dimensions','technical-menu-toggle'],
-    ['#transaction-toggle','transaction','Transactions','technical-menu-toggle'],
-    ['#reports-toggle','report','Reports','technical-menu-toggle'],
-    ['[data-report-view="financial_statement"]','report','Financial Statement','technical-menu-item technical-menu-item--depth-2'],
-    ['[data-report-view="ledger"]','report','Ledger Balances','technical-menu-item technical-menu-item--depth-2']
-  ].forEach(([selector,icon,label,className])=>{
-    const button=menu.querySelector(selector);
-    if(!button)return;
-    className.split(' ').forEach(name=>button.classList.add(name));
-    if(!button.querySelector('.technical-menu-label'))button.innerHTML=`${fixedMenuIconMarkup(icon,'technical-menu-icon')}<span class="technical-menu-label">${label}</span>`;
+function expandedMenuGroups(kind){
+  try{
+    const saved=JSON.parse(localStorage.getItem(`erp.menuExpanded:${state.orgId}:${kind}`)||'[]');
+    return new Set(Array.isArray(saved)&&saved.length?[saved.at(-1)]:[]);
+  }
+  catch{return new Set();}
+}
+function menuGroupMarkup(kind,id,label,items,{icon='module',iconMarkup='',depth=1,toggleId='',contentId='',expanded=null}={}){
+  if(!items.length)return '';
+  const isExpanded=expanded===null?expandedMenuGroups(kind).has(id):expanded;
+  const targetId=contentId||`${kind}-menu-group-${id}`;
+  const toggleClasses=['nav','menu-entry','menu-entry--group-toggle',`menu-entry--depth-${depth}`];
+  return `<div class="menu-entry-group"><button type="button" class="${toggleClasses.join(' ')}"${toggleId?` id="${toggleId}"`:''} data-menu-kind="${kind}" data-menu-group="${id}" aria-label="${menuAttribute(label)}" title="${menuAttribute(label)}" aria-expanded="${isExpanded?'true':'false'}" aria-controls="${targetId}">${iconMarkup||fixedMenuIconMarkup(icon,'menu-entry-icon')}<span class="menu-entry-label">${label}</span></button><div id="${targetId}" class="menu-entry-children" ${isExpanded?'':'hidden'}>${items.join('')}</div></div>`;
+}
+function bindMenu(menu,kind){
+  menu.querySelectorAll('[data-view]').forEach(button=>button.onclick=()=>openView(button.dataset.view).catch(error=>alert(error.message)));
+  menu.querySelectorAll('[data-ledger-family]').forEach(button=>button.onclick=()=>openLedgerFamily(button.dataset.ledgerFamily).catch(error=>alert(error.message)));
+  menu.querySelectorAll('[data-accounting-master]').forEach(button=>button.onclick=()=>openAccountingMaster(button.dataset.accountingMaster,button.dataset.accountingTypeId).catch(error=>alert(error.message)));
+  menu.querySelectorAll('[data-transaction-type]').forEach(button=>button.onclick=()=>openTransactionType(button.dataset.transactionType).catch(error=>alert(error.message)));
+  menu.querySelectorAll('[data-report-view]').forEach(button=>button.onclick=()=>openReport(button.dataset.reportView).catch(error=>alert(error.message)));
+  menu.querySelectorAll('[data-menu-action="init-schema"]').forEach(button=>button.onclick=()=>initialiseSchema().catch(error=>alert(error.message)));
+  menu.querySelectorAll('[data-menu-action="init-template"]').forEach(button=>button.onclick=()=>initialiseTemplateOrganisation().catch(error=>alert(error.message)));
+  menu.querySelectorAll(':scope > .menu-entry-group > [data-menu-group]').forEach(heading=>{
+    heading.onclick=()=>{
+      const content=$(heading.getAttribute('aria-controls'));
+      const expanded=heading.getAttribute('aria-expanded')==='true';
+      menu.querySelectorAll(':scope > .menu-entry-group > [data-menu-group]').forEach(other=>{
+        other.setAttribute('aria-expanded','false');
+        const otherContent=$(other.getAttribute('aria-controls'));
+        if(otherContent)otherContent.hidden=true;
+      });
+      const expandedGroups=expandedMenuGroups(kind);
+      expandedGroups.clear();
+      if(!expanded){
+        heading.setAttribute('aria-expanded','true');
+        if(content)content.hidden=false;
+        expandedGroups.add(heading.dataset.menuGroup);
+      }
+      localStorage.setItem(`erp.menuExpanded:${state.orgId}:${kind}`,JSON.stringify([...expandedGroups]));
+    };
   });
-  menu.querySelectorAll(':scope > .subnav').forEach(subnav=>subnav.classList.add('technical-subnav'));
 }
 function buildDynamicMenu(){
-  decorateTechnicalMenu();
   const accessibleModules=new Set(state.navigation.modules.map(module=>module.module_id));
   const permissions=state.navigation.permissions||[];
   const hasMaster=state.navigation.is_administrator||permissions.some(permission=>['gl_account','legal_entity','subledger_account','accounting_object','accounting_dimension'].includes(permission.resource_kind));
@@ -754,28 +1018,31 @@ function buildDynamicMenu(){
   const masterAllowed=type=>state.navigation.is_administrator||permissions.some(permission=>permission.resource_kind==='subledger_account'&&(permission.resource_code==='*'||permission.resource_code===type.subledger_account_type_id));
   const transactionAllowed=id=>state.navigation.is_administrator||permissions.some(permission=>permission.resource_kind==='transaction'&&(permission.resource_code==='*'||permission.resource_code===id));
   const families=state.subledgerAccountTypes.filter(type=>type.is_active!==false&&linked(type)&&masterAllowed(type));
-  $('subledger-subnav').innerHTML=families.map(type=>technicalMenuItem(type.type_name,`data-ledger-family="${type.type_code}"`,'subledger')).join('');
-  $('object-subnav').innerHTML=state.accountingObjectTypes.filter(type=>type.is_active!==false&&hasAccountingObject&&linked(type)).map(type=>technicalMenuItem(type.type_name,`data-accounting-master="object" data-accounting-type-id="${type.accounting_object_type_id}"`,'accountingObject')).join('');
-  $('dimension-subnav').innerHTML=state.accountingDimensionTypes.filter(type=>type.is_active!==false&&hasMaster&&linked(type)).map(type=>technicalMenuItem(type.type_name,`data-accounting-master="dimension" data-accounting-type-id="${type.accounting_dimension_type_id}"`,'accountingDimension')).join('');
-  document.querySelectorAll('[data-ledger-family]').forEach(button=>{
-    button.onclick=()=>openLedgerFamily(button.dataset.ledgerFamily).catch(e=>alert(e.message));
-  });
-  document.querySelectorAll('[data-accounting-master]').forEach(button=>{
-    button.onclick=()=>openAccountingMaster(button.dataset.accountingMaster,button.dataset.accountingTypeId).catch(e=>alert(e.message));
-  });
-  $('transaction-subnav').innerHTML=state.transactionGroups.filter(g=>g.is_active!==false).map(group=>{
+  const subledgerItems=families.map(type=>menuItemMarkup({label:type.type_name,attributes:`data-ledger-family="${type.type_code}"`,icon:'subledger',depth:2}));
+  const objectItems=state.accountingObjectTypes.filter(type=>type.is_active!==false&&hasAccountingObject&&linked(type)).map(type=>menuItemMarkup({label:type.type_name,attributes:`data-accounting-master="object" data-accounting-type-id="${type.accounting_object_type_id}"`,icon:'accountingObject',depth:2}));
+  const dimensionItems=state.accountingDimensionTypes.filter(type=>type.is_active!==false&&hasMaster&&linked(type)).map(type=>menuItemMarkup({label:type.type_name,attributes:`data-accounting-master="dimension" data-accounting-type-id="${type.accounting_dimension_type_id}"`,icon:'accountingDimension',depth:2}));
+  const transactionItems=state.transactionGroups.filter(g=>g.is_active!==false).map(group=>{
     const types=state.transactionTypes.filter(type=>type.transaction_group_id===group.transaction_group_id&&type.is_active!==false&&linked(type)&&transactionAllowed(type.transaction_type_id));
+    if(!types.length)return '';
     const expanded=expandedTransactionGroups.has(group.transaction_group_id);
-    return `<div class="menu-group"><button type="button" class="nav technical-menu-group-toggle menu-group-toggle" aria-expanded="${expanded?'true':'false'}" data-transaction-group="${group.transaction_group_id}">${fixedMenuIconMarkup('transaction','technical-menu-icon')}<span class="technical-menu-label">${group.group_name}</span></button><div class="transaction-type-group" ${expanded?'':'hidden'}>${types.map(type=>technicalMenuItem(type.type_name,`data-transaction-type="${type.transaction_type_id}"`,'transaction',3)).join('')}</div></div>`;
-  }).join('');
-  $('technical-menu').querySelector('[data-view="legalentities"]').hidden=!hasMaster;
-  $('technical-menu').querySelector('[data-ledger-family="gl"]').hidden=!state.navigation.is_administrator&&!permissions.some(permission=>permission.resource_kind==='gl_account');
-  $('subledger-toggle').hidden=!families.length;
-  $('object-toggle').hidden=!$('object-subnav').children.length;
-  $('dimension-toggle').hidden=!$('dimension-subnav').children.length;
-  $('transaction-toggle').hidden=!hasTransactions||!$('transaction-subnav').querySelector('[data-transaction-type]');
-  $('reports-toggle').hidden=!(hasMaster||hasTransactions);
-  $('transaction-subnav').querySelectorAll('[data-transaction-group]').forEach(button=>{
+    return `<div class="menu-entry-group"><button type="button" class="nav menu-entry menu-entry--group-toggle menu-entry--depth-2" aria-expanded="${expanded?'true':'false'}" data-transaction-group="${group.transaction_group_id}" aria-controls="transaction-group-${group.transaction_group_id}">${fixedMenuIconMarkup('transaction','menu-entry-icon')}<span class="menu-entry-label">${group.group_name}</span></button><div id="transaction-group-${group.transaction_group_id}" class="menu-entry-children" ${expanded?'':'hidden'}>${types.map(type=>menuItemMarkup({label:type.type_name,attributes:`data-transaction-type="${type.transaction_type_id}"`,icon:'transaction',depth:3})).join('')}</div></div>`;
+  }).filter(Boolean);
+  const technicalEntries=[
+    menuItemMarkup({label:'Dashboard',attributes:'data-view="dashboard"',icon:'dashboard'}),
+    hasMaster?menuItemMarkup({label:'Legal Entities',attributes:'data-view="legalentities"',icon:'legalEntity'}):'',
+    state.navigation.is_administrator||permissions.some(permission=>permission.resource_kind==='gl_account')?menuItemMarkup({label:'GL Accounts',attributes:'data-ledger-family="gl"',icon:'glAccount'}):'',
+    menuGroupMarkup('technical','subledger','Sub Ledgers',subledgerItems,{icon:'subledger',toggleId:'subledger-toggle',contentId:'subledger-subnav'}),
+    menuGroupMarkup('technical','objects','Accounting Objects',objectItems,{icon:'accountingObject',toggleId:'object-toggle',contentId:'object-subnav'}),
+    menuGroupMarkup('technical','dimensions','Accounting Dimensions',dimensionItems,{icon:'accountingDimension',toggleId:'dimension-toggle',contentId:'dimension-subnav'}),
+    hasTransactions?menuGroupMarkup('technical','transactions','Transactions',transactionItems,{icon:'transaction',toggleId:'transaction-toggle',contentId:'transaction-subnav'}):'',
+    hasMaster||hasTransactions?menuGroupMarkup('technical','reports','Reports',[
+      menuItemMarkup({label:'Financial Statement',attributes:'data-report-view="financial_statement"',icon:'report',depth:2}),
+      menuItemMarkup({label:'Ledger Balances',attributes:'data-report-view="ledger"',icon:'report',depth:2})
+    ],{icon:'report',toggleId:'reports-toggle',contentId:'reports-subnav'}):''
+  ];
+  $('technical-menu').innerHTML=technicalEntries.join('');
+  bindMenu($('technical-menu'),'technical');
+  $('technical-menu').querySelectorAll('[data-transaction-group]').forEach(button=>{
     button.addEventListener('click',()=>{
       const groupId=button.dataset.transactionGroup;
       if(expandedTransactionGroups.has(groupId))expandedTransactionGroups.delete(groupId);
@@ -783,12 +1050,9 @@ function buildDynamicMenu(){
       buildDynamicMenu();
     });
   });
-  $('transaction-subnav').querySelectorAll('[data-transaction-type]').forEach(button=>{
-    button.addEventListener('click',()=>openTransactionType(button.dataset.transactionType).catch(e=>alert(e.message)));
-  });
   highlightDynamicMenu();
 }
-function alternativeItem(label,attributes,kind){return `<button type="button" class="nav alternate-menu-item" ${attributes}>${resourceIconMarkup(kind)}<span class="alternate-item-text">${label}</span></button>`;}
+function resourceMenuItem(label,attributes,kind){return menuItemMarkup({label,attributes,iconMarkup:resourceIconMarkup(kind),depth:2});}
 function resourcesForModules(moduleIds,{role=null}={}){
   const linked=row=>(row.module_ids||[]).some(id=>moduleIds.has(id));
   const permissions=role?state.navigation.permissions.filter(permission=>permission.role_id===role.role_id):[];
@@ -797,88 +1061,77 @@ function resourcesForModules(moduleIds,{role=null}={}){
   const accountingObjectAllowed=type=>!role||permissions.some(permission=>permission.resource_kind==='accounting_object'&&(permission.resource_code==='*'||permission.resource_code===type.accounting_object_type_id));
   const transactionAllowed=type=>!role||permissions.some(permission=>permission.resource_kind==='transaction'&&(permission.resource_code==='*'||permission.resource_code===type.transaction_type_id));
   return [
-    ...state.subledgerAccountTypes.filter(row=>row.is_active!==false&&linked(row)&&masterAllowed(row)).map(row=>alternativeItem(row.type_name,`data-ledger-family="${row.type_code}"`,'subledger')),
-    ...state.accountingObjectTypes.filter(row=>row.is_active!==false&&linked(row)&&accountingObjectAllowed(row)).map(row=>alternativeItem(row.type_name,`data-accounting-master="object" data-accounting-type-id="${row.accounting_object_type_id}"`,'accountingObject')),
-    ...state.accountingDimensionTypes.filter(row=>row.is_active!==false&&linked(row)&&anyMaster).map(row=>alternativeItem(row.type_name,`data-accounting-master="dimension" data-accounting-type-id="${row.accounting_dimension_type_id}"`,'accountingDimension')),
-    ...state.transactionTypes.filter(row=>row.is_active!==false&&linked(row)&&transactionAllowed(row)).map(row=>alternativeItem(row.type_name,`data-transaction-type="${row.transaction_type_id}"`,'transaction'))
+    ...state.subledgerAccountTypes.filter(row=>row.is_active!==false&&linked(row)&&masterAllowed(row)).map(row=>resourceMenuItem(row.type_name,`data-ledger-family="${row.type_code}"`,'subledger')),
+    ...state.accountingObjectTypes.filter(row=>row.is_active!==false&&linked(row)&&accountingObjectAllowed(row)).map(row=>resourceMenuItem(row.type_name,`data-accounting-master="object" data-accounting-type-id="${row.accounting_object_type_id}"`,'accountingObject')),
+    ...state.accountingDimensionTypes.filter(row=>row.is_active!==false&&linked(row)&&anyMaster).map(row=>resourceMenuItem(row.type_name,`data-accounting-master="dimension" data-accounting-type-id="${row.accounting_dimension_type_id}"`,'accountingDimension')),
+    ...state.transactionTypes.filter(row=>row.is_active!==false&&linked(row)&&transactionAllowed(row)).map(row=>resourceMenuItem(row.type_name,`data-transaction-type="${row.transaction_type_id}"`,'transaction'))
   ];
 }
-function bindAlternativeMenu(menu){
-  menu.querySelectorAll('[data-view]').forEach(button=>button.onclick=()=>openView(button.dataset.view).catch(error=>alert(error.message)));
-  menu.querySelectorAll('[data-ledger-family]').forEach(button=>button.onclick=()=>openLedgerFamily(button.dataset.ledgerFamily).catch(error=>alert(error.message)));
-  menu.querySelectorAll('[data-accounting-master]').forEach(button=>button.onclick=()=>openAccountingMaster(button.dataset.accountingMaster,button.dataset.accountingTypeId).catch(error=>alert(error.message)));
-  menu.querySelectorAll('[data-transaction-type]').forEach(button=>button.onclick=()=>openTransactionType(button.dataset.transactionType).catch(error=>alert(error.message)));
-  menu.querySelectorAll('[data-alternate-group]').forEach(heading=>{
-    const toggle=()=>{
-      const content=$(heading.getAttribute('aria-controls'));
-      const expanded=heading.getAttribute('aria-expanded')==='true';
-      const key=`erp.menuExpanded:${state.orgId}:${heading.dataset.menuKind}`;
-      const expandedGroups=expandedMenuGroups(heading.dataset.menuKind);
-      if(expanded){
-        heading.setAttribute('aria-expanded','false');
-        content.hidden=true;
-        expandedGroups.delete(heading.dataset.alternateGroup);
-      }else{
-        menu.querySelectorAll('[data-alternate-group]').forEach(other=>{
-          other.setAttribute('aria-expanded','false');
-          const otherContent=$(other.getAttribute('aria-controls'));
-          if(otherContent)otherContent.hidden=true;
-        });
-        heading.setAttribute('aria-expanded','true');
-        content.hidden=false;
-        expandedGroups.clear();
-        expandedGroups.add(heading.dataset.alternateGroup);
-      }
-      localStorage.setItem(key,JSON.stringify([...expandedGroups]));
-    };
-    heading.onclick=toggle;
-    heading.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();toggle();}};
-  });
-}
-function expandedMenuGroups(kind){
-  try{
-    const saved=JSON.parse(localStorage.getItem(`erp.menuExpanded:${state.orgId}:${kind}`)||'[]');
-    return new Set(Array.isArray(saved)&&saved.length?[saved.at(-1)]:[]);
+function setupMenuGroups(){
+  const allowed=state.navigation?.is_administrator===true;
+  const canBootstrap=canBootstrapSetup();
+  const canInitialiseTemplate=canInitialiseTemplateOrg();
+  const groups=[];
+  if(allowed){
+    groups.push(
+      {id:'organisation',label:'Organisation',icon:'organisation',items:[
+        ['Organisations','data-view="organisations"','organisation'],['Divisions','data-view="divisions"','division'],['Fiscal Year','data-view="fiscal"','calendar'],['Countries','data-view="countries"','globe'],['Currencies','data-view="currencies"','currency'],['Tax Types','data-view="taxtypes"','tax'],['Financial Statement Formats','data-view="financialformats"','report']
+      ]},
+      {id:'accounting-model',label:'Accounting Model',icon:'accountingDimension',items:[
+        ['Modules','data-view="modules"','module'],['Subledger Account Types','data-view="ledgerfamilies"','subledger'],['Accounting Object Types','data-view="accountingobjecttypes"','accountingObject'],['Accounting Dimension Types','data-view="accountingdimensiontypes"','accountingDimension']
+      ]},
+      {id:'transactions',label:'Transactions',icon:'transaction',items:[['Transaction Groups','data-view="transactiongroups"','transaction'],['Transaction Types','data-view="transactiontypes"','transaction'],['Workflows','data-view="workflows"','workflow']]},
+      {id:'security',label:'Security',icon:'security',items:[['Permissions','data-view="permissions"','role']]}
+    );
   }
-  catch{return new Set();}
+  const recoveryItems=[];
+  if(allowed||canBootstrap)recoveryItems.push(menuItemMarkup({label:'Initialise Schema',attributes:'data-menu-action="init-schema"',icon:'recovery',depth:2,action:true}));
+  if(canInitialiseTemplate)recoveryItems.push(menuItemMarkup({label:'Initialise Template Org',attributes:'data-menu-action="init-template"',icon:'recovery',depth:2,action:true,id:'init-template-menu'}));
+  if(allowed)recoveryItems.push(menuItemMarkup({label:'ERP Reset',attributes:'data-view="setup"',icon:'reset',depth:2,danger:true}));
+  if(recoveryItems.length)groups.push({id:'recovery',label:'Recovery',icon:'recovery',renderedItems:recoveryItems,expanded:!allowed});
+  return groups;
 }
-function alternativeGroup(kind,id,label,items,iconSvg=''){
-  if(!items.length)return '';
-  const expanded=expandedMenuGroups(kind).has(id);
-  const contentId=`${kind}-menu-group-${id}`;
-  const icon=kind==='module'?moduleIconMarkup(iconSvg):fixedMenuIconMarkup('role','module-menu-icon');
-  return `<div class="alternate-menu-group"><div class="alternate-menu-heading" role="button" tabindex="0" data-menu-kind="${kind}" data-alternate-group="${id}" aria-expanded="${expanded?'true':'false'}" aria-controls="${contentId}"><span class="alternate-menu-label">${icon}${label}</span></div><div id="${contentId}" class="alternate-menu-items" ${expanded?'':'hidden'}>${items.join('')}</div></div>`;
+function buildSetupMenu(){
+  const groups=setupMenuGroups();
+  $('setup-menu').innerHTML=groups.map(group=>menuGroupMarkup('setup',group.id,group.label,group.renderedItems||group.items.map(([label,attributes,icon])=>menuItemMarkup({label,attributes,icon,depth:2})),{icon:group.icon,expanded:group.expanded??null})).join('');
+  bindMenu($('setup-menu'),'setup');
 }
 function buildAlternativeMenus(){
   const hasMaster=state.navigation.is_administrator||(state.navigation.permissions||[]).some(permission=>['gl_account','legal_entity','subledger_account','accounting_object','accounting_dimension'].includes(permission.resource_kind));
-  const common=`<button type="button" class="nav alternate-menu-link" data-view="dashboard">${fixedMenuIconMarkup('dashboard')}<span>Dashboard</span></button>${hasMaster?`<button type="button" class="nav alternate-menu-link" data-view="legalentities">${fixedMenuIconMarkup('legalEntity')}<span>Legal Entities</span></button>`:''}`;
+  const common=menuItemMarkup({label:'Dashboard',attributes:'data-view="dashboard"',icon:'dashboard'})+(hasMaster?menuItemMarkup({label:'Legal Entities',attributes:'data-view="legalentities"',icon:'legalEntity'}):'');
   $('module-menu').innerHTML=common+state.navigation.modules.map(module=>{
     const items=resourcesForModules(new Set([module.module_id]));
-    return alternativeGroup('module',module.module_id,module.module_name,items,module.module_icon_svg);
+    return menuGroupMarkup('module',module.module_id,module.module_name,items,{iconMarkup:moduleIconMarkup(module.module_icon_svg)});
   }).join('');
   $('role-menu').innerHTML=common+state.navigation.roles.map(role=>{
     const moduleIds=new Set(role.module_ids||[]);
     const items=resourcesForModules(moduleIds,{role});
-    return alternativeGroup('role',role.role_id,role.role_name,items);
+    return menuGroupMarkup('role',role.role_id,role.role_name,items,{icon:'role'});
   }).join('');
-  bindAlternativeMenu($('module-menu'));bindAlternativeMenu($('role-menu'));
+  bindMenu($('module-menu'),'module');bindMenu($('role-menu'),'role');
   syncSetupAccess();
   applyMenuMode(localStorage.getItem('erp.menuMode')||'module');
 }
 function syncSetupAccess(){
   const allowed=state.navigation?.is_administrator===true;
-  const canBootstrap=canBootstrapTemplateOrg();
-  $('init-template-menu').hidden=!canBootstrap;
-  $('setup-toggle').hidden=!allowed;
-  $('sidebar-setup-footer').hidden=!allowed&&!canBootstrap;
-  $('setup-subnav')?.querySelectorAll('[data-view]').forEach(button=>{
-    button.hidden=!allowed;
-  });
-  if(!allowed)setSetupExpanded(false);
+  const canInitialiseTemplate=canInitialiseTemplateOrg();
+  const setupAvailable=allowed||canInitialiseTemplate||canBootstrapSetup();
+  buildSetupMenu();
+  document.querySelector('[data-menu-mode="setup"]').hidden=!setupAvailable;
+  if(!setupAvailable)$('setup-menu').hidden=true;
+  if(loadedSlices.menu&&!setupAvailable){
+    if(localStorage.getItem('erp.menuMode')==='setup')applyMenuMode('module');
+  }
+  if(loadedSlices.menu&&!allowed){
+    const visibleView=document.querySelector('.view:not([hidden])')?.id?.replace('view-','');
+    if(setupViews.has(visibleView))show('dashboard');
+  }
 }
 function applyMenuMode(mode){
-  const selected=['technical','module','role'].includes(mode)?mode:'module';
-  $('technical-menu').hidden=selected!=='technical';$('module-menu').hidden=selected!=='module';$('role-menu').hidden=selected!=='role';
+  const allowedModes=['technical','module','role'];
+  if(state.navigation?.is_administrator===true||canInitialiseTemplateOrg())allowedModes.push('setup');
+  const selected=allowedModes.includes(mode)?mode:'module';
+  $('technical-menu').hidden=selected!=='technical';$('module-menu').hidden=selected!=='module';$('role-menu').hidden=selected!=='role';$('setup-menu').hidden=selected!=='setup';
   document.querySelectorAll('[data-menu-mode]').forEach(tab=>{const active=tab.dataset.menuMode===selected;tab.classList.toggle('active',active);tab.setAttribute('aria-selected',active?'true':'false');});
   localStorage.setItem('erp.menuMode',selected);
   highlightDynamicMenu();
@@ -891,10 +1144,10 @@ function highlightDynamicMenu(){
   });
   document.querySelectorAll('[data-transaction-type]').forEach(button=>button.classList.toggle('active',button.dataset.transactionType===selectedTransactionTypeId&&!$('view-journals').hidden));
   document.querySelectorAll('[data-report-view]').forEach(button=>button.classList.toggle('active',button.dataset.reportView===selectedReport&&!$('view-reports').hidden));
-  $('subledger-toggle').classList.toggle('active',!$('view-accounts').hidden&&selectedAccountScopeCode&&selectedAccountScopeCode!=='gl');
-  $('object-toggle').classList.toggle('active',!$('view-accountingobjects').hidden);
-  $('dimension-toggle').classList.toggle('active',!$('view-accountingdimensions').hidden);
-  $('transaction-toggle').classList.toggle('active',!$('view-journals').hidden);
+  $('subledger-toggle')?.classList.toggle('active',!$('view-accounts').hidden&&selectedAccountScopeCode&&selectedAccountScopeCode!=='gl');
+  $('object-toggle')?.classList.toggle('active',!$('view-accountingobjects').hidden);
+  $('dimension-toggle')?.classList.toggle('active',!$('view-accountingdimensions').hidden);
+  $('transaction-toggle')?.classList.toggle('active',!$('view-journals').hidden);
   $('reports-toggle')?.classList.toggle('active',!$('view-reports').hidden);
 }
 async function openAccountingMaster(kind,typeId=''){
@@ -969,7 +1222,7 @@ async function openReport(report){
   $('report-title').textContent=titles[report]||'Reports';
   const financial=report==='financial_statement';
   ['report-format-label','report-period-from-label','report-period-to-label','report-compare-year-label','report-compare-period-from-label','report-compare-period-to-label'].forEach(id=>$(id).hidden=!financial);
-  $('report-division-label').hidden=false;
+  $('report-division-label').hidden=true;
   fillReportFormatSelect();
   fillReportPeriodSelects();
   renderReport().catch(e=>alert(e.message));
@@ -999,8 +1252,25 @@ function fillSelects(){
 }
 function fillDivisionSelects(){
   const label=d=>`${'  '.repeat(Number(d.depth)||0)}${d.division_code} - ${d.division_name}`;
-  [$('division-parent'),$('account-division'),$('journal-division'),$('accounting-object-division'),$('accounting-dimension-division')].forEach(s=>option(s,state.divisions,'division_id',label,s?.id==='division-parent'?'Root division':''));
+  const scopedIds=new Set();
+  if(state.divisionId){
+    scopedIds.add(state.divisionId);
+    if(state.includeChildren){
+      let changed=true;
+      while(changed){
+        changed=false;
+        state.divisions.forEach(division=>{if(scopedIds.has(division.parent_division_id)&&!scopedIds.has(division.division_id)){scopedIds.add(division.division_id);changed=true;}});
+      }
+    }
+  }
+  const scoped=state.divisionId?state.divisions.filter(division=>scopedIds.has(division.division_id)):state.divisions;
+  option($('division-parent'),state.divisions,'division_id',label,'Root division');
+  [$('account-division'),$('journal-division'),$('accounting-object-division'),$('accounting-dimension-division')].forEach(select=>{
+    option(select,scoped,'division_id',label);
+    if(state.divisionId&&scopedIds.has(state.divisionId))select.value=state.divisionId;
+  });
   option($('report-division'),state.divisions,'division_id',label,'All divisions');
+  if(state.divisionId)$('report-division').value=state.divisionId;
   document.querySelectorAll('.permission-division').forEach(s=>option(s,state.divisions,'division_id',label,'Select division'));
 }
 function periodsForYear(yearId){
@@ -1635,8 +1905,6 @@ async function saveOrgOpenAISetting(orgId){
 }
 function renderOrganisations(){
   const canManage=state.navigation?.is_administrator===true;
-  $('init-template-org').hidden=!canManage&&!canBootstrapTemplateOrg();
-  $('init-schema').hidden=!canManage;
   $('add-org').hidden=!canManage;
   if(!canManage){
     $('organisation-form').hidden=true;
@@ -2384,7 +2652,7 @@ async function renderReport(){
     $('report-result').innerHTML='<p class="empty">No fiscal years defined.</p>';
     return;
   }
-  const division=$('report-division').value;
+  const division=state.divisionId||$('report-division').value;
   const params=new URLSearchParams({organisation_id:state.orgId,report:selectedReport});
   if(selectedReport==='ledger')params.set('fiscal_year_id',yearId);
   if(selectedReport==='financial_statement'){
@@ -3265,7 +3533,10 @@ async function ensureViewData(view){
 async function loadOrgData(){
   resetOrgLoadedState();
   if(!state.orgId)return;
-  await loadMenuData(true);
+  await Promise.all([loadMenuData(true),ensureDivisions(true)]);
+  resolveDivisionContext();
+  fillDivisionSelects();
+  renderWorkspaceContext();
   renderDashboard();
   renderOrganisations();
 }
@@ -3346,11 +3617,17 @@ async function load(){
   if(state.orgId)await loadOrgData();
   else{
     resetOrgLoadedState();
+    buildDynamicMenu();
+    buildAlternativeMenus();
     fillDivisionSelects();renderAll();
   }
-  if(!$('view-dashboard').hidden)loadDashboardData().catch(e=>alert(e.message));
+  renderWorkspaceContext();
+  const requestedView=new URLSearchParams(location.search).get('view')||'dashboard';
+  const viewExists=!!$(`view-${requestedView}`);
+  await openView(viewExists?requestedView:'dashboard');
+  syncContextUrl();
+  if(state.orgId&&boot.context_storage_available)await saveWorkspaceContext();
 }
-document.querySelectorAll('.nav[data-view]').forEach(b=>b.addEventListener('click',()=>openView(b.dataset.view).catch(e=>alert(e.message))));
 [
   ['organisation-search',renderOrganisations],
   ['division-search',renderDivisions],
@@ -3368,33 +3645,6 @@ document.querySelectorAll('.nav[data-view]').forEach(b=>b.addEventListener('clic
   ['transactiontype-search',renderTransactionTypes],
   ['permission-search',renderRoles]
 ].forEach(([id,render])=>$(id)?.addEventListener('input',render));
-$('setup-toggle').addEventListener('click',()=>{
-  const expanded=$('setup-toggle').getAttribute('aria-expanded')==='true';
-  setSetupExpanded(!expanded);
-});
-$('init-template-menu')?.addEventListener('click',()=>initialiseTemplateOrganisation().catch(e=>alert(e.message)));
-[
-  ['subledger-toggle','subledger-subnav'],
-  ['object-toggle','object-subnav'],
-  ['dimension-toggle','dimension-subnav']
-].forEach(([toggleId,subnavId])=>{
-  $(toggleId).addEventListener('click',()=>{
-    const expanded=$(toggleId).getAttribute('aria-expanded')==='true';
-    setMenuExpanded(toggleId,subnavId,!expanded);
-    if(!expanded)collapseDynamicMenus(toggleId);
-  });
-});
-$('transaction-toggle').addEventListener('click',()=>{
-  const expanded=$('transaction-toggle').getAttribute('aria-expanded')==='true';
-  setMenuExpanded('transaction-toggle','transaction-subnav',!expanded);
-  if(!expanded)collapseDynamicMenus('transaction-toggle');
-});
-$('reports-toggle').addEventListener('click',()=>{
-  const expanded=$('reports-toggle').getAttribute('aria-expanded')==='true';
-  setMenuExpanded('reports-toggle','reports-subnav',!expanded);
-  if(!expanded)collapseDynamicMenus('reports-toggle');
-});
-document.querySelectorAll('[data-report-view]').forEach(button=>button.addEventListener('click',()=>openReport(button.dataset.reportView).catch(e=>alert(e.message))));
 $('run-report').addEventListener('click',()=>renderReport().catch(e=>alert(e.message)));
 $('report-format').addEventListener('change',()=>{selectedFinancialFormatId=$('report-format').value;renderReport().catch(e=>alert(e.message));});
 $('report-year').addEventListener('change',()=>{fillReportPeriodRange('report-year','report-period-from','report-period-to');renderReport().catch(e=>alert(e.message));});
@@ -3413,23 +3663,19 @@ async function initialiseTemplateOrganisation(){
   storeCurrentOrg();
   await load();
   await ensureTaxTypes(true);
+  applyMenuMode('setup');
   show('organisations');
   $('init-template-result').hidden=false;
   $('init-template-result').textContent='Template organisation initialised. Security Administrator access has been assigned to your user.';
 }
-$('init-schema').addEventListener('click',async()=>{
+async function initialiseSchema(){
   if(!window.confirm('Initialise or repair the ERP database schema now?'))return;
-  try{
-    recalculateBalancingLines();
-    await api('setup/schema',{method:'POST',body:JSON.stringify({})});
-    await load();
-    show('organisations');
-    $('init-template-result').hidden=false;
-    $('init-template-result').textContent='Schema initialised.';
-  }catch(e){
-    alert(e.message);
-  }
-});
+  recalculateBalancingLines();
+  await api('setup/schema',{method:'POST',body:JSON.stringify({access_organisation_id:state.orgId})});
+  await load();
+  applyMenuMode('setup');
+  alert('ERP schema initialised.');
+}
 $('reset-erp').addEventListener('click',async()=>{
   if(!window.confirm('Reset this tenant ERP data? This deletes every ERP organisation, account, legal entity, transaction, document, workflow, module, role, permission, and setup row. It will not reseed defaults. This cannot be undone.'))return;
   try{
@@ -3441,18 +3687,41 @@ $('reset-erp').addEventListener('click',async()=>{
     alert(e.message);
   }
 });
-$('init-template-org').addEventListener('click',()=>initialiseTemplateOrganisation().catch(e=>alert(e.message)));
-$('organisation-select').addEventListener('change',async e=>{
-  state.orgId=e.target.value;
-  storeCurrentOrg();
-  selectedAccountScopeCode='gl';
-  selectedTransactionTypeId='';
-  selectedReport='financial_statement';
-  resetScreenState();
-  await load();
-  show('dashboard');
-  loadDashboardData().catch(error=>alert(error.message));
+$('organisation-select').addEventListener('change',e=>switchWorkspaceOrganisation(e.target.value).catch(error=>alert(error.message)));
+$('organisation-more').addEventListener('click',event=>{
+  event.stopPropagation();
+  closeDivisionPicker();
+  const menu=$('organisation-more-menu');menu.hidden=!menu.hidden;
+  $('organisation-more').setAttribute('aria-expanded',menu.hidden?'false':'true');
+  if(!menu.hidden){$('organisation-tab-search').focus();renderOrganisationOverflow();}
 });
+$('organisation-more-menu').addEventListener('click',event=>event.stopPropagation());
+$('organisation-tab-search').addEventListener('input',renderOrganisationOverflow);
+$('division-picker-button').addEventListener('click',event=>{
+  event.stopPropagation();
+  closeOrganisationMenu();
+  const menu=$('division-picker-menu');menu.hidden=!menu.hidden;
+  $('division-picker-button').setAttribute('aria-expanded',menu.hidden?'false':'true');
+  if(!menu.hidden){renderDivisionTree();}
+});
+$('division-picker-menu').addEventListener('click',event=>event.stopPropagation());
+$('division-picker-close').addEventListener('click',closeDivisionPicker);
+$('include-child-divisions').addEventListener('change',async event=>{
+  if(!confirmContextChange()){event.target.checked=state.includeChildren;return;}
+  try{
+    state.includeChildren=event.target.checked;
+    resetScreenState();resetOrgLoadedState();
+    await loadMenuData(true);await ensureDivisions(true);
+    renderWorkspaceContext();await saveWorkspaceContext();syncContextUrl({push:true});
+    show('dashboard');loadDashboardData().catch(error=>alert(error.message));
+  }catch(error){alert(error.message);}
+});
+document.addEventListener('click',()=>{closeOrganisationMenu();closeDivisionPicker();});
+document.addEventListener('input',event=>{const form=event.target.closest?.('form');if(form&&event.isTrusted)dirtyForms.add(form);});
+document.addEventListener('change',event=>{const form=event.target.closest?.('form');if(form&&event.isTrusted)dirtyForms.add(form);});
+document.addEventListener('submit',event=>dirtyForms.delete(event.target),true);
+window.addEventListener('beforeunload',event=>{if(hasDirtyForm()){event.preventDefault();event.returnValue='';}});
+window.addEventListener('popstate',()=>location.reload());
 function openNewOrganisation(){
   $('organisation-form').hidden=false;
   showOrganisationTab('definition');
@@ -4021,7 +4290,21 @@ $('new-country').addEventListener('click',openNewCountry);
 $('country-form').addEventListener('submit',async e=>{e.preventDefault();await api('countries/save',{method:'POST',body:JSON.stringify({organisation_id:state.orgId,country_code:$('country-code').value,alpha3_code:$('country-alpha3').value,numeric_code:$('country-numeric').value,country_name:$('country-name').value,official_name:$('country-official').value,region:$('country-region').value,subregion:$('country-subregion').value,default_currency_code:$('country-currency').value,calling_code:$('country-calling-code').value,postal_code_required:$('country-postal-required').checked,administrative_level_label:$('country-admin-label').value})});$('country-form').hidden=true;await ensureCountries(true);renderCountries();});
 $('add-ledger-family').addEventListener('click',openNewLedgerFamily);
 $('new-ledger-family').addEventListener('click',openNewLedgerFamily);
-$('ledger-family-form').addEventListener('submit',async e=>{e.preventDefault();await api('subledger-account-types/save',{method:'POST',body:JSON.stringify({subledger_account_type_id:$('ledger-family-id').value,organisation_id:state.orgId,type_code:$('ledger-family-code').value,type_name:$('ledger-family-name').value,type_description:$('ledger-family-description').value,workflow_path_id:$('ledger-family-workflow-path').value,module_ids:selectedModuleIds('ledger-family-modules'),requires_legal_entity:$('ledger-family-legal-entity').checked,schema_json:$('ledger-family-schema').value,ui_schema_json:$('ledger-family-ui-schema').value,is_active:$('ledger-family-active').checked})});$('ledger-family-form').hidden=true;await loadMenuData(true);renderLedgerFamilies();});
+$('ledger-family-form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const saveButton=e.submitter||e.currentTarget.querySelector('button[type="submit"]');
+  if(saveButton)saveButton.disabled=true;
+  try{
+    await api('subledger-account-types/save',{method:'POST',body:JSON.stringify({subledger_account_type_id:$('ledger-family-id').value,organisation_id:state.orgId,type_code:$('ledger-family-code').value,type_name:$('ledger-family-name').value,type_description:$('ledger-family-description').value,workflow_path_id:$('ledger-family-workflow-path').value,module_ids:selectedModuleIds('ledger-family-modules'),requires_legal_entity:$('ledger-family-legal-entity').checked,schema_json:$('ledger-family-schema').value,ui_schema_json:$('ledger-family-ui-schema').value,is_active:$('ledger-family-active').checked})});
+    $('ledger-family-form').hidden=true;
+    await loadMenuData(true);
+    renderLedgerFamilies();
+  }catch(error){
+    alert(error.message);
+  }finally{
+    if(saveButton)saveButton.disabled=false;
+  }
+});
 $('add-accounting-object-type').addEventListener('click',()=>openAccountingSetupType('object'));
 $('new-accounting-object-type').addEventListener('click',()=>openAccountingSetupType('object'));
 $('accounting-object-type-search').addEventListener('input',()=>renderAccountingSetupTypes('object'));
@@ -4224,5 +4507,6 @@ setupLegalEntityTabs();
 addPanelCloseButtons();
 syncRequiredMarkers();
 initSidebarResize();
+initSidebarCollapse();
 load().catch(e=>alert(e.message));
 })();

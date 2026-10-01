@@ -2,7 +2,6 @@
 
 const fs=require('fs');
 const path=require('path');
-const {ensureSchema}=require('./schema');
 const {isAdministrator}=require('./access');
 
 function contentRoot(){
@@ -15,10 +14,6 @@ function templateSeedPath(){
 
 function loadTemplateDefaults(){
   return JSON.parse(fs.readFileSync(templateSeedPath(),'utf8'));
-}
-
-async function ensureTenantSeed(ctx,access){
-  await ensureSchema(ctx);
 }
 
 async function seedTaxTypes(ctx,access,organisationId,taxTypeSeeds){
@@ -656,4 +651,4 @@ async function seedFinancialStatementFormats(ctx,access,organisationId){
   }
 }
 
-module.exports={ensureTenantSeed,seedOrganisationDefaults,seedFinancialStatementFormats,templateSeedPath};
+module.exports={seedOrganisationDefaults,seedFinancialStatementFormats,templateSeedPath};

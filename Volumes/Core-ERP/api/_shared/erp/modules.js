@@ -18,14 +18,14 @@ async function validateModules(ctx,access,organisationId,ids){
 async function replaceLinks(ctx,access,organisationId,{table,idColumn,idValue,moduleIds:ids,composite=false}){
   const deleteText=composite
     ? `DELETE FROM ${table} WHERE tenant_id=$1 AND organisation_id=$2 AND ${idColumn}=$3`
-    : `DELETE FROM ${table} WHERE ${idColumn}=$3`;
+    : `DELETE FROM ${table} WHERE ${idColumn}=$1`;
   const insertText=composite
     ? `INSERT INTO ${table}(tenant_id,organisation_id,${idColumn},module_id)
        SELECT $1,$2,$3,module_id FROM erp_module WHERE tenant_id=$1 AND organisation_id=$2 AND module_id=ANY($4::uuid[])`
     : `INSERT INTO ${table}(${idColumn},module_id)
        SELECT $3,module_id FROM erp_module WHERE tenant_id=$1 AND organisation_id=$2 AND module_id=ANY($4::uuid[])`;
   await ctx.broker('core_erp','transaction',{statements:[
-    {text:deleteText,values:[access.tenantId,organisationId,idValue]},
+    {text:deleteText,values:composite?[access.tenantId,organisationId,idValue]:[idValue]},
     {text:insertText,values:[access.tenantId,organisationId,idValue,ids]}
   ]});
 }

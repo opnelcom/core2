@@ -3,8 +3,6 @@
 const fs=require('fs');
 const path=require('path');
 
-let schemaPromise=null;
-
 function contentRoot(){
   return process.env.CONTENT_ROOT||path.resolve(__dirname,'..','..','..');
 }
@@ -22,15 +20,4 @@ async function runSchemaSql(ctx){
   return {ok:true};
 }
 
-async function ensureSchema(ctx,options={}){
-  if(options.force)return runSchemaSql(ctx);
-  if(!schemaPromise){
-    schemaPromise=runSchemaSql(ctx).catch(error=>{
-      schemaPromise=null;
-      throw error;
-    });
-  }
-  return schemaPromise;
-}
-
-module.exports={ensureSchema,runSchemaSql,schemaPath};
+module.exports={runSchemaSql,schemaPath};

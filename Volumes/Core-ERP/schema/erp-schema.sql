@@ -109,6 +109,25 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
     CREATE UNIQUE INDEX IF NOT EXISTS erp_division_live_code_idx ON erp_division(tenant_id,organisation_id,division_code) WHERE workflow_status <> 'deleted';
     CREATE INDEX IF NOT EXISTS erp_division_parent_idx ON erp_division(tenant_id,organisation_id,parent_division_id,division_name);
 
+    CREATE TABLE IF NOT EXISTS erp_user_tenant_context(
+      tenant_id uuid NOT NULL,
+      user_id uuid NOT NULL,
+      organisation_id uuid REFERENCES erp_organisation(organisation_id) ON DELETE SET NULL,
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY(tenant_id,user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS erp_user_organisation_context(
+      tenant_id uuid NOT NULL,
+      user_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      division_id uuid REFERENCES erp_division(division_id) ON DELETE SET NULL,
+      include_children boolean NOT NULL DEFAULT false,
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY(tenant_id,user_id,organisation_id)
+    );
+    CREATE INDEX IF NOT EXISTS erp_user_organisation_context_division_idx ON erp_user_organisation_context(tenant_id,organisation_id,division_id);
+
     CREATE TABLE IF NOT EXISTS erp_legal_entity(
       legal_entity_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       tenant_id uuid NOT NULL,

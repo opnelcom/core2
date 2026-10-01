@@ -1,7 +1,7 @@
 (()=>{
 const $=id=>document.getElementById(id);
 const rememberedKey='coreSaasRememberedDevice';
-const panelGlassKey='coreSaasPanelGlassByApplication';
+const panelGlassKey='coreSaasPanelGlassTransparency';
 const defaultTenantIconPreset='organisation';
 const tenantIconPresets=[
   {key:'personal',label:'Personal'},
@@ -30,7 +30,7 @@ let currentTenants=[];
 let currentThemes=[];
 let activeApplication=null;
 let activeLauncher='home';
-let panelGlassByApplication=readPanelGlassPrefs();
+let panelGlassTransparency=readPanelGlassPrefs();
 let managedTenantId=null;
 let managedTenantDetail=null;
 let tenantEditorId=null;
@@ -229,28 +229,24 @@ function applicationKey(app){
 
 function readPanelGlassPrefs(){
   try{
-    return JSON.parse(localStorage.getItem(panelGlassKey)||'{}')||{};
+    const saved=localStorage.getItem(panelGlassKey);
+    if(saved!==null)return clampTransparency(saved);
+    const legacy=JSON.parse(localStorage.getItem('coreSaasPanelGlassByApplication')||'{}')||{};
+    const first=Object.values(legacy).find(value=>Number.isFinite(Number(value))||value===true||value===false);
+    return first===true?60:first===false?0:clampTransparency(first);
   }catch{
-    return {};
+    return 0;
   }
 }
 
 function savePanelGlassPrefs(){
-  localStorage.setItem(panelGlassKey,JSON.stringify(panelGlassByApplication));
+  localStorage.setItem(panelGlassKey,String(clampTransparency(panelGlassTransparency)));
 }
 
 function clampTransparency(value){
   const number=Number(value);
   if(!Number.isFinite(number))return 0;
   return Math.max(0,Math.min(100,Math.round(number)));
-}
-
-function applicationTransparency(app){
-  if(!app)return false;
-  const saved=panelGlassByApplication[applicationKey(app)];
-  if(saved===true)return 60;
-  if(saved===false||saved===undefined||saved===null)return 0;
-  return clampTransparency(saved);
 }
 
 function transparencyAlpha(transparency){
@@ -593,8 +589,11 @@ function openApplication(app){
   activeApplication=app;
   activeLauncher='application';
   $('app').classList.add('application-open');
+  const isErp=String(app.application_code||'').toLowerCase()==='core-erp';
+  $('application-workspace').classList.toggle('application-erp',isErp);
+  $('app').classList.toggle('erp-open',isErp);
   const route=app.route_prefix||'/';
-  const transparency=applicationTransparency(app);
+  const transparency=panelGlassTransparency;
   updateApplicationIconSelection();
   $('active-application-title').textContent=app.application_name||'Application';
   applyPanelGlassState(transparency);
@@ -610,6 +609,8 @@ function showApplicationHome(){
   activeApplication=null;
   activeLauncher='home';
   $('app').classList.remove('application-open');
+  $('app').classList.remove('erp-open');
+  $('application-workspace').classList.remove('application-erp');
   applyPanelGlassState(false);
   updateApplicationIconSelection();
   $('application-frame').removeAttribute('src');
@@ -627,6 +628,8 @@ function showTenantManagement(){
   activeApplication=null;
   activeLauncher='tenant-management';
   $('app').classList.remove('application-open');
+  $('app').classList.remove('erp-open');
+  $('application-workspace').classList.remove('application-erp');
   applyPanelGlassState(false);
   updateApplicationIconSelection();
   $('application-frame').removeAttribute('src');
@@ -643,6 +646,8 @@ function showCoreAbout(){
   activeApplication=null;
   activeLauncher='about';
   $('app').classList.remove('application-open');
+  $('app').classList.remove('erp-open');
+  $('application-workspace').classList.remove('application-erp');
   applyPanelGlassState(false);
   updateApplicationIconSelection();
   $('application-frame').removeAttribute('src');
@@ -1404,9 +1409,7 @@ if(panelTransparencySlider){
     applyPanelGlassState(event.target.value);
   });
   panelTransparencySlider.addEventListener('change',event=>{
-    if(!activeApplication)return;
-    const key=applicationKey(activeApplication);
-    panelGlassByApplication={...panelGlassByApplication,[key]:clampTransparency(event.target.value)};
+    panelGlassTransparency=clampTransparency(event.target.value);
     savePanelGlassPrefs();
     applyPanelGlassState(event.target.value);
   });

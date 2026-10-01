@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Core | Landing</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style.css?v=20260930-erp-compact-header">
 </head>
 <body>
   <main>
@@ -59,6 +59,9 @@
             <div class="profile-menu-heading">
               <span id="profile-menu-avatar" class="avatar profile-menu-avatar">U</span>
             </div>
+            <label class="panel-transparency-control profile-transparency-control" for="panel-transparency-slider" title="Application panel transparency">
+              <input id="panel-transparency-slider" type="range" min="0" max="100" step="1" value="0" aria-label="Application panel transparency">
+            </label>
             <button id="open-profile-dialog" type="button">Update profile</button>
             <button id="open-password-dialog" type="button">Change password</button>
             <button id="logout-submit" type="button">Logout</button>
@@ -170,10 +173,6 @@
           <div class="workspace-toolbar">
             <div class="application-title-row">
               <h1 id="active-application-title">Application</h1>
-              <label class="panel-transparency-control" for="panel-transparency-slider" title="Panel transparency">
-                <input id="panel-transparency-slider" type="range" min="0" max="100" step="1" value="0" aria-label="Panel transparency">
-                <span id="panel-transparency-value">0%</span>
-              </label>
             </div>
           </div>
           <iframe id="application-frame" class="application-frame" title="Selected application"></iframe>
@@ -262,6 +261,6 @@
 
     <div id="message" class="toast" role="status" aria-live="polite"></div>
   </main>
-  <script src="/landing.js"></script>
+  <script src="/landing.js?v=20260930-erp-compact-header"></script>
 </body>
 </html>

@@ -6,6 +6,8 @@ module.exports=async ctx=>{
   if(access.status)return ctx.send(access.status,access.body);
   const orgId=ctx.query.organisation_id;
   const typeId=ctx.query.accounting_object_type_id;
+  const activeDivisionId=ctx.query.active_division_id||null;
+  const includeChildren=ctx.query.include_child_divisions==='1';
   if(!orgId||!typeId)return ctx.send(400,{error:'organisation_id and accounting_object_type_id are required'});
   const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:orgId,resourceKind:'accounting_object_type',resourceCode:typeId});
   if(moduleDenied)return ctx.send(moduleDenied.status,moduleDenied.body);
@@ -60,6 +62,15 @@ module.exports=async ctx=>{
           LEFT JOIN erp_accounting_object_type parent_type ON parent_type.accounting_object_type_id=parent.accounting_object_type_id
           WHERE o.tenant_id=$1 AND o.organisation_id=$2 AND o.accounting_object_type_id=$3
           AND o.workflow_status <> 'deleted'
+          AND ($6::uuid IS NULL OR EXISTS (
+            WITH RECURSIVE selected_scope AS (
+              SELECT division_id FROM erp_division WHERE tenant_id=$1 AND organisation_id=$2 AND division_id=$6::uuid
+              UNION ALL
+              SELECT child.division_id FROM erp_division child JOIN selected_scope parent ON child.parent_division_id=parent.division_id
+              WHERE child.tenant_id=$1 AND child.organisation_id=$2 AND $7::boolean
+            )
+            SELECT 1 FROM selected_scope WHERE division_id=o.owner_division_id
+          ))
           AND ($5::boolean OR EXISTS (
             WITH RECURSIVE permitted_ancestors AS (
               SELECT division_id,parent_division_id,0 AS depth FROM erp_division WHERE division_id=o.owner_division_id
@@ -81,7 +92,7 @@ module.exports=async ctx=>{
               AND (scope.depth=0 OR permission.applies_to_children=true)
           ))
           ORDER BY o.object_name`,
-    values:[access.tenantId,orgId,typeId,access.auth.email,administrator]
+    values:[access.tenantId,orgId,typeId,access.auth.email,administrator,activeDivisionId,includeChildren]
   });
   return {records:r.rows};
 };

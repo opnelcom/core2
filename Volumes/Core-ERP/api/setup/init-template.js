@@ -1,48 +1,5 @@
 'use strict';
-const {authTenant,seedOrganisationDefaults}=require('../_shared/erp');
-
-async function canBootstrapTemplateOrganisation(ctx,tenantId){
-  const result=await ctx.broker('core_erp','query',{
-    text:`WITH setup_roles AS (
-            SELECT role_id
-            FROM erp_role
-            WHERE tenant_id=$1
-              AND is_admin=true
-              AND is_active=true
-          ), setup_users AS (
-            SELECT 1
-            FROM erp_user_role ur
-            JOIN setup_roles role ON role.role_id=ur.role_id
-            WHERE ur.tenant_id=$1
-              AND ur.valid_from<=CURRENT_DATE
-              AND (ur.valid_to IS NULL OR ur.valid_to>=CURRENT_DATE)
-            LIMIT 1
-          )
-          SELECT
-            (SELECT count(*) FROM setup_roles) AS setup_role_count,
-            EXISTS (SELECT 1 FROM setup_users) AS has_setup_user`,
-    values:[tenantId]
-  });
-  const row=result.rows[0]||{};
-  return (Number(row.setup_role_count)||0)===0||row.has_setup_user!==true;
-}
-
-async function isCurrentUserSetupAdministrator(ctx,access){
-  const result=await ctx.broker('core_erp','query',{
-    text:`SELECT 1
-          FROM erp_user_role ur
-          JOIN erp_role role ON role.role_id=ur.role_id
-          WHERE ur.tenant_id=$1
-            AND lower(ur.email)=lower($2)
-            AND role.is_admin=true
-            AND role.is_active=true
-            AND ur.valid_from<=CURRENT_DATE
-            AND (ur.valid_to IS NULL OR ur.valid_to>=CURRENT_DATE)
-          LIMIT 1`,
-    values:[access.tenantId,access.auth.email]
-  });
-  return !!result.rowCount;
-}
+const {authTenant,canInitialiseTemplateOrganisation,seedOrganisationDefaults}=require('../_shared/erp');
 
 async function assignCurrentUserAsSecurityAdministrator(ctx,access,organisationId){
   const result=await ctx.broker('core_erp','query',{
@@ -69,10 +26,8 @@ module.exports=async ctx=>{
   if(ctx.req.method!=='POST')return ctx.send(405,{error:'POST required'});
   const access=await authTenant(ctx);
   if(access.status)return ctx.send(access.status,access.body);
-  const bootstrapAllowed=await canBootstrapTemplateOrganisation(ctx,access.tenantId);
-  if(!bootstrapAllowed&&!await isCurrentUserSetupAdministrator(ctx,access)){
-    return ctx.send(403,{error:'Setup Administrator access is required to re-initialise the template organisation'});
-  }
+  const allowed=await canInitialiseTemplateOrganisation(ctx,{tenantId:access.tenantId,email:access.auth.email});
+  if(!allowed)return ctx.send(403,{error:'Template initialisation requires ERP Setup Administrator access when an active administrator assignment exists'});
 
   const existing=await ctx.broker('core_erp','query',{
     text:`SELECT organisation_id

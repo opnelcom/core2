@@ -7,6 +7,8 @@ module.exports=async ctx=>{
   const orgId=ctx.query.organisation_id;
   if(!orgId)return ctx.send(400,{error:'organisation_id is required'});
   const transactionTypeId=ctx.query.transaction_type_id||null;
+  const activeDivisionId=ctx.query.active_division_id||null;
+  const includeChildren=ctx.query.include_child_divisions==='1';
   if(transactionTypeId){
     const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:orgId,resourceKind:'transaction_type',resourceCode:transactionTypeId});
     if(moduleDenied)return ctx.send(moduleDenied.status,moduleDenied.body);
@@ -21,6 +23,15 @@ module.exports=async ctx=>{
           LEFT JOIN erp_journal_line l ON l.journal_id=j.journal_id
           WHERE j.tenant_id=$1 AND j.organisation_id=$2 AND j.workflow_status <> 'deleted'
           AND ($4::uuid IS NULL OR j.transaction_type_id=$4::uuid)
+          AND ($5::uuid IS NULL OR EXISTS (
+            WITH RECURSIVE selected_scope AS (
+              SELECT division_id FROM erp_division WHERE tenant_id=$1 AND organisation_id=$2 AND division_id=$5::uuid
+              UNION ALL
+              SELECT child.division_id FROM erp_division child JOIN selected_scope parent ON child.parent_division_id=parent.division_id
+              WHERE child.tenant_id=$1 AND child.organisation_id=$2 AND $6::boolean
+            )
+            SELECT 1 FROM selected_scope WHERE division_id=j.source_division_id
+          ))
           AND (
             EXISTS (
               WITH RECURSIVE ancestors AS (
@@ -45,7 +56,7 @@ module.exports=async ctx=>{
           )
           GROUP BY j.journal_id,tt.type_name,fp.period_code,d.division_name
           ORDER BY j.journal_date DESC,j.created_at DESC`,
-    values:[access.tenantId,orgId,access.auth.email,transactionTypeId]
+    values:[access.tenantId,orgId,access.auth.email,transactionTypeId,activeDivisionId,includeChildren]
   });
   return {journals:r.rows};
 };

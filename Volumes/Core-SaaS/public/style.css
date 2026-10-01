@@ -718,7 +718,7 @@ button:hover{background:var(--brand-dark);border-color:var(--brand-dark)}
   padding:12px;
   border:1px solid var(--line);
   border-radius:8px;
-  background:white;
+  background:var(--theme-panel,var(--panel,#fff)) !important;
   box-shadow:var(--shadow);
 }
 .profile-menu{right:0;width:240px}
@@ -729,7 +729,20 @@ button:hover{background:var(--brand-dark);border-color:var(--brand-dark)}
   place-items:center;
   padding:6px 0 14px;
   margin-bottom:8px;
-  border-bottom:1px solid #eef2f6;
+}
+.profile-transparency-control{
+  display:block;
+  width:100%;
+  margin:0 0 10px;
+  padding:0;
+}
+.profile-transparency-control input{
+  display:block;
+  width:100% !important;
+  min-width:0;
+  min-height:30px;
+  padding:0;
+  accent-color:var(--brand-dark);
 }
 .profile-menu-avatar{
   width:88px;
@@ -737,16 +750,23 @@ button:hover{background:var(--brand-dark);border-color:var(--brand-dark)}
   font-size:1.8rem;
 }
 .profile-menu button{
+  display:flex;
+  align-items:center;
   width:100%;
   justify-content:flex-start;
-  margin:0;
-  background:white;
+  margin:6px 0 0;
+  min-height:42px;
+  padding:10px 12px;
+  background:var(--theme-panel,var(--panel,#fff)) !important;
   color:var(--ink);
-  border:0;
+  border:1px solid var(--line);
+  border-radius:6px;
   font-weight:400;
   text-align:left;
+  box-shadow:0 1px 2px rgba(23,32,51,.08);
 }
-.profile-menu button:hover{background:#f4f7fa;color:var(--ink)}
+.profile-menu button:hover{background:color-mix(in srgb,var(--theme-panel,var(--panel,#fff)) 88%,var(--brand)) !important;color:var(--ink);border-color:var(--brand)}
+.profile-menu button:focus-visible{box-shadow:0 0 0 3px rgba(17,106,123,.18),0 1px 2px rgba(23,32,51,.08)}
 .landing-content{
   position:relative;
   z-index:1;
@@ -758,6 +778,7 @@ button:hover{background:var(--brand-dark);border-color:var(--brand-dark)}
   max-width:none;
   margin:0;
 }
+.landing-shell.erp-open .landing-content{padding-top:0}
 .content-heading{
   display:flex;
   justify-content:space-between;
@@ -1053,6 +1074,11 @@ button:hover{background:var(--brand-dark);border-color:var(--brand-dark)}
   gap:14px;
 }
 .application-workspace[hidden]{display:none}
+.application-workspace.application-erp{
+  grid-template-rows:minmax(540px,calc(100vh - 104px));
+  gap:0;
+}
+.application-workspace.application-erp .workspace-toolbar{display:none}
 .workspace-toolbar{
   display:grid;
   grid-template-columns:1fr;
@@ -1091,8 +1117,18 @@ button:hover{background:var(--brand-dark);border-color:var(--brand-dark)}
   text-align:right;
   font-variant-numeric:tabular-nums;
 }
+.profile-menu .profile-transparency-control{
+  display:block !important;
+  width:100% !important;
+  grid-template-columns:none;
+}
+.profile-menu .profile-transparency-control input{
+  display:block;
+  width:100% !important;
+  min-width:0;
+}
 .landing-shell.panels-glass .application-frame{
-  background:rgba(255,255,255,var(--panel-glass-alpha,.18));
+  background:transparent;
   backdrop-filter:blur(14px);
 }
 .workspace-toolbar .secondary-action{

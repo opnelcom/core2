@@ -54,6 +54,7 @@ async function financialStatement(ctx,access){
   const compareFromId=ctx.query.compare_period_from_id||null;
   const compareToId=ctx.query.compare_period_to_id||null;
   const divisionId=ctx.query.division_id||null;
+  const includeChildren=ctx.query.include_child_divisions==='1';
   if(!orgId||!formatId||!periodFromId||!periodToId)return ctx.send(400,{error:'organisation_id, format_id, period_from_id and period_to_id are required'});
 
   const format=await ctx.broker('core_erp','query',{
@@ -111,7 +112,7 @@ async function financialStatement(ctx,access){
               SELECT child.division_id,child.parent_division_id
               FROM erp_division child
               JOIN selected_division parent ON child.parent_division_id=parent.division_id
-              WHERE child.tenant_id=$1 AND child.organisation_id=$2
+              WHERE child.tenant_id=$1 AND child.organisation_id=$2 AND $8::boolean
             ),
             visible_lines AS (
               SELECT l.*
@@ -154,7 +155,7 @@ async function financialStatement(ctx,access){
               AND m.organisation_id=$2
               AND m.financial_statement_format_id=$3
             GROUP BY m.financial_statement_line_id,t.type_code`,
-      values:[access.tenantId,orgId,formatId,bounds.start_date,bounds.end_date,divisionId,access.auth.email]
+      values:[access.tenantId,orgId,formatId,bounds.start_date,bounds.end_date,divisionId,access.auth.email,includeChildren]
     });
   }
 
@@ -186,6 +187,7 @@ async function ledgerBalances(ctx,access){
   const orgId=ctx.query.organisation_id;
   const fiscalYearId=ctx.query.fiscal_year_id;
   const divisionId=ctx.query.division_id||null;
+  const includeChildren=ctx.query.include_child_divisions==='1';
   if(!orgId||!fiscalYearId)return ctx.send(400,{error:'organisation_id and fiscal_year_id are required'});
   const r=await ctx.broker('core_erp','query',{
     text:`WITH RECURSIVE selected_division AS (
@@ -196,7 +198,7 @@ async function ledgerBalances(ctx,access){
             SELECT child.division_id,child.parent_division_id
             FROM erp_division child
             JOIN selected_division parent ON child.parent_division_id=parent.division_id
-            WHERE child.tenant_id=$1 AND child.organisation_id=$2
+            WHERE child.tenant_id=$1 AND child.organisation_id=$2 AND $6::boolean
           ),
           visible_lines AS (
             SELECT l.*
@@ -247,7 +249,7 @@ async function ledgerBalances(ctx,access){
           GROUP BY a.account_code,a.account_name,t.type_code,t.type_name
           HAVING COALESCE(sum(l.debit_amount),0) <> 0 OR COALESCE(sum(l.credit_amount),0) <> 0
           ORDER BY t.type_code,a.account_code`,
-    values:[access.tenantId,orgId,fiscalYearId,divisionId,access.auth.email]
+    values:[access.tenantId,orgId,fiscalYearId,divisionId,access.auth.email,includeChildren]
   });
   return {report:'ledger',rows:r.rows};
 }

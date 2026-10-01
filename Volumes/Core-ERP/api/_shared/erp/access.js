@@ -4,7 +4,77 @@ function isAdministrator(access){
   return access?.setupAdministrator===true;
 }
 
-function isTenantAdministrator(access){return access?.tenantAdministrator===true;}
+async function setupAccessTablesExist(ctx){
+  const result=await ctx.broker('core_erp','query',{
+    text:`SELECT to_regclass('erp_role') AS role_table,
+                 to_regclass('erp_user_role') AS user_role_table`
+  });
+  const row=result.rows[0]||{};
+  return !!row.role_table&&!!row.user_role_table;
+}
+
+async function hasSetupAdministratorAssignment(ctx,tenantId){
+  if(!await setupAccessTablesExist(ctx))return false;
+  const result=await ctx.broker('core_erp','query',{
+    text:`SELECT 1
+          FROM erp_user_role ur
+          JOIN erp_role role ON role.role_id=ur.role_id
+          WHERE ur.tenant_id=$1
+            AND role.is_admin=true
+            AND role.is_active=true
+            AND ur.valid_from<=CURRENT_DATE
+            AND (ur.valid_to IS NULL OR ur.valid_to>=CURRENT_DATE)
+          LIMIT 1`,
+    values:[tenantId]
+  });
+  return !!result.rowCount;
+}
+
+async function canBootstrapSetup(ctx,tenantId){
+  return !await hasSetupAdministratorAssignment(ctx,tenantId);
+}
+
+async function isTenantSetupAdministrator(ctx,{tenantId,email}){
+  if(!tenantId||!email||!await setupAccessTablesExist(ctx))return false;
+  const result=await ctx.broker('core_erp','query',{
+    text:`SELECT 1
+          FROM erp_user_role ur
+          JOIN erp_role role ON role.role_id=ur.role_id
+          WHERE ur.tenant_id=$1
+            AND lower(ur.email)=lower($2)
+            AND role.is_admin=true
+            AND role.is_active=true
+            AND ur.valid_from<=CURRENT_DATE
+            AND (ur.valid_to IS NULL OR ur.valid_to>=CURRENT_DATE)
+          LIMIT 1`,
+    values:[tenantId,email]
+  });
+  return !!result.rowCount;
+}
+
+async function canInitialiseTemplateOrganisation(ctx,{tenantId,email}){
+  if(!await hasSetupAdministratorAssignment(ctx,tenantId))return true;
+  return isTenantSetupAdministrator(ctx,{tenantId,email});
+}
+
+async function isSetupAdministrator(ctx,{tenantId,organisationId,email}){
+  if(!tenantId||!organisationId||!email||!await setupAccessTablesExist(ctx))return false;
+  const result=await ctx.broker('core_erp','query',{
+    text:`SELECT 1
+          FROM erp_user_role ur
+          JOIN erp_role role ON role.role_id=ur.role_id
+          WHERE ur.tenant_id=$1
+            AND ur.organisation_id=$2
+            AND lower(ur.email)=lower($3)
+            AND role.is_admin=true
+            AND role.is_active=true
+            AND ur.valid_from<=CURRENT_DATE
+            AND (ur.valid_to IS NULL OR ur.valid_to>=CURRENT_DATE)
+          LIMIT 1`,
+    values:[tenantId,organisationId,email]
+  });
+  return !!result.rowCount;
+}
 
 function requireAdmin(access){
   if(!isAdministrator(access)){
@@ -129,4 +199,4 @@ async function requireModuleAccess(ctx,access,{organisationId,resourceKind,resou
   return {status:403,body:{error:'Your assigned roles do not provide access to a module linked to this ERP resource'}};
 }
 
-module.exports={isAdministrator,isTenantAdministrator,requireAdmin,hasResourcePermission,requireResourcePermission,hasOrganisationResourcePermission,requireOrganisationResourcePermission,requireBusinessAccess,requireModuleAccess};
+module.exports={isAdministrator,setupAccessTablesExist,hasSetupAdministratorAssignment,canBootstrapSetup,isTenantSetupAdministrator,canInitialiseTemplateOrganisation,isSetupAdministrator,requireAdmin,hasResourcePermission,requireResourcePermission,hasOrganisationResourcePermission,requireOrganisationResourcePermission,requireBusinessAccess,requireModuleAccess};

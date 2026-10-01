@@ -1,7 +1,5 @@
 'use strict';
 
-const {ensureTenantSeed}=require('./seeding');
-
 async function authTenant(ctx,organisationIdOverride=null){
   const auth=ctx.auth();
   if(!auth)return {status:401,body:{error:'Authentication required'}};
@@ -9,7 +7,7 @@ async function authTenant(ctx,organisationIdOverride=null){
   if(!tenantId)return {status:400,body:{error:'No current tenant'}};
   const access=await ctx.broker('core_saas','query',{
     brokerProfile:'core_saas',
-    text:`SELECT t.tenant_id,tu.tenant_user_type
+    text:`SELECT t.tenant_id
           FROM core_tenant t
           JOIN core_tenant_user tu ON tu.tenant_id=t.tenant_id
           WHERE t.tenant_id=$1
@@ -19,9 +17,7 @@ async function authTenant(ctx,organisationIdOverride=null){
     values:[tenantId,auth.email]
   });
   if(!access.rowCount)return {status:403,body:{error:'No access to active tenant'}};
-  const result={auth,tenantId,role:access.rows[0].tenant_user_type};
-  await ensureTenantSeed(ctx,result);
-  result.tenantAdministrator=['administrator','administration_user','admin','owner'].includes(String(result.role||'').toLowerCase());
+  const result={auth,tenantId};
   const organisationId=organisationIdOverride||ctx.body?.organisation_id||ctx.query?.organisation_id||ctx.body?.target_organisation_id||ctx.body?.access_organisation_id||null;
   result.organisationId=organisationId;
   result.setupAdministrator=false;

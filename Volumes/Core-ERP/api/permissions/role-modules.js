@@ -1,6 +1,6 @@
 'use strict';
 delete require.cache[require.resolve('../_shared/erp')];
-const {authTenant}=require('../_shared/erp');
+const {authTenant,requireAdmin}=require('../_shared/erp');
 
 module.exports=async ctx=>{
   const access=await authTenant(ctx);
@@ -8,6 +8,8 @@ module.exports=async ctx=>{
   const orgId=ctx.query.organisation_id;
   const roleId=ctx.query.role_id;
   if(!orgId||!roleId)return ctx.send(400,{error:'organisation_id and role_id are required'});
+  const denied=requireAdmin(access);
+  if(denied)return ctx.send(denied.status,denied.body);
   const result=await ctx.broker('core_erp','query',{
     text:`SELECT rm.module_id
           FROM erp_role_module rm

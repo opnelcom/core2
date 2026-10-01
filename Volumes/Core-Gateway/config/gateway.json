@@ -10,13 +10,32 @@
     "challengeRoot": "acme/.well-known/acme-challenge"
   },
   "routes": [
-    {"prefix":"/admin","target":"http://core-admin:3000","stripPrefix":true},
-    {"prefix":"/monitor","target":"http://core-monitor:3000","stripPrefix":true},
-    {"prefix":"/erp","target":"http://core-erp:3000","stripPrefix":true},
-    {"prefix":"/objectsphere","target":"http://core-objectsphere:3000","stripPrefix":true},
-    {"prefix":"/tasks","target":"http://core-tasks:3000","stripPrefix":true},
-    {"prefix":"/tools","target":"http://core-tools:3000","stripPrefix":true},
-    {"prefix":"/devagent","target":"http://core-devagent:8787","stripPrefix":true},
-    {"prefix":"/","target":"http://core-saas:3000","stripPrefix":false}
+    {
+      "prefix": "/admin",
+      "target": "http://core-admin:3000",
+      "stripPrefix": true
+    },
+    {
+      "prefix": "/monitor",
+      "target": "http://core-monitor:3000",
+      "stripPrefix": true
+    },
+    { "prefix": "/erp", "target": "http://core-erp:3000", "stripPrefix": true },
+    {
+      "prefix": "/objectsphere",
+      "target": "http://core-objectsphere:3000",
+      "stripPrefix": true
+    },
+    {
+      "prefix": "/tasks",
+      "target": "http://core-tasks:3000",
+      "stripPrefix": true
+    },
+    {
+      "prefix": "/tools",
+      "target": "http://core-tools:3000",
+      "stripPrefix": true
+    },
+    { "prefix": "/", "target": "http://core-saas:3000", "stripPrefix": false }
   ]
 }

@@ -1,14 +1,5 @@
 'use strict';
-const fs=require('fs');
-const path=require('path');
-
-function isAdministrator(role){
-  return ['administrator','administration_user','admin','owner'].includes(String(role||'').toLowerCase());
-}
-
-function schemaPath(){
-  return path.join(process.env.CONTENT_ROOT||path.resolve(__dirname,'..','..'),'schema','erp-schema.sql');
-}
+const {canBootstrapSetup,isSetupAdministrator,runSchemaSql}=require('../_shared/erp');
 
 module.exports=async ctx=>{
   if(ctx.req.method!=='POST')return ctx.send(405,{error:'POST required'});
@@ -18,7 +9,7 @@ module.exports=async ctx=>{
   if(!tenantId)return ctx.send(400,{error:'No current tenant'});
   const access=await ctx.broker('core_saas','query',{
     brokerProfile:'core_saas',
-    text:`SELECT tu.tenant_user_type
+    text:`SELECT 1
           FROM core_tenant t
           JOIN core_tenant_user tu ON tu.tenant_id=t.tenant_id
           WHERE t.tenant_id=$1
@@ -28,9 +19,10 @@ module.exports=async ctx=>{
     values:[tenantId,auth.email]
   });
   if(!access.rowCount)return ctx.send(403,{error:'No access to active tenant'});
-  if(!isAdministrator(access.rows[0].tenant_user_type)){
-    return ctx.send(403,{error:'Administrator access required'});
-  }
-  await ctx.broker('core_erp','query',{text:fs.readFileSync(schemaPath(),'utf8')});
+  const organisationId=ctx.body?.access_organisation_id||null;
+  const bootstrapAllowed=await canBootstrapSetup(ctx,tenantId);
+  const setupAdministrator=await isSetupAdministrator(ctx,{tenantId,organisationId,email:auth.email});
+  if(!bootstrapAllowed&&!setupAdministrator)return ctx.send(403,{error:'ERP Setup Administrator access is required'});
+  await runSchemaSql(ctx);
   return {ok:true,initialised:true};
 };
