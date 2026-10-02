@@ -934,7 +934,7 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       organisation_id uuid REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
       role_id uuid NOT NULL REFERENCES erp_role(role_id) ON DELETE CASCADE,
       division_id uuid REFERENCES erp_division(division_id),
-      resource_kind text NOT NULL CHECK(resource_kind IN('gl_account','legal_entity','subledger_account','accounting_object','accounting_dimension','transaction')),
+      resource_kind text NOT NULL CHECK(resource_kind IN('gl_account','legal_entity','subledger_account','accounting_object','accounting_dimension','transaction','resource')),
       resource_code text NOT NULL DEFAULT '*',
       workflow_status text NOT NULL DEFAULT '*',
       action_code text NOT NULL,
@@ -946,11 +946,11 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
     BEGIN
       IF to_regclass('public.erp_role_permission') IS NOT NULL THEN
         DELETE FROM erp_role_permission
-        WHERE resource_kind NOT IN('gl_account','legal_entity','subledger_account','accounting_object','accounting_dimension','transaction');
+        WHERE resource_kind NOT IN('gl_account','legal_entity','subledger_account','accounting_object','accounting_dimension','transaction','resource');
       END IF;
     END $$;
     ALTER TABLE erp_role_permission DROP CONSTRAINT IF EXISTS erp_role_permission_resource_kind_check;
-    ALTER TABLE erp_role_permission ADD CONSTRAINT erp_role_permission_resource_kind_check CHECK(resource_kind IN('gl_account','legal_entity','subledger_account','accounting_object','accounting_dimension','transaction'));
+    ALTER TABLE erp_role_permission ADD CONSTRAINT erp_role_permission_resource_kind_check CHECK(resource_kind IN('gl_account','legal_entity','subledger_account','accounting_object','accounting_dimension','transaction','resource'));
 
     CREATE TABLE IF NOT EXISTS erp_user_role(
       user_role_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -968,6 +968,84 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       module_id uuid NOT NULL REFERENCES erp_module(module_id) ON DELETE CASCADE,
       PRIMARY KEY(role_id,module_id)
     );
+    CREATE TABLE IF NOT EXISTS erp_resource(
+      resource_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      resource_code text NOT NULL,
+      display_name text NOT NULL,
+      resource_type text NOT NULL DEFAULT 'employee' CHECK(resource_type IN('employee','contractor','service_provider')),
+      linked_email text,
+      resource_description text NOT NULL DEFAULT '',
+      is_active boolean NOT NULL DEFAULT true,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE(tenant_id,organisation_id,resource_code)
+    );
+    ALTER TABLE erp_resource ADD COLUMN IF NOT EXISTS resource_type text NOT NULL DEFAULT 'employee';
+    ALTER TABLE erp_resource ADD COLUMN IF NOT EXISTS linked_email text;
+    ALTER TABLE erp_resource ADD COLUMN IF NOT EXISTS resource_description text NOT NULL DEFAULT '';
+    ALTER TABLE erp_resource DROP CONSTRAINT IF EXISTS erp_resource_resource_type_check;
+    ALTER TABLE erp_resource ADD CONSTRAINT erp_resource_resource_type_check CHECK(resource_type IN('employee','contractor','service_provider'));
+    CREATE UNIQUE INDEX IF NOT EXISTS erp_resource_live_email_idx
+      ON erp_resource(tenant_id,organisation_id,lower(linked_email))
+      WHERE is_active=true AND linked_email IS NOT NULL;
+    CREATE TABLE IF NOT EXISTS erp_resource_role(
+      resource_role_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      role_code text NOT NULL,
+      role_name text NOT NULL,
+      role_description text NOT NULL DEFAULT '',
+      is_active boolean NOT NULL DEFAULT true,
+      is_seeded boolean NOT NULL DEFAULT false,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE(tenant_id,organisation_id,role_code)
+    );
+    ALTER TABLE erp_resource_role ADD COLUMN IF NOT EXISTS role_description text NOT NULL DEFAULT '';
+    CREATE TABLE IF NOT EXISTS erp_resource_role_module(
+      resource_role_id uuid NOT NULL REFERENCES erp_resource_role(resource_role_id) ON DELETE CASCADE,
+      module_id uuid NOT NULL REFERENCES erp_module(module_id) ON DELETE CASCADE,
+      PRIMARY KEY(resource_role_id,module_id)
+    );
+    CREATE TABLE IF NOT EXISTS erp_object_type_resource_role(
+      object_type_resource_role_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      object_kind text NOT NULL CHECK(object_kind IN('gl_account','subledger_account','accounting_object','accounting_dimension')),
+      object_type_id uuid NOT NULL,
+      resource_role_id uuid NOT NULL REFERENCES erp_resource_role(resource_role_id),
+      is_required boolean NOT NULL DEFAULT false,
+      UNIQUE(tenant_id,organisation_id,object_kind,object_type_id,resource_role_id)
+    );
+    ALTER TABLE erp_object_type_resource_role DROP CONSTRAINT IF EXISTS erp_object_type_resource_role_object_kind_check;
+    ALTER TABLE erp_object_type_resource_role ADD CONSTRAINT erp_object_type_resource_role_object_kind_check CHECK(object_kind IN('gl_account','subledger_account','accounting_object','accounting_dimension'));
+    ALTER TABLE erp_object_type_resource_role DROP COLUMN IF EXISTS max_resources;
+    CREATE TABLE IF NOT EXISTS erp_resource_assignment(
+      resource_assignment_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      object_kind text NOT NULL CHECK(object_kind IN('gl_account','subledger_account','accounting_object','accounting_dimension')),
+      object_id uuid NOT NULL,
+      object_type_id uuid NOT NULL,
+      resource_role_id uuid NOT NULL REFERENCES erp_resource_role(resource_role_id),
+      resource_id uuid NOT NULL REFERENCES erp_resource(resource_id),
+      valid_from date NOT NULL DEFAULT '-infinity',
+      valid_to date,
+      created_by_email text,
+      updated_by_email text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      CHECK(valid_to IS NULL OR valid_from <= valid_to),
+      UNIQUE(tenant_id,organisation_id,object_kind,object_id,resource_role_id,resource_id,valid_from)
+    );
+    ALTER TABLE erp_resource_assignment DROP CONSTRAINT IF EXISTS erp_resource_assignment_object_kind_check;
+    ALTER TABLE erp_resource_assignment ADD CONSTRAINT erp_resource_assignment_object_kind_check CHECK(object_kind IN('gl_account','subledger_account','accounting_object','accounting_dimension'));
+    CREATE INDEX IF NOT EXISTS erp_resource_assignment_object_idx
+      ON erp_resource_assignment(tenant_id,organisation_id,object_kind,object_id,resource_role_id,valid_from,valid_to);
+    CREATE INDEX IF NOT EXISTS erp_resource_assignment_resource_idx
+      ON erp_resource_assignment(tenant_id,organisation_id,resource_role_id,resource_id);
     CREATE TABLE IF NOT EXISTS erp_account_model_migration(
       migration_code text PRIMARY KEY,
       applied_at timestamptz NOT NULL DEFAULT now()

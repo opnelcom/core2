@@ -48,6 +48,10 @@
     roles: [],
     rolePermissions: [],
     roleUsers: [],
+    resourceRoles: [],
+    resourceRoleMappings: [],
+    resources: [],
+    resourceAssignments: [],
     dashboardSummary: null,
   };
   let selectedMasterRecord = null;
@@ -62,6 +66,8 @@
   let selectedTransactionTypeId = "";
   let selectedReport = "financial_statement";
   let selectedFinancialFormatId = "";
+  let selectedResourceRoleId = "";
+  let resourceRoleModalReturnFocus = null;
   let currentIntakeDraft = null;
   let expandedFiscalYears = new Set();
   let expandedLedgerFamilies = new Set();
@@ -83,6 +89,7 @@
     financialFormats: false,
     transactions: false,
     permissions: false,
+    resources: false,
   };
   let visibleOrganisationLimit = 4;
   let collapsedDivisionIds = new Set();
@@ -98,6 +105,7 @@
     "currencies",
     "taxtypes",
     "modules",
+    "glaccounttypes",
     "ledgerfamilies",
     "accountingobjecttypes",
     "accountingdimensiontypes",
@@ -106,6 +114,7 @@
     "transactiontypes",
     "workflows",
     "permissions",
+    "resourceroles",
   ]);
   const transactionWorkflowOptions = [
     "view",
@@ -118,6 +127,7 @@
     "reversed",
     "deleted",
   ];
+  const resourceAssignmentEditors = new Map();
 
   function sanitizedModuleSvg(value) {
     if (!value) return "";
@@ -382,6 +392,7 @@
       accountingObject: ["accountingObject", "Accounting object"],
       accountingDimension: ["accountingDimension", "Accounting dimension"],
       transaction: ["transaction", "Transaction"],
+      role: ["role", "Resource role"],
     };
     const [icon, label] = icons[kind] || icons.transaction;
     return `<span class="resource-type-icon" role="img" aria-label="${label}" title="${label}">${menuIconSvg[icon]}</span>`;
@@ -933,6 +944,72 @@
       .closest("label")
       ?.insertAdjacentElement("beforebegin", label);
   }
+  function showResourceEditorTab(prefix, tabName) {
+    const form = $(`${prefix}-form`);
+    if (!form) return;
+    form
+      .querySelectorAll("[data-resource-edit-tab]")
+      .forEach((button) =>
+        button.classList.toggle(
+          "active",
+          button.dataset.resourceEditTab === tabName,
+        ),
+      );
+    form.querySelectorAll("[data-resource-edit-panel]").forEach((panel) => {
+      panel.hidden = panel.dataset.resourceEditPanel !== tabName;
+    });
+    if (tabName === "resources")
+      loadResourceAssignmentEditor(prefix).catch((error) =>
+        alert(error.message),
+      );
+  }
+  function installResourceAssignmentTab(formId, prefix) {
+    const form = $(formId);
+    const heading = form?.querySelector("h2");
+    if (!form || !heading || form.querySelector(".resource-object-tabs"))
+      return;
+    const tabs = document.createElement("div");
+    tabs.className = "tabs resource-object-tabs";
+    tabs.setAttribute("role", "tablist");
+    tabs.innerHTML =
+      '<button type="button" class="tab active" data-resource-edit-tab="details">Details</button><button type="button" class="tab" data-resource-edit-tab="resources">Resources</button>';
+    const details = document.createElement("div");
+    details.className = "resource-object-detail-panel";
+    details.dataset.resourceEditPanel = "details";
+    const resourcePanel = document.createElement("section");
+    resourcePanel.className = "resource-object-assignment-panel";
+    resourcePanel.dataset.resourceEditPanel = "resources";
+    resourcePanel.hidden = true;
+    resourcePanel.innerHTML = `<div id="${prefix}-resource-assignment-editor"></div><div class="actions"><button type="button" class="resource-assignment-save">Save</button></div>`;
+    [...form.childNodes].forEach((node) => {
+      if (
+        node !== heading &&
+        !(node.nodeType === 1 && node.classList.contains("panel-close"))
+      )
+        details.append(node);
+    });
+    heading.insertAdjacentElement("afterend", tabs);
+    tabs.insertAdjacentElement("afterend", details);
+    details.insertAdjacentElement("afterend", resourcePanel);
+    tabs
+      .querySelectorAll("button")
+      .forEach((button) =>
+        button.addEventListener("click", () =>
+          showResourceEditorTab(prefix, button.dataset.resourceEditTab),
+        ),
+      );
+    resourcePanel
+      .querySelector(".resource-assignment-save")
+      .addEventListener("click", () => form.requestSubmit());
+  }
+  function installResourceAssignmentTabs() {
+    installResourceAssignmentTab("account-form", "account");
+    installResourceAssignmentTab("accounting-object-form", "accounting-object");
+    installResourceAssignmentTab(
+      "accounting-dimension-form",
+      "accounting-dimension",
+    );
+  }
   function installWorkflowUi() {
     installOrgCopyWorkflowOption();
     document
@@ -1097,7 +1174,30 @@
       form.insertBefore(panels[tab.name], form.querySelector(".actions")),
     );
   }
+  function installResourceRoleMappingField(formId, prefix) {
+    const form = $(formId);
+    const id = `${prefix}-resource-role-mapping`;
+    if (!form || $(id)) return;
+    const section = document.createElement("section");
+    section.id = id;
+    section.className = "setup-section full";
+    section.innerHTML = `<div class="panel-head"><h2>Resource Roles</h2><button type="button" class="add-record-button" aria-label="Add Resource Role" title="Add Resource Role">+</button></div><div class="resource-role-mapping-grid"></div>`;
+    section
+      .querySelector("button")
+      .addEventListener("click", () => addResourceRoleMappingRow(prefix));
+    form.insertBefore(section, form.querySelector(".actions"));
+  }
   function installSetupTypeEditors() {
+    installResourceRoleMappingField("gl-account-type-form", "gl-account-type");
+    installResourceRoleMappingField("ledger-family-form", "ledger-family");
+    installResourceRoleMappingField(
+      "accounting-object-type-form",
+      "accounting-object-type",
+    );
+    installResourceRoleMappingField(
+      "accounting-dimension-type-form",
+      "accounting-dimension-type",
+    );
     ensureTextareaField(
       "ledger-family-form",
       "ledger-family-description",
@@ -1118,6 +1218,27 @@
       "accounting-dimension-type-name",
     );
     installSetupTypeTabs({
+      formId: "gl-account-type-form",
+      prefix: "gl-account-type",
+      tabs: [
+        {
+          name: "definition",
+          label: "Definition",
+          controlIds: [
+            "gl-account-type-code",
+            "gl-account-type-name",
+            "gl-account-type-required",
+            "gl-account-type-active",
+          ],
+        },
+        {
+          name: "roles",
+          label: "Roles",
+          controlIds: ["gl-account-type-resource-role-mapping"],
+        },
+      ],
+    });
+    installSetupTypeTabs({
       formId: "ledger-family-form",
       prefix: "ledger-family",
       tabs: [
@@ -1137,6 +1258,11 @@
           name: "scope",
           label: "Scope",
           controlIds: ["ledger-family-modules"],
+        },
+        {
+          name: "roles",
+          label: "Roles",
+          controlIds: ["ledger-family-resource-role-mapping"],
         },
         {
           name: "design",
@@ -1164,6 +1290,11 @@
           name: "scope",
           label: "Scope",
           controlIds: ["accounting-object-type-modules"],
+        },
+        {
+          name: "roles",
+          label: "Roles",
+          controlIds: ["accounting-object-type-resource-role-mapping"],
         },
         {
           name: "design",
@@ -1194,6 +1325,11 @@
           name: "scope",
           label: "Scope",
           controlIds: ["accounting-dimension-type-modules"],
+        },
+        {
+          name: "roles",
+          label: "Roles",
+          controlIds: ["accounting-dimension-type-resource-role-mapping"],
         },
         {
           name: "design",
@@ -1975,6 +2111,12 @@
               alert(error.message),
             )),
       );
+    menu.querySelectorAll("[data-resource-role]").forEach((button) => {
+      button.onclick = () =>
+        openResourceRole(button.dataset.resourceRole).catch((error) =>
+          alert(error.message),
+        );
+    });
     menu
       .querySelectorAll("[data-report-view]")
       .forEach(
@@ -2124,6 +2266,13 @@
         attributes: 'data-view="dashboard"',
         icon: "dashboard",
       }),
+      canViewResourceDirectory()
+        ? menuItemMarkup({
+            label: "Resources",
+            attributes: 'data-view="resources"',
+            icon: "role",
+          })
+        : "",
       hasMaster
         ? menuItemMarkup({
             label: "Legal Entities",
@@ -2234,6 +2383,34 @@
       depth: 2,
     });
   }
+  function resourcePermissionRows(role = null) {
+    return (state.navigation.permissions || []).filter(
+      (permission) =>
+        permission.resource_kind === "resource" &&
+        (!role || permission.role_id === role.role_id),
+    );
+  }
+  function canManageResourceDirectory(role = null) {
+    return (
+      state.navigation.is_administrator ||
+      resourcePermissionRows(role).some(
+        (permission) =>
+          !permission.division_id && permission.workflow_status === "manage",
+      )
+    );
+  }
+  function canViewResourceDirectory(role = null) {
+    return (
+      canManageResourceDirectory(role) ||
+      resourcePermissionRows(role).some(
+        (permission) =>
+          !permission.division_id && permission.workflow_status === "view",
+      )
+    );
+  }
+  function canViewResourceAssignments() {
+    return canViewResourceDirectory();
+  }
   function resourcesForModules(moduleIds, { role = null } = {}) {
     const linked = (row) =>
       (row.module_ids || []).some((id) => moduleIds.has(id));
@@ -2275,7 +2452,7 @@
           (permission.resource_code === "*" ||
             permission.resource_code === type.transaction_type_id),
       );
-    return [
+    const items = [
       ...state.subledgerAccountTypes
         .filter(
           (row) => row.is_active !== false && linked(row) && masterAllowed(row),
@@ -2323,6 +2500,107 @@
           ),
         ),
     ];
+    if (canViewResourceAssignments(role))
+      items.push(
+        ...state.resourceRoles
+          .filter(
+            (resourceRole) =>
+              resourceRole.is_active !== false &&
+              (resourceRole.module_ids || []).some((id) => moduleIds.has(id)),
+          )
+          .map((resourceRole) =>
+            resourceMenuItem(
+              resourceRole.role_name,
+              `data-resource-role="${resourceRole.resource_role_id}"`,
+              "role",
+            ),
+          ),
+      );
+    return items;
+  }
+  function resourceDateLabel(value, emptyLabel) {
+    if (!value || value === "-infinity") return emptyLabel;
+    if (value === "infinity") return "No end date";
+    return dateOnly(value);
+  }
+  function renderResourceAssignmentOverview() {
+    const term = searchTerm("resource-assignment-search");
+    const rows = state.resourceAssignments.filter((row) =>
+      rowMatches(row, term),
+    );
+    table(
+      $("resource-assignment-list"),
+      [
+        ["Object type", (row) => row.object_type_name || row.object_kind],
+        ["Object code", (row) => row.object_code],
+        ["Division", (row) => row.division_name],
+        ["Requirement", (row) => (row.is_required ? "Mandatory" : "Optional")],
+        ["Resource", (row) => row.display_name || "Unassigned"],
+        [
+          "Valid from",
+          (row) =>
+            row.resource_assignment_id
+              ? resourceDateLabel(row.valid_from, "No start date")
+              : "",
+        ],
+        [
+          "Valid to",
+          (row) =>
+            row.resource_assignment_id
+              ? resourceDateLabel(row.valid_to, "No end date")
+              : "",
+        ],
+      ],
+      rows,
+    );
+    table(
+      $("resource-assignment-resource-list"),
+      [
+        ["Code", (row) => row.resource_code],
+        ["Name", (row) => row.display_name],
+        ["Type", (row) => pretty(row.resource_type)],
+        ["Linked user", (row) => row.linked_email || ""],
+        ["Active", (row) => (row.is_active ? "Yes" : "No")],
+      ],
+      state.resources,
+      canManageResourceDirectory()
+        ? (resource) => {
+            show("resources");
+            $("page-title").textContent = "Resources";
+            renderResources();
+            openResourceEditor(resource);
+          }
+        : null,
+    );
+    $("manage-role-resources").hidden = !canManageResourceDirectory();
+  }
+  async function openResourceRole(resourceRoleId) {
+    const resourceRole = state.resourceRoles.find(
+      (row) => row.resource_role_id === resourceRoleId,
+    );
+    if (!resourceRole || !state.divisionId)
+      throw new Error("Select a division and an active Resource Role");
+    selectedResourceRoleId = resourceRoleId;
+    const params = new URLSearchParams({
+      organisation_id: state.orgId,
+      division_id: state.divisionId,
+      resource_role_id: resourceRoleId,
+      include_child_divisions: state.includeChildren ? "1" : "0",
+    });
+    const [result, directory] = await Promise.all([
+      api(`resources/assignments/list?${params}`),
+      api(`resources/list?organisation_id=${state.orgId}`),
+    ]);
+    state.resourceAssignments = result.assignments || [];
+    state.resources = directory.resources || [];
+    $("resource-assignment-title").textContent = resourceRole.role_name;
+    $("resource-assignment-context").textContent =
+      state.divisions.find(
+        (division) => division.division_id === state.divisionId,
+      )?.division_name || "";
+    renderResourceAssignmentOverview();
+    show("resourceassignments");
+    $("page-title").textContent = resourceRole.role_name;
   }
   function setupMenuGroups() {
     const allowed = state.navigation?.is_administrator === true;
@@ -2342,6 +2620,7 @@
             ["Countries", 'data-view="countries"', "globe"],
             ["Currencies", 'data-view="currencies"', "currency"],
             ["Tax Types", 'data-view="taxtypes"', "tax"],
+            ["Resource Roles", 'data-view="resourceroles"', "role"],
             [
               "Financial Statement Formats",
               'data-view="financialformats"',
@@ -2355,6 +2634,7 @@
           icon: "accountingDimension",
           items: [
             ["Modules", 'data-view="modules"', "module"],
+            ["GL Account Types", 'data-view="glaccounttypes"', "glAccount"],
             [
               "Subledger Account Types",
               'data-view="ledgerfamilies"',
@@ -2483,8 +2763,17 @@
             icon: "legalEntity",
           })
         : "");
-    $("module-menu").innerHTML =
+    const commonWithResources =
       common +
+      (canViewResourceDirectory()
+        ? menuItemMarkup({
+            label: "Resources",
+            attributes: 'data-view="resources"',
+            icon: "role",
+          })
+        : "");
+    $("module-menu").innerHTML =
+      commonWithResources +
       state.navigation.modules
         .map((module) => {
           const items = resourcesForModules(new Set([module.module_id]));
@@ -2498,7 +2787,7 @@
         })
         .join("");
     $("role-menu").innerHTML =
-      common +
+      commonWithResources +
       state.navigation.roles
         .map((role) => {
           const moduleIds = new Set(role.module_ids || []);
@@ -3660,6 +3949,11 @@
     $("account-subledger-family").closest("label").hidden = family !== "gl";
     updateAccountLegalEntityRequirement();
     renderAccountDetailFields(account.additional_data || {});
+    resourceAssignmentEditors.delete("account");
+    showResourceEditorTab("account", "details");
+    $("account-form").querySelector(
+      '[data-resource-edit-tab="resources"]',
+    ).hidden = false;
     loadEntityDocuments("account").catch((e) => alert(e.message));
   }
   function addPanelCloseButtons() {
@@ -3673,6 +3967,7 @@
       "country-form",
       "currency-form",
       "tax-type-form",
+      "gl-account-type-form",
       "ledger-family-form",
       "financial-format-form",
       "transaction-group-form",
@@ -4210,6 +4505,37 @@
     target.innerHTML = "";
     target.append(el);
   }
+  function renderGlAccountTypes() {
+    const rows = state.glAccountTypes.filter((row) =>
+      rowMatches(row, searchTerm("gl-account-type-search")),
+    );
+    table(
+      $("gl-account-type-list"),
+      [
+        ["Code", (row) => row.type_code],
+        ["Name", (row) => row.type_name],
+        ["Required", (row) => (row.is_required ? "Yes" : "No")],
+        ["Active", (row) => (row.is_active ? "Yes" : "No")],
+      ],
+      rows,
+      openGlAccountType,
+    );
+  }
+  function openGlAccountType(type = {}) {
+    $("gl-account-type-form").hidden = false;
+    $("gl-account-type-form").reset();
+    showSetupTypeTab("gl-account-type", "definition");
+    $("gl-account-type-id").value = type.gl_account_type_id || "";
+    $("gl-account-type-code").value = type.type_code || "";
+    $("gl-account-type-code").readOnly = !!type.gl_account_type_id;
+    $("gl-account-type-name").value = type.type_name || "";
+    $("gl-account-type-required").checked = type.is_required !== false;
+    $("gl-account-type-active").checked = type.is_active !== false;
+    renderResourceRoleMappingRows(
+      "gl-account-type",
+      resourceRoleMappingsFor("gl_account", type.gl_account_type_id),
+    );
+  }
   function renderModules() {
     const rows = state.modules.filter((row) =>
       rowMatches(row, searchTerm("module-search")),
@@ -4225,6 +4551,91 @@
       rows,
       openModule,
     );
+  }
+  function renderResourceRoles() {
+    const rows = state.resourceRoles.filter((row) =>
+      rowMatches(row, searchTerm("resource-role-search")),
+    );
+    table(
+      $("resource-role-list"),
+      [
+        ["Code", (row) => row.role_code],
+        ["Name", (row) => row.role_name],
+        ["Modules", moduleNames],
+        ["Active", (row) => (row.is_active ? "Yes" : "No")],
+      ],
+      rows,
+      openResourceRoleEditor,
+    );
+  }
+  function showResourceRoleTab(tabName, focusTab = false) {
+    document.querySelectorAll("[data-resource-role-tab]").forEach((button) => {
+      const active = button.dataset.resourceRoleTab === tabName;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+      button.tabIndex = active ? 0 : -1;
+      if (active && focusTab) button.focus();
+    });
+    document
+      .querySelectorAll("[data-resource-role-panel]")
+      .forEach((panel) => {
+        panel.hidden = panel.dataset.resourceRolePanel !== tabName;
+      });
+  }
+  function openResourceRoleEditor(role = {}) {
+    if ($("resource-role-modal").hidden)
+      resourceRoleModalReturnFocus = document.activeElement;
+    $("resource-role-modal").hidden = false;
+    $("resource-role-form").reset();
+    $("resource-role-modal-title").textContent = role.resource_role_id
+      ? "Edit Resource Role"
+      : "New Resource Role";
+    $("resource-role-id").value = role.resource_role_id || "";
+    $("resource-role-code").value = role.role_code || "";
+    $("resource-role-name").value = role.role_name || "";
+    $("resource-role-description").value = role.role_description || "";
+    $("resource-role-active").checked = role.is_active !== false;
+    fillModuleSelect("resource-role-modules", role.module_ids || []);
+    showResourceRoleTab("definition");
+    requestAnimationFrame(() => $("resource-role-code").focus());
+  }
+  function closeResourceRoleEditor() {
+    $("resource-role-modal").hidden = true;
+    if (
+      resourceRoleModalReturnFocus instanceof HTMLElement &&
+      resourceRoleModalReturnFocus.isConnected
+    )
+      resourceRoleModalReturnFocus.focus();
+    resourceRoleModalReturnFocus = null;
+  }
+  function renderResources() {
+    const rows = state.resources.filter((row) =>
+      rowMatches(row, searchTerm("resource-search")),
+    );
+    table(
+      $("resource-list"),
+      [
+        ["Code", (row) => row.resource_code],
+        ["Display name", (row) => row.display_name],
+        ["Type", (row) => pretty(row.resource_type)],
+        ["Linked user", (row) => row.linked_email || ""],
+        ["Active", (row) => (row.is_active ? "Yes" : "No")],
+      ],
+      rows,
+      canManageResourceDirectory() ? openResourceEditor : null,
+    );
+    $("add-resource").hidden = !canManageResourceDirectory();
+  }
+  function openResourceEditor(resource = {}) {
+    $("resource-form").hidden = false;
+    $("resource-form").reset();
+    $("resource-id").value = resource.resource_id || "";
+    $("resource-code").value = resource.resource_code || "";
+    $("resource-name").value = resource.display_name || "";
+    $("resource-type").value = resource.resource_type || "employee";
+    $("resource-email").value = resource.linked_email || "";
+    $("resource-description").value = resource.resource_description || "";
+    $("resource-active").checked = resource.is_active !== false;
   }
   function openModule(row = {}) {
     $("module-form").hidden = false;
@@ -4262,6 +4673,13 @@
     );
     $("ledger-family-active").checked = !!type.is_active;
     fillModuleSelect("ledger-family-modules", type.module_ids);
+    renderResourceRoleMappingRows(
+      "ledger-family",
+      resourceRoleMappingsFor(
+        "subledger_account",
+        type.subledger_account_type_id,
+      ),
+    );
   }
   function mappingsForLine(lineId) {
     return state.financialFormatMappings.filter(
@@ -4796,6 +5214,61 @@
       rows,
     );
   }
+  function resourceRoleMappingsFor(objectKind, objectTypeId) {
+    return state.resourceRoleMappings.filter(
+      (mapping) =>
+        mapping.object_kind === objectKind &&
+        mapping.object_type_id === objectTypeId,
+    );
+  }
+  function renderResourceRoleMappingRows(prefix, mappings = []) {
+    const grid = $(`${prefix}-resource-role-mapping`)?.querySelector(
+      ".resource-role-mapping-grid",
+    );
+    if (!grid) return;
+    grid.innerHTML =
+      '<div class="resource-role-mapping-row resource-role-mapping-head"><span>Resource Role</span><span>Requirement</span><span></span></div>';
+    mappings.forEach((mapping) => addResourceRoleMappingRow(prefix, mapping));
+  }
+  function addResourceRoleMappingRow(prefix, mapping = {}) {
+    const grid = $(`${prefix}-resource-role-mapping`)?.querySelector(
+      ".resource-role-mapping-grid",
+    );
+    if (!grid) return;
+    const row = document.createElement("div");
+    row.className = "resource-role-mapping-row";
+    row.innerHTML =
+      '<select class="resource-role-mapping-role" required></select><select class="resource-role-mapping-required"><option value="false">Optional</option><option value="true">Mandatory</option></select><button type="button" class="secondary" aria-label="Remove Resource Role">Remove</button>';
+    grid.append(row);
+    option(
+      row.querySelector(".resource-role-mapping-role"),
+      state.resourceRoles.filter(
+        (role) =>
+          role.is_active !== false ||
+          role.resource_role_id === mapping.resource_role_id,
+      ),
+      "resource_role_id",
+      (role) => `${role.role_code} - ${role.role_name}`,
+      "Select Resource Role",
+    );
+    row.querySelector(".resource-role-mapping-role").value =
+      mapping.resource_role_id || "";
+    row.querySelector(".resource-role-mapping-required").value = String(
+      mapping.is_required === true,
+    );
+    row.querySelector("button").addEventListener("click", () => row.remove());
+  }
+  function collectResourceRoleMappings(prefix) {
+    return [
+      ...$(`${prefix}-resource-role-mapping`).querySelectorAll(
+        ".resource-role-mapping-row:not(.resource-role-mapping-head)",
+      ),
+    ].map((row) => ({
+      resource_role_id: row.querySelector(".resource-role-mapping-role").value,
+      is_required:
+        row.querySelector(".resource-role-mapping-required").value === "true",
+    }));
+  }
   function openAccountingSetupType(kind, row = {}) {
     const prefix =
       kind === "object"
@@ -4826,6 +5299,13 @@
       $(`${prefix}-workflow-path`).value =
         row.workflow_path_id || state.workflowPaths[0]?.workflow_path_id || "";
     fillModuleSelect(`${prefix}-modules`, row.module_ids);
+    renderResourceRoleMappingRows(
+      prefix,
+      resourceRoleMappingsFor(
+        kind === "object" ? "accounting_object" : "accounting_dimension",
+        row.accounting_object_type_id || row.accounting_dimension_type_id,
+      ),
+    );
   }
   function renderAccountingSetupTypes(kind) {
     const isObject = kind === "object";
@@ -4982,10 +5462,260 @@
       selectedAccountingMasterSchema(kind),
     );
   }
+  function resourceObjectContext(prefix) {
+    if (prefix === "account") {
+      const familyCode = $("account-form-family").value;
+      if (!familyCode) return null;
+      if (familyCode === "gl") {
+        const account = state.accounts.find(
+          (row) => row.account_id === $("account-id").value,
+        );
+        return {
+          object_kind: "gl_account",
+          object_type_id: $("account-type").value,
+          object_id: $("account-id").value,
+          division_id: null,
+          valid_from: dateOnly(account?.valid_from) || today(),
+          valid_to: dateOnly(account?.valid_to),
+        };
+      }
+      const type = state.subledgerAccountTypes.find(
+        (row) => row.type_code === familyCode,
+      );
+      const account = state.accounts.find(
+        (row) => row.account_id === $("account-id").value,
+      );
+      return {
+        object_kind: "subledger_account",
+        object_type_id: type?.subledger_account_type_id || "",
+        object_id: $("account-id").value,
+        division_id: $("account-division").value,
+        valid_from: dateOnly(account?.valid_from) || today(),
+        valid_to: dateOnly(account?.valid_to),
+      };
+    }
+    const kind = prefix === "accounting-object" ? "object" : "dimension";
+    const config = accountingMasterConfig(kind);
+    return {
+      object_kind:
+        kind === "object" ? "accounting_object" : "accounting_dimension",
+      object_type_id: $(`${prefix}-type`).value,
+      object_id: $(`${prefix}-id`).value,
+      division_id: $(`${prefix}-division`).value,
+      valid_from: $(`${prefix}-valid-from`).value || today(),
+      valid_to: $(`${prefix}-valid-to`).value,
+      config,
+    };
+  }
+  function addResourceAssignmentRow(
+    prefix,
+    group,
+    resources,
+    assignment = {},
+    editable = true,
+    context = {},
+  ) {
+    const row = document.createElement("div");
+    row.className = "resource-assignment-row";
+    row.dataset.resourceRoleId = group.resource_role_id;
+    row.innerHTML =
+      '<select class="resource-assignment-resource" aria-label="Resource"></select><input class="resource-assignment-from" type="date" aria-label="Valid from"><input class="resource-assignment-to" type="date" aria-label="Valid to"><button type="button" class="secondary resource-assignment-remove" aria-label="Remove assignment">Remove</button>';
+    const select = row.querySelector(".resource-assignment-resource");
+    const selectPlaceholder = document.createElement("option");
+    selectPlaceholder.value = "";
+    selectPlaceholder.textContent = "Select resource";
+    select.append(selectPlaceholder);
+    const allResources = [...resources];
+    if (
+      assignment.resource_id &&
+      !allResources.some(
+        (resource) => resource.resource_id === assignment.resource_id,
+      )
+    )
+      allResources.push({
+        resource_id: assignment.resource_id,
+        resource_code: assignment.resource_code,
+        display_name: assignment.display_name,
+        is_active: assignment.is_active,
+      });
+    allResources.forEach((resource) => {
+      const option = document.createElement("option");
+      option.value = resource.resource_id;
+      option.textContent = `${resource.display_name}${resource.is_active === false ? " (inactive)" : ""}`;
+      select.append(option);
+    });
+    select.value = assignment.resource_id || "";
+    row.querySelector(".resource-assignment-from").value =
+      assignment.resource_id
+        ? resourceDateLabel(assignment.valid_from, "")
+        : context.valid_from || "";
+    row.querySelector(".resource-assignment-to").value =
+      resourceDateLabel(assignment.valid_to, "") || context.valid_to || "";
+    row.querySelectorAll("select,input").forEach((control) => {
+      control.disabled = !editable;
+    });
+    row.querySelector(".resource-assignment-remove").hidden = !editable;
+    row
+      .querySelector(".resource-assignment-remove")
+      .addEventListener("click", () => row.remove());
+    $(`${prefix}-resource-assignment-editor`)
+      .querySelector(
+        `[data-resource-group="${group.resource_role_id}"] .resource-assignment-rows`,
+      )
+      .append(row);
+  }
+  function renderResourceAssignmentEditor(prefix, editor) {
+    const target = $(`${prefix}-resource-assignment-editor`);
+    target.innerHTML = "";
+    if (!editor.requirements.length) {
+      target.innerHTML =
+        '<p class="empty">No Resource Roles are configured for this object type.</p>';
+      return;
+    }
+    [true, false].forEach((required) => {
+      const groups = editor.requirements.filter(
+        (item) => item.is_required === required,
+      );
+      if (!groups.length) return;
+      const section = document.createElement("section");
+      section.className = "resource-assignment-section";
+      const heading = document.createElement("h3");
+      heading.textContent = required
+        ? "Mandatory Resources"
+        : "Optional Resources";
+      section.append(heading);
+      groups.forEach((group) => {
+        const container = document.createElement("div");
+        container.className = "resource-role-assignment-group";
+        container.dataset.resourceGroup = group.resource_role_id;
+        const header = document.createElement("div");
+        header.className = "panel-head";
+        const label = document.createElement("strong");
+        label.textContent = group.role_name;
+        header.append(label);
+        if (editor.canManage) {
+          const add = document.createElement("button");
+          add.type = "button";
+          add.className = "add-record-button";
+          add.textContent = "+";
+          add.setAttribute("aria-label", `Add ${group.role_name}`);
+          add.addEventListener("click", () =>
+            addResourceAssignmentRow(
+              prefix,
+              group,
+              editor.resources,
+              {},
+              true,
+              editor.context,
+            ),
+          );
+          header.append(add);
+        }
+        container.append(header);
+        const rows = document.createElement("div");
+        rows.className = "resource-assignment-rows";
+        rows.innerHTML =
+          '<div class="resource-assignment-row resource-assignment-head"><span>Resource</span><span>Valid from</span><span>Valid to</span><span></span></div>';
+        container.append(rows);
+        const assigned = editor.assignments.filter(
+          (item) => item.resource_role_id === group.resource_role_id,
+        );
+        section.append(container);
+        if (assigned.length)
+          assigned.forEach((assignment) =>
+            addResourceAssignmentRow(
+              prefix,
+              group,
+              editor.resources,
+              assignment,
+              editor.canManage,
+              editor.context,
+            ),
+          );
+        else if (editor.canManage && required)
+          addResourceAssignmentRow(
+            prefix,
+            group,
+            editor.resources,
+            {},
+            true,
+            editor.context,
+          );
+        else if (!editor.canManage)
+          rows.insertAdjacentHTML(
+            "beforeend",
+            '<p class="empty">No resource assigned</p>',
+          );
+      });
+      target.append(section);
+    });
+  }
+  async function loadResourceAssignmentEditor(prefix) {
+    const context = resourceObjectContext(prefix);
+    const target = $(`${prefix}-resource-assignment-editor`);
+    if (
+      !context ||
+      !context.object_type_id ||
+      (context.object_kind !== "gl_account" && !context.division_id)
+    ) {
+      if (target)
+        target.innerHTML =
+          '<p class="empty">Select an object type and division first.</p>';
+      return;
+    }
+    let assignments = [];
+    let requirements = resourceRoleMappingsFor(
+      context.object_kind,
+      context.object_type_id,
+    );
+    let resources = [];
+    let canManage = !context.object_id;
+    if (context.object_id) {
+      const current = await api(
+        `resources/assignments/object?organisation_id=${state.orgId}&object_kind=${context.object_kind}&object_id=${context.object_id}`,
+      );
+      assignments = current.assignments || [];
+      requirements = current.requirements || requirements;
+      canManage = current.can_manage === true;
+    }
+    if (canManage) {
+      const params = new URLSearchParams({
+        organisation_id: state.orgId,
+        object_kind: context.object_kind,
+        object_type_id: context.object_type_id,
+      });
+      if (context.division_id) params.set("division_id", context.division_id);
+      const options = await api(`resources/assignments/options?${params}`);
+      resources = options.resources || [];
+      requirements = options.roles || requirements;
+    }
+    const editor = { context, requirements, assignments, resources, canManage };
+    resourceAssignmentEditors.set(prefix, editor);
+    renderResourceAssignmentEditor(prefix, editor);
+  }
+  function collectResourceAssignments(prefix) {
+    const editor = resourceAssignmentEditors.get(prefix);
+    if (!editor?.canManage) return undefined;
+    return [
+      ...$(`${prefix}-resource-assignment-editor`).querySelectorAll(
+        ".resource-assignment-row:not(.resource-assignment-head)",
+      ),
+    ]
+      .map((row) => ({
+        resource_role_id: row.dataset.resourceRoleId,
+        resource_id: row.querySelector(".resource-assignment-resource").value,
+        valid_from:
+          row.querySelector(".resource-assignment-from").value || null,
+        valid_to: row.querySelector(".resource-assignment-to").value || null,
+      }))
+      .filter((row) => row.resource_id);
+  }
   function openAccountingMasterRecord(kind, row = {}) {
     const config = accountingMasterConfig(kind);
     const id = row[config.recordId] || "";
     config.setSelected(id || null);
+    resourceAssignmentEditors.delete(config.prefix);
+    showResourceEditorTab(config.prefix, "details");
     $(`${config.prefix}-form`).hidden = false;
     $(`${config.prefix}-id`).value = id;
     $(`${config.prefix}-type`).value =
@@ -5832,6 +6562,7 @@
       "subledger_account",
       "accounting_object",
       "accounting_dimension",
+      "resource",
     ]);
     table(
       $("role-list"),
@@ -6243,6 +6974,7 @@
       "subledger_account",
       "accounting_object",
       "accounting_dimension",
+      "resource",
     ]);
     const permissions = lines.filter((line) =>
       masterKinds.has(line.resource_kind),
@@ -6267,6 +6999,11 @@
       leaf.querySelector("input").checked = !!existing;
       leaf.querySelector("select").value =
         existing?.workflow_status === "view" ? "view" : "manage";
+      if (kind === "resource" && divisionId) {
+        leaf.querySelector("select").innerHTML =
+          '<option value="view">View assignments</option>';
+        leaf.querySelector("select").value = "view";
+      }
       return leaf;
     };
     const syncGroup = (node) => {
@@ -6335,6 +7072,9 @@
     organisationChildren.append(
       makeLeaf("legal_entity", "*", "Legal Entities", null),
     );
+    organisationChildren.append(
+      makeLeaf("resource", "*", "Resources", null),
+    );
     organisation.append(organisationChildren);
     target.append(organisation);
     const appendDivision = (division, parent) => {
@@ -6396,9 +7136,11 @@
         resource_kind: leaf.dataset.resourceKind,
         resource_code: leaf.dataset.resourceCode,
         workflow_status:
-          leaf.querySelector(".master-permission-access").value === "view"
-            ? "view"
-            : "*",
+          leaf.dataset.resourceKind === "resource"
+            ? leaf.querySelector(".master-permission-access").value
+            : leaf.querySelector(".master-permission-access").value === "view"
+              ? "view"
+              : "*",
       }));
   }
   function workflowPermissionOptionsFor(kind, resourceCode) {
@@ -6637,6 +7379,7 @@
       financialFormats: false,
       transactions: false,
       permissions: false,
+      resources: false,
     };
     state.navigation = {
       roles: [],
@@ -6676,6 +7419,11 @@
     state.roles = [];
     state.rolePermissions = [];
     state.roleUsers = [];
+    state.resourceRoles = [];
+    state.resourceRoleMappings = [];
+    state.resources = [];
+    state.resourceAssignments = [];
+    selectedResourceRoleId = "";
     state.dashboardSummary = null;
     syncSetupAccess();
     loadedAccountFamilies = new Set();
@@ -6713,6 +7461,8 @@
     state.workflowPaths = menu.workflow_paths || [];
     state.workflowSteps = menu.workflow_steps || [];
     state.workflowNext = menu.workflow_next || [];
+    state.resourceRoles = menu.resource_roles || [];
+    state.resourceRoleMappings = menu.resource_role_mappings || [];
     state.accountingObjectTypes = objectTypes.types || [];
     state.accountingDimensionTypes = dimensionTypes.types || [];
     state.navigation = navigation;
@@ -6741,6 +7491,7 @@
     state.divisions = divs.divisions || [];
     loadedSlices.divisions = true;
     fillDivisionSelects();
+    if (loadedSlices.menu) buildAlternativeMenus();
   }
   async function ensureFiscal(force = false) {
     if (!state.orgId || (loadedSlices.fiscal && !force)) return;
@@ -6845,6 +7596,13 @@
     state.roleUsers = permissions.role_users || [];
     loadedSlices.permissions = true;
   }
+  async function ensureResources(force = false) {
+    if (!state.orgId || (loadedSlices.resources && !force)) return;
+    const result = await api(`resources/list?organisation_id=${state.orgId}`);
+    state.resources = result.resources || [];
+    loadedSlices.resources = true;
+    renderResources();
+  }
   async function ensureViewData(view) {
     if (!state.orgId) return;
     if (view === "modules") {
@@ -6865,6 +7623,9 @@
     } else if (view === "taxtypes") {
       await ensureTaxTypes();
       renderTaxTypes();
+    } else if (view === "glaccounttypes") {
+      await Promise.all([loadMenuData(), ensureAccountTypes()]);
+      renderGlAccountTypes();
     } else if (view === "ledgerfamilies") {
       await loadMenuData();
       renderLedgerFamilies();
@@ -6904,6 +7665,11 @@
     } else if (view === "permissions") {
       await ensurePermissions();
       renderRoles();
+    } else if (view === "resourceroles") {
+      await loadMenuData();
+      renderResourceRoles();
+    } else if (view === "resources") {
+      await ensureResources();
     } else if (view === "legalentities") {
       await ensureLegalEntities();
       renderLegalEntities();
@@ -6921,6 +7687,7 @@
     await Promise.all([loadMenuData(true), ensureDivisions(true)]);
     resolveDivisionContext();
     fillDivisionSelects();
+    buildAlternativeMenus();
     renderWorkspaceContext();
     renderDashboard();
     renderOrganisations();
@@ -7412,6 +8179,7 @@
       line_definitions: $("copy-line-definitions").checked,
       workflow_paths: $("copy-workflow-paths")?.checked !== false,
       accounting_types: $("copy-accounting-types").checked,
+      resource_roles: $("copy-resource-roles").checked,
       permissions: $("copy-permissions").checked,
     };
     try {
@@ -7434,7 +8202,7 @@
         .join(" | ");
       $("org-copy-result").hidden = false;
       $("org-copy-result").textContent =
-        `Copy complete. ${r.copied} records inserted or updated.${detail ? ` ${detail}` : ""}`;
+        `Copy complete. ${r.copied} records inserted or updated.${detail ? ` ${detail}` : ""}${r.resource_roles_skipped ? " Resource Roles were skipped; initialize the ERP schema and retry to copy them." : ""}`;
     } catch (error) {
       alert(error.message);
     }
@@ -7708,10 +8476,19 @@
             account_name: $("account-name").value,
             additional_data: JSON.stringify(additionalData),
           };
-    const saved = await api(endpoint, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+    const resourceAssignments = collectResourceAssignments("account");
+    if (Array.isArray(resourceAssignments))
+      payload.resource_assignments = resourceAssignments;
+    let saved;
+    try {
+      saved = await api(endpoint, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      alert(error.message);
+      return;
+    }
     $("account-id").value =
       (family === "gl"
         ? saved.gl_account?.gl_account_id
@@ -7727,6 +8504,8 @@
   });
   function resetAccountingMasterForm(kind) {
     const config = accountingMasterConfig(kind);
+    resourceAssignmentEditors.delete(config.prefix);
+    showResourceEditorTab(config.prefix, "details");
     $(`${config.prefix}-form`).reset();
     $(`${config.prefix}-id`).value = "";
     $(`${config.prefix}-type`).value =
@@ -7797,10 +8576,19 @@
       body[config.typeId] = $(`${config.prefix}-type`).value;
       body[config.code] = $(`${config.prefix}-code`).value;
       body[config.name] = $(`${config.prefix}-name`).value;
-      const saved = await api(`${config.endpoint}/save`, {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
+      const resourceAssignments = collectResourceAssignments(config.prefix);
+      if (Array.isArray(resourceAssignments))
+        body.resource_assignments = resourceAssignments;
+      let saved;
+      try {
+        saved = await api(`${config.endpoint}/save`, {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+      } catch (error) {
+        alert(error.message);
+        return;
+      }
       config.setSelected(saved.record?.[config.recordId] || config.selected());
       $(`${config.prefix}-id`).value = config.selected() || "";
       $(`${config.prefix}-type-select`).value = body[config.typeId];
@@ -8097,9 +8885,126 @@
     $("ledger-family-ui-schema").value = '{"sections":[]}';
     $("ledger-family-active").checked = true;
     fillModuleSelect("ledger-family-modules");
+    renderResourceRoleMappingRows("ledger-family", []);
   }
   $("add-currency").addEventListener("click", openNewCurrency);
   $("new-currency").addEventListener("click", openNewCurrency);
+  $("add-resource-role").addEventListener("click", () =>
+    openResourceRoleEditor({ is_active: true }),
+  );
+  $("new-resource-role").addEventListener("click", () =>
+    openResourceRoleEditor({ is_active: true }),
+  );
+  $("close-resource-role-modal").addEventListener(
+    "click",
+    closeResourceRoleEditor,
+  );
+  document.querySelectorAll("[data-resource-role-tab]").forEach((button) => {
+    button.addEventListener("click", () =>
+      showResourceRoleTab(button.dataset.resourceRoleTab),
+    );
+    button.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+      event.preventDefault();
+      const tabName =
+        event.key === "ArrowRight"
+          ? button.dataset.resourceRoleTab === "definition"
+            ? "scope"
+            : "definition"
+          : button.dataset.resourceRoleTab === "scope"
+            ? "definition"
+            : "scope";
+      showResourceRoleTab(tabName, true);
+    });
+  });
+  $("resource-role-form").addEventListener(
+    "invalid",
+    (event) => {
+      if ($("resource-role-definition-panel").contains(event.target))
+        showResourceRoleTab("definition");
+    },
+    true,
+  );
+  $("resource-role-modal").addEventListener("click", (event) => {
+    if (event.target === $("resource-role-modal")) closeResourceRoleEditor();
+  });
+  document.addEventListener("keydown", (event) => {
+    const modal = $("resource-role-modal");
+    if (modal.hidden) return;
+    if (event.key === "Escape") {
+      closeResourceRoleEditor();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = [
+      ...modal.querySelectorAll(
+        'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[href],[tabindex]:not([tabindex="-1"])',
+      ),
+    ].filter((element) => !element.hidden);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+  $("resource-role-search").addEventListener("input", renderResourceRoles);
+  $("resource-role-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await api("resources/roles/save", {
+      method: "POST",
+      body: JSON.stringify({
+        organisation_id: state.orgId,
+        resource_role_id: $("resource-role-id").value,
+        role_code: $("resource-role-code").value,
+        role_name: $("resource-role-name").value,
+        role_description: $("resource-role-description").value,
+        module_ids: selectedModuleIds("resource-role-modules"),
+        is_active: $("resource-role-active").checked,
+      }),
+    });
+    closeResourceRoleEditor();
+    await loadMenuData(true);
+    renderResourceRoles();
+  });
+  $("add-resource").addEventListener("click", () =>
+    openResourceEditor({ is_active: true }),
+  );
+  $("new-resource").addEventListener("click", () =>
+    openResourceEditor({ is_active: true }),
+  );
+  $("manage-role-resources").addEventListener("click", () => {
+    show("resources");
+    $("page-title").textContent = "Resources";
+    renderResources();
+  });
+  $("resource-search").addEventListener("input", renderResources);
+  $("resource-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await api("resources/save", {
+      method: "POST",
+      body: JSON.stringify({
+        organisation_id: state.orgId,
+        resource_id: $("resource-id").value,
+        resource_code: $("resource-code").value,
+        display_name: $("resource-name").value,
+        resource_type: $("resource-type").value,
+        linked_email: $("resource-email").value,
+        resource_description: $("resource-description").value,
+        is_active: $("resource-active").checked,
+      }),
+    });
+    $("resource-form").hidden = true;
+    await ensureResources(true);
+    renderResources();
+  });
+  $("resource-assignment-search").addEventListener("input", () => {
+    renderResourceAssignmentOverview();
+  });
   $("add-module").addEventListener("click", () =>
     openModule({ is_active: true }),
   );
@@ -8172,6 +9077,32 @@
     await ensureCountries(true);
     renderCountries();
   });
+  $("add-gl-account-type").addEventListener("click", () =>
+    openGlAccountType({ is_required: true, is_active: true }),
+  );
+  $("new-gl-account-type").addEventListener("click", () =>
+    openGlAccountType({ is_required: true, is_active: true }),
+  );
+  $("gl-account-type-search").addEventListener("input", renderGlAccountTypes);
+  $("gl-account-type-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    await api("gl-account-types/save", {
+      method: "POST",
+      body: JSON.stringify({
+        gl_account_type_id: $("gl-account-type-id").value,
+        organisation_id: state.orgId,
+        type_code: $("gl-account-type-code").value,
+        type_name: $("gl-account-type-name").value,
+        is_required: $("gl-account-type-required").checked,
+        is_active: $("gl-account-type-active").checked,
+        resource_role_mappings: collectResourceRoleMappings("gl-account-type"),
+      }),
+    });
+    $("gl-account-type-form").hidden = true;
+    loadedSlices.accountTypes = false;
+    await Promise.all([loadMenuData(true), ensureAccountTypes(true)]);
+    renderGlAccountTypes();
+  });
   $("add-ledger-family").addEventListener("click", openNewLedgerFamily);
   $("new-ledger-family").addEventListener("click", openNewLedgerFamily);
   $("ledger-family-form").addEventListener("submit", async (e) => {
@@ -8190,6 +9121,7 @@
           type_description: $("ledger-family-description").value,
           workflow_path_id: $("ledger-family-workflow-path").value,
           module_ids: selectedModuleIds("ledger-family-modules"),
+          resource_role_mappings: collectResourceRoleMappings("ledger-family"),
           requires_legal_entity: $("ledger-family-legal-entity").checked,
           schema_json: $("ledger-family-schema").value,
           ui_schema_json: $("ledger-family-ui-schema").value,
@@ -8226,13 +9158,16 @@
         type_description: $("accounting-object-type-description").value,
         workflow_path_id: $("accounting-object-type-workflow-path").value,
         module_ids: selectedModuleIds("accounting-object-type-modules"),
+        resource_role_mappings: collectResourceRoleMappings(
+          "accounting-object-type",
+        ),
         schema_json: $("accounting-object-type-schema").value,
         ui_schema_json: $("accounting-object-type-ui-schema").value,
         is_active: $("accounting-object-type-active").checked,
       }),
     });
     $("accounting-object-type-form").hidden = true;
-    await ensureAccountingObjectTypes(true);
+    await loadMenuData(true);
     renderAccountingSetupTypes("object");
   });
   $("add-accounting-dimension-type").addEventListener("click", () =>
@@ -8256,13 +9191,16 @@
         type_description: $("accounting-dimension-type-description").value,
         workflow_path_id: $("accounting-dimension-type-workflow-path").value,
         module_ids: selectedModuleIds("accounting-dimension-type-modules"),
+        resource_role_mappings: collectResourceRoleMappings(
+          "accounting-dimension-type",
+        ),
         schema_json: $("accounting-dimension-type-schema").value,
         ui_schema_json: $("accounting-dimension-type-ui-schema").value,
         is_active: $("accounting-dimension-type-active").checked,
       }),
     });
     $("accounting-dimension-type-form").hidden = true;
-    await ensureAccountingDimensionTypes(true);
+    await loadMenuData(true);
     renderAccountingSetupTypes("dimension");
   });
   $("add-financial-format").addEventListener("click", openNewFinancialFormat);
@@ -8473,7 +9411,9 @@
       }),
     });
     $("role-form").hidden = true;
+    await loadMenuData(true);
     await ensurePermissions(true);
+    buildAlternativeMenus();
     renderRoles();
   });
   function patchDynamicSelects() {
@@ -8561,6 +9501,7 @@
   installModuleIconEditor();
   installWorkflowUi();
   installSetupTypeEditors();
+  installResourceAssignmentTabs();
   installTransactionTypeEditorUi();
   installOrganisationTabs();
   $("role-admin").closest("label").lastChild.textContent =

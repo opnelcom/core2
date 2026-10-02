@@ -336,6 +336,9 @@
                 ><input type="checkbox" id="copy-accounting-types" checked />
                 Accounting object and dimension types</label
               ><label class="check"
+                ><input type="checkbox" id="copy-resource-roles" checked />
+                Resource Roles</label
+              ><label class="check"
                 ><input type="checkbox" id="copy-permissions" checked /> Roles
                 and permissions</label
               >
@@ -1254,6 +1257,30 @@
             </form>
           </div>
         </section>
+        <section id="view-glaccounttypes" class="view" hidden>
+          <div class="split">
+            <div class="panel">
+              <div class="panel-head">
+                <h2>GL Account Types</h2>
+                <button type="button" id="add-gl-account-type" class="add-record-button">+</button>
+              </div>
+              <input id="gl-account-type-search" class="grid-search" placeholder="Search GL account types" />
+              <div id="gl-account-type-list"></div>
+            </div>
+            <form id="gl-account-type-form" class="panel form" hidden>
+              <h2>Manage GL Account Type</h2>
+              <input type="hidden" id="gl-account-type-id" />
+              <label>Code<input id="gl-account-type-code" required /></label>
+              <label>Name<input id="gl-account-type-name" required /></label>
+              <label class="check"><input type="checkbox" id="gl-account-type-required" checked /> Required in chart</label>
+              <label class="check"><input type="checkbox" id="gl-account-type-active" checked /> Active</label>
+              <div class="actions">
+                <button type="submit">Save GL Account Type</button>
+                <button type="button" id="new-gl-account-type" class="secondary">New</button>
+              </div>
+            </form>
+          </div>
+        </section>
         <section id="view-ledgerfamilies" class="view" hidden>
           <div class="split">
             <div class="panel">
@@ -1733,6 +1760,212 @@
                 </button>
               </div>
             </form>
+          </div>
+        </section>
+        <section id="view-resourceroles" class="view" hidden>
+          <div class="split">
+            <div class="panel">
+              <div class="panel-head">
+                <h2>Resource Roles</h2>
+                <button
+                  type="button"
+                  id="add-resource-role"
+                  class="add-record-button"
+                  aria-label="Add Resource Role"
+                  title="Add Resource Role"
+                >
+                  +
+                </button>
+              </div>
+              <input
+                id="resource-role-search"
+                class="grid-search"
+                placeholder="Search Resource Roles"
+              />
+              <div id="resource-role-list"></div>
+            </div>
+          </div>
+          <div id="resource-role-modal" class="modal-backdrop" hidden>
+            <form
+              id="resource-role-form"
+              class="panel form resource-role-modal-panel"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="resource-role-modal-title"
+            >
+              <button
+                type="button"
+                id="close-resource-role-modal"
+                class="panel-close"
+                aria-label="Close Resource Role editor"
+              >
+                &times;
+              </button>
+              <div class="panel-head">
+                <h2 id="resource-role-modal-title">Manage Resource Role</h2>
+              </div>
+              <input type="hidden" id="resource-role-id" />
+              <div class="tabs" role="tablist" aria-label="Resource Role fields">
+                <button
+                  type="button"
+                  id="resource-role-definition-tab"
+                  class="tab active"
+                  role="tab"
+                  aria-selected="true"
+                  aria-controls="resource-role-definition-panel"
+                  data-resource-role-tab="definition"
+                >
+                  Definition
+                </button>
+                <button
+                  type="button"
+                  id="resource-role-scope-tab"
+                  class="tab"
+                  role="tab"
+                  aria-selected="false"
+                  aria-controls="resource-role-scope-panel"
+                  tabindex="-1"
+                  data-resource-role-tab="scope"
+                >
+                  Scope
+                </button>
+              </div>
+              <div
+                id="resource-role-definition-panel"
+                class="resource-role-tab-panel"
+                role="tabpanel"
+                aria-labelledby="resource-role-definition-tab"
+                data-resource-role-panel="definition"
+              >
+                <div class="resource-role-definition-grid">
+                  <label>Code<input id="resource-role-code" required /></label>
+                  <label>Name<input id="resource-role-name" required /></label>
+                  <label class="resource-role-description-field"
+                    >Description<textarea
+                      id="resource-role-description"
+                      rows="7"
+                    ></textarea>
+                  </label>
+                  <label class="check resource-role-active-field"
+                    ><input
+                      type="checkbox"
+                      id="resource-role-active"
+                      checked
+                    />
+                    Active</label
+                  >
+                </div>
+              </div>
+              <div
+                id="resource-role-scope-panel"
+                class="resource-role-tab-panel"
+                role="tabpanel"
+                aria-labelledby="resource-role-scope-tab"
+                data-resource-role-panel="scope"
+                hidden
+              >
+                <p class="resource-role-scope-copy">
+                  Select the modules where this role should appear in the menu.
+                  A role with no modules remains available when editing objects.
+                </p>
+                <div class="module-scope-field">
+                  <span id="resource-role-modules-label">Modules</span>
+                  <div
+                    id="resource-role-modules"
+                    class="module-checklist"
+                    role="group"
+                    aria-labelledby="resource-role-modules-label"
+                  ></div>
+                </div>
+              </div>
+              <div class="actions">
+                <button type="submit">Save Resource Role</button>
+                <button type="button" id="new-resource-role" class="secondary">
+                  New
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+        <section id="view-resources" class="view" hidden>
+          <div class="split">
+            <div class="panel">
+              <div class="panel-head">
+                <h2>Resources</h2>
+                <button
+                  type="button"
+                  id="add-resource"
+                  class="add-record-button"
+                  aria-label="Add Resource"
+                  title="Add Resource"
+                >
+                  +
+                </button>
+              </div>
+              <input
+                id="resource-search"
+                class="grid-search"
+                placeholder="Search resources"
+              />
+              <div id="resource-list"></div>
+            </div>
+            <form id="resource-form" class="panel form" hidden>
+              <h2>Manage Resource</h2>
+              <input type="hidden" id="resource-id" />
+              <label>Code<input id="resource-code" required /></label>
+              <label>Display name<input id="resource-name" required /></label>
+              <label
+                >Type<select id="resource-type" required>
+                  <option value="employee">Employee</option>
+                  <option value="contractor">Contractor</option>
+                  <option value="service_provider">Service provider</option>
+                </select></label
+              >
+              <label
+                >Application user email<input
+                  id="resource-email"
+                  type="email"
+                  placeholder="Optional"
+                /></label
+              >
+              <label class="full"
+                >Description<textarea id="resource-description"></textarea></label
+              >
+              <label class="check"
+                ><input type="checkbox" id="resource-active" checked />
+                Active</label
+              >
+              <div class="actions">
+                <button type="submit">Save Resource</button>
+                <button type="button" id="new-resource" class="secondary">
+                  New
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+        <section id="view-resourceassignments" class="view" hidden>
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 id="resource-assignment-title">Resource Assignments</h2>
+                <p id="resource-assignment-context" class="muted"></p>
+              </div>
+            </div>
+            <input
+              id="resource-assignment-search"
+              class="grid-search"
+              placeholder="Search assignments"
+            />
+            <div id="resource-assignment-list"></div>
+            <div class="panel-head">
+              <div>
+                <h2>Organisation Resources</h2>
+                <p class="muted">Existing resources available in this organisation.</p>
+              </div>
+              <button type="button" id="manage-role-resources" class="secondary" hidden>Manage Resources</button>
+            </div>
+            <div id="resource-assignment-resource-list"></div>
           </div>
         </section>
       </main>

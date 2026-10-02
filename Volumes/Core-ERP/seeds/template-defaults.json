@@ -1,27 +1,96 @@
 {
-  "glTypes": [
-    "asset",
-    "liability",
-    "equity",
-    "revenue",
-    "expense"
-  ],
+  "glTypes": ["asset", "liability", "equity", "revenue", "expense"],
   "moduleSeeds": [
-    ["sales", "Sales", 10, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 18 10 12l4 3 6-8\"/><path d=\"M15 7h5v5\"/></svg>"],
-    ["crm", "CRM", 20, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"8\" cy=\"8\" r=\"3\"/><path d=\"M3 19c0-3 2-5 5-5s5 2 5 5\"/><path d=\"M17 10c-3-2-5 2 0 5 5-3 3-7 0-5Z\"/></svg>"],
-    ["procurement", "Procurement", 30, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 5h2l2 10h10l3-7H6\"/><circle cx=\"9\" cy=\"19\" r=\"1\"/><circle cx=\"17\" cy=\"19\" r=\"1\"/></svg>"],
-    ["hr_payroll", "HR & Payroll", 40, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"9\" cy=\"7\" r=\"3\"/><path d=\"M3 19c0-4 2-6 6-6s6 2 6 6\"/><circle cx=\"18\" cy=\"14\" r=\"3\"/><path d=\"M18 12.5v3M16.8 14h2.4\"/></svg>"],
-    ["finance", "Finance", 50, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 9 9-5 9 5M5 10v7m5-7v7m4-7v7m5-7v7M3 20h18\"/></svg>"],
-    ["treasury_cash", "Treasury & Cash", 60, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><ellipse cx=\"9\" cy=\"7\" rx=\"5\" ry=\"2.5\"/><path d=\"M4 7v6c0 1.4 2.2 2.5 5 2.5M14 7v3\"/><ellipse cx=\"16\" cy=\"15\" rx=\"5\" ry=\"2.5\"/><path d=\"M11 15v3c0 1.4 2.2 2.5 5 2.5s5-1.1 5-2.5v-3\"/></svg>"],
-    ["tax", "Tax", 70, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 3h9l4 4v14H6Z\"/><path d=\"M15 3v5h4M9 16l6-6\"/><circle cx=\"10\" cy=\"11\" r=\"1\"/><circle cx=\"15\" cy=\"16\" r=\"1\"/></svg>"],
-    ["inventory", "Inventory", 80, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m4 7 8-4 8 4-8 4Z\"/><path d=\"M4 7v10l8 4 8-4V7M12 11v10\"/></svg>"],
-    ["asset_management", "Asset Management", 90, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1\"/></svg>"],
-    ["project_management", "Project Management", 100, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"5\" y=\"4\" width=\"14\" height=\"17\" rx=\"2\"/><path d=\"M9 4V2h6v2M8 10l2 2 4-4M8 16h8\"/></svg>"],
-    ["contract_management", "Contract Management", 110, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 3h10l4 4v14H5Z\"/><path d=\"M15 3v5h4M8 12h8M8 16h4M13 18l5-5 2 2-5 5-3 1Z\"/></svg>"],
-    ["property_management", "Property Management", 120, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 11 9-8 9 8M5 10v11h14V10M9 21v-7h6v7\"/></svg>"],
-    ["intercompany", "Intercompany", 130, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"7\" width=\"6\" height=\"12\"/><rect x=\"15\" y=\"5\" width=\"6\" height=\"14\"/><path d=\"M9 10h7l-2-2m1 7H8l2 2\"/></svg>"],
-    ["public_sector", "Public Sector", 140, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 21V3m0 1h12l-2 4 2 4H5M9 21v-6h10v6M8 21h12\"/></svg>"],
-    ["corporate_administration", "Corporate Administration", 150, "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"7\" width=\"18\" height=\"13\" rx=\"2\"/><path d=\"M8 7V4h8v3M3 12h18M10 12v2h4v-2\"/></svg>"]
+    [
+      "sales",
+      "Sales",
+      10,
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 18 10 12l4 3 6-8\"/><path d=\"M15 7h5v5\"/></svg>"
+    ],
+    [
+      "crm",
+      "CRM",
+      20,
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"8\" cy=\"8\" r=\"3\"/><path d=\"M3 19c0-3 2-5 5-5s5 2 5 5\"/><path d=\"M17 10c-3-2-5 2 0 5 5-3 3-7 0-5Z\"/></svg>"
+    ],
+    [
+      "procurement",
+      "Procurement",
+      30,
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 5h2l2 10h10l3-7H6\"/><circle cx=\"9\" cy=\"19\" r=\"1\"/><circle cx=\"17\" cy=\"19\" r=\"1\"/></svg>"
+    ],
+    [
+      "hr_payroll",
+      "HR & Payroll",
+      40,
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"9\" cy=\"7\" r=\"3\"/><path d=\"M3 19c0-4 2-6 6-6s6 2 6 6\"/><circle cx=\"18\" cy=\"14\" r=\"3\"/><path d=\"M18 12.5v3M16.8 14h2.4\"/></svg>"
+    ],
+    [
+      "finance",
+      "Finance",
+      50,
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 9 9-5 9 5M5 10v7m5-7v7m4-7v7m5-7v7M3 20h18\"/></svg>"
+    ],
+    [
+      "treasury_cash",
+      "Treasury & Cash",
+      60,
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><ellipse cx=\"9\" cy=\"7\" rx=\"5\" ry=\"2.5\"/><path d=\"M4 7v6c0 1.4 2.2 2.5 5 2.5M14 7v3\"/><ellipse cx=\"16\" cy=\"15\" rx=\"5\" ry=\"2.5\"/><path d=\"M11 15v3c0 1.4 2.2 2.5 5 2.5s5-1.1 5-2.5v-3\"/></svg>"
+    ],
+    [
+      "tax",
+      "Tax",
+      70,
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 3h9l4 4v14H6Z\"/><path d=\"M15 3v5h4M9 16l6-6\"/><circle cx=\"10\" cy=\"11\" r=\"1\"/><circle cx=\"15\" cy=\"16\" r=\"1\"/></svg>"
+    ],
+    [
+      "inventory",
+      "Inventory",
+      80,
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m4 7 8-4 8 4-8 4Z\"/><path d=\"M4 7v10l8 4 8-4V7M12 11v10\"/></svg>"
+    ],
+    [
+      "asset_management",
+      "Asset Management",
+      90,
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1\"/></svg>"
+    ],
+    [
+      "project_management",
+      "Project Management",
+      100,
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"5\" y=\"4\" width=\"14\" height=\"17\" rx=\"2\"/><path d=\"M9 4V2h6v2M8 10l2 2 4-4M8 16h8\"/></svg>"
+    ],
+    [
+      "contract_management",
+      "Contract Management",
+      110,
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 3h10l4 4v14H5Z\"/><path d=\"M15 3v5h4M8 12h8M8 16h4M13 18l5-5 2 2-5 5-3 1Z\"/></svg>"
+    ],
+    [
+      "property_management",
+      "Property Management",
+      120,
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 11 9-8 9 8M5 10v11h14V10M9 21v-7h6v7\"/></svg>"
+    ],
+    [
+      "intercompany",
+      "Intercompany",
+      130,
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"7\" width=\"6\" height=\"12\"/><rect x=\"15\" y=\"5\" width=\"6\" height=\"14\"/><path d=\"M9 10h7l-2-2m1 7H8l2 2\"/></svg>"
+    ],
+    [
+      "public_sector",
+      "Public Sector",
+      140,
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 21V3m0 1h12l-2 4 2 4H5M9 21v-6h10v6M8 21h12\"/></svg>"
+    ],
+    [
+      "corporate_administration",
+      "Corporate Administration",
+      150,
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"7\" width=\"18\" height=\"13\" rx=\"2\"/><path d=\"M8 7V4h8v3M3 12h18M10 12v2h4v-2\"/></svg>"
+    ]
   ],
   "moduleMappings": {
     "ledgerFamilies": {
@@ -31,16 +100,29 @@
       "employee": ["hr_payroll", "finance"],
       "cash_point": ["treasury_cash", "sales", "finance"],
       "asset": ["asset_management", "finance"],
-      "capex_project": ["asset_management", "project_management", "procurement", "finance"],
+      "capex_project": [
+        "asset_management",
+        "project_management",
+        "procurement",
+        "finance"
+      ],
       "loan": ["treasury_cash", "finance"]
     },
     "accountingObjectTypes": {
+      "team": ["project_management"],
       "property": ["property_management", "asset_management", "finance"],
       "region": ["sales", "crm", "procurement", "hr_payroll", "finance"],
       "opex_project": ["project_management", "procurement", "finance"],
       "cost_centre": ["finance", "hr_payroll"],
       "profit_centre": ["finance", "sales"],
-      "contract": ["contract_management", "sales", "procurement", "hr_payroll", "asset_management", "finance"],
+      "contract": [
+        "contract_management",
+        "sales",
+        "procurement",
+        "hr_payroll",
+        "asset_management",
+        "finance"
+      ],
       "utility_meter": ["property_management", "finance"]
     },
     "accountingDimensionTypes": {
@@ -97,212 +179,42 @@
     "reversed"
   ],
   "ledgerTypeSeeds": [
-    [
-      "bank",
-      "current_account",
-      "Current account",
-      false
-    ],
-    [
-      "bank",
-      "savings_account",
-      "Savings account",
-      false
-    ],
-    [
-      "bank",
-      "cash_account",
-      "Cash account",
-      false
-    ],
-    [
-      "bank",
-      "credit_card",
-      "Credit card",
-      false
-    ],
-    [
-      "customer",
-      "trade_customer",
-      "Trade customer",
-      false
-    ],
-    [
-      "customer",
-      "cash_customer",
-      "Cash customer",
-      false
-    ],
-    [
-      "customer",
-      "intercompany_customer",
-      "Intercompany customer",
-      false
-    ],
-    [
-      "vendor",
-      "trade_vendor",
-      "Trade vendor",
-      false
-    ],
-    [
-      "vendor",
-      "service_provider",
-      "Service provider",
-      false
-    ],
-    [
-      "vendor",
-      "intercompany_vendor",
-      "Intercompany vendor",
-      false
-    ],
-    [
-      "employee",
-      "permanent_employee",
-      "Permanent employee",
-      false
-    ],
-    [
-      "employee",
-      "contractor",
-      "Contractor",
-      false
-    ],
-    [
-      "cash_point",
-      "point_of_sale",
-      "Point of Sale",
-      false
-    ],
-    [
-      "cash_point",
-      "management_safe",
-      "Management Safe",
-      false
-    ],
-    [
-      "cash_point",
-      "cash_in_transit",
-      "Cash in Transit",
-      false
-    ],
-    [
-      "cash_point",
-      "temporary_cash_box",
-      "Temporary Cash Box",
-      false
-    ],
-    [
-      "cash_point",
-      "undeposited_cash",
-      "Undeposited Cash",
-      false
-    ],
-    [
-      "cash_point",
-      "change_float",
-      "Change Float",
-      false
-    ],
-    [
-      "cash_point",
-      "petty_cash",
-      "Petty Cash",
-      false
-    ],
-    [
-      "asset",
-      "fixed_asset",
-      "Fixed Asset",
-      false
-    ],
-    [
-      "asset",
-      "right_of_use_asset",
-      "Right-of-use Asset",
-      false
-    ],
-    [
-      "asset",
-      "intangible_asset",
-      "Intangible Asset",
-      false
-    ],
-    [
-      "asset",
-      "investment_property",
-      "Investment Property",
-      false
-    ],
-    [
-      "asset",
-      "asset_under_construction",
-      "Asset Under Construction",
-      false
-    ],
-    [
-      "asset",
-      "low_value_asset",
-      "Low-value Asset",
-      false
-    ],
-    [
-      "asset",
-      "leased_asset",
-      "Leased Asset",
-      false
-    ],
-    [
-      "asset",
-      "biological_asset",
-      "Biological Asset",
-      false
-    ],
-    [
-      "asset",
-      "financial_asset",
-      "Financial Asset",
-      false
-    ],
-    [
-      "loan",
-      "loan_account",
-      "Loan account",
-      false
-    ],
-    [
-      "loan",
-      "intercompany_loan",
-      "Intercompany loan",
-      false
-    ]
+    ["bank", "current_account", "Current account", false],
+    ["bank", "savings_account", "Savings account", false],
+    ["bank", "cash_account", "Cash account", false],
+    ["bank", "credit_card", "Credit card", false],
+    ["customer", "trade_customer", "Trade customer", false],
+    ["customer", "cash_customer", "Cash customer", false],
+    ["customer", "intercompany_customer", "Intercompany customer", false],
+    ["vendor", "trade_vendor", "Trade vendor", false],
+    ["vendor", "service_provider", "Service provider", false],
+    ["vendor", "intercompany_vendor", "Intercompany vendor", false],
+    ["employee", "permanent_employee", "Permanent employee", false],
+    ["employee", "contractor", "Contractor", false],
+    ["cash_point", "point_of_sale", "Point of Sale", false],
+    ["cash_point", "management_safe", "Management Safe", false],
+    ["cash_point", "cash_in_transit", "Cash in Transit", false],
+    ["cash_point", "temporary_cash_box", "Temporary Cash Box", false],
+    ["cash_point", "undeposited_cash", "Undeposited Cash", false],
+    ["cash_point", "change_float", "Change Float", false],
+    ["cash_point", "petty_cash", "Petty Cash", false],
+    ["asset", "fixed_asset", "Fixed Asset", false],
+    ["asset", "right_of_use_asset", "Right-of-use Asset", false],
+    ["asset", "intangible_asset", "Intangible Asset", false],
+    ["asset", "investment_property", "Investment Property", false],
+    ["asset", "asset_under_construction", "Asset Under Construction", false],
+    ["asset", "low_value_asset", "Low-value Asset", false],
+    ["asset", "leased_asset", "Leased Asset", false],
+    ["asset", "biological_asset", "Biological Asset", false],
+    ["asset", "financial_asset", "Financial Asset", false],
+    ["loan", "loan_account", "Loan account", false],
+    ["loan", "intercompany_loan", "Intercompany loan", false]
   ],
   "currencies": [
-    [
-      "USD",
-      "US Dollar",
-      2,
-      true
-    ],
-    [
-      "GBP",
-      "Pound Sterling",
-      2,
-      true
-    ],
-    [
-      "EUR",
-      "Euro",
-      2,
-      true
-    ],
-    [
-      "ZAR",
-      "South African Rand",
-      2,
-      true
-    ]
+    ["USD", "US Dollar", 2, true],
+    ["GBP", "Pound Sterling", 2, true],
+    ["EUR", "Euro", 2, true],
+    ["ZAR", "South African Rand", 2, true]
   ],
   "taxTypeSeeds": [
     {
@@ -3638,54 +3550,14 @@
     ]
   ],
   "ledgerFamilies": [
-    [
-      "bank",
-      "Bank account",
-      false,
-      true
-    ],
-    [
-      "customer",
-      "Customer account",
-      false,
-      true
-    ],
-    [
-      "vendor",
-      "Vendor account",
-      false,
-      true
-    ],
-    [
-      "employee",
-      "Employee",
-      false,
-      false
-    ],
-    [
-      "cash_point",
-      "Cash Point",
-      false,
-      false
-    ],
-    [
-      "asset",
-      "Asset",
-      false,
-      false
-    ],
-    [
-      "capex_project",
-      "Capital Project (WIP/AUC)",
-      false,
-      false
-    ],
-    [
-      "loan",
-      "Loan account",
-      false,
-      true
-    ]
+    ["bank", "Bank account", false, true],
+    ["customer", "Customer account", false, true],
+    ["vendor", "Vendor account", false, true],
+    ["employee", "Employee", false, false],
+    ["cash_point", "Cash Point", false, false],
+    ["asset", "Asset", false, false],
+    ["capex_project", "Capital Project (WIP/AUC)", false, false],
+    ["loan", "Loan account", false, true]
   ],
   "financialStatementFormatSeeds": [
     {
@@ -3700,9 +3572,7 @@
           null,
           100,
           {
-            "accounts": [
-              "4000"
-            ]
+            "accounts": ["4000"]
           }
         ],
         [
@@ -3712,11 +3582,7 @@
           null,
           200,
           {
-            "accounts": [
-              "5000",
-              "5050",
-              "5600"
-            ]
+            "accounts": ["5000", "5050", "5600"]
           }
         ],
         [
@@ -3727,22 +3593,12 @@
           300,
           {
             "formula": {
-              "add": [
-                "REV"
-              ],
-              "subtract": [
-                "COS"
-              ]
+              "add": ["REV"],
+              "subtract": ["COS"]
             }
           }
         ],
-        [
-          "OPEX",
-          "Operating Expenses",
-          "header",
-          null,
-          400
-        ],
+        ["OPEX", "Operating Expenses", "header", null, 400],
         [
           "BANK",
           "Bank Charges",
@@ -3750,9 +3606,7 @@
           "OPEX",
           410,
           {
-            "accounts": [
-              "5100"
-            ]
+            "accounts": ["5100"]
           }
         ],
         [
@@ -3762,9 +3616,7 @@
           "OPEX",
           420,
           {
-            "accounts": [
-              "5200"
-            ]
+            "accounts": ["5200"]
           }
         ],
         [
@@ -3774,9 +3626,7 @@
           "OPEX",
           430,
           {
-            "accounts": [
-              "5300"
-            ]
+            "accounts": ["5300"]
           }
         ],
         [
@@ -3786,9 +3636,7 @@
           "OPEX",
           440,
           {
-            "accounts": [
-              "5190"
-            ]
+            "accounts": ["5190"]
           }
         ],
         [
@@ -3798,23 +3646,10 @@
           "OPEX",
           450,
           {
-            "accounts": [
-              "5700",
-              "5710",
-              "5720",
-              "5730",
-              "5740",
-              "5750"
-            ]
+            "accounts": ["5700", "5710", "5720", "5730", "5740", "5750"]
           }
         ],
-        [
-          "OTHER",
-          "Other Income / Expense",
-          "header",
-          null,
-          500
-        ],
+        ["OTHER", "Other Income / Expense", "header", null, 500],
         [
           "OTHERINC",
           "Other Income",
@@ -3822,10 +3657,7 @@
           "OTHER",
           510,
           {
-            "accounts": [
-              "4100",
-              "4190"
-            ]
+            "accounts": ["4100", "4190"]
           }
         ],
         [
@@ -3835,9 +3667,7 @@
           "OTHER",
           520,
           {
-            "accounts": [
-              "5500"
-            ]
+            "accounts": ["5500"]
           }
         ],
         [
@@ -3847,9 +3677,7 @@
           null,
           600,
           {
-            "accounts": [
-              "5400"
-            ]
+            "accounts": ["5400"]
           }
         ],
         [
@@ -3860,10 +3688,7 @@
           700,
           {
             "formula": {
-              "add": [
-                "GP",
-                "OTHERINC"
-              ],
+              "add": ["GP", "OTHERINC"],
               "subtract": [
                 "BANK",
                 "PAYROLL",
@@ -3890,11 +3715,7 @@
           null,
           100,
           {
-            "accounts": [
-              "4000",
-              "4100",
-              "4190"
-            ]
+            "accounts": ["4000", "4100", "4190"]
           }
         ],
         [
@@ -3904,11 +3725,7 @@
           null,
           200,
           {
-            "accounts": [
-              "5000",
-              "5050",
-              "5600"
-            ]
+            "accounts": ["5000", "5050", "5600"]
           }
         ],
         [
@@ -3919,12 +3736,8 @@
           300,
           {
             "formula": {
-              "add": [
-                "REV"
-              ],
-              "subtract": [
-                "DIRECT"
-              ]
+              "add": ["REV"],
+              "subtract": ["DIRECT"]
             }
           }
         ],
@@ -3957,12 +3770,8 @@
           500,
           {
             "formula": {
-              "add": [
-                "CONTRIB"
-              ],
-              "subtract": [
-                "OPERATING"
-              ]
+              "add": ["CONTRIB"],
+              "subtract": ["OPERATING"]
             }
           }
         ],
@@ -3973,9 +3782,7 @@
           null,
           600,
           {
-            "accounts": [
-              "5500"
-            ]
+            "accounts": ["5500"]
           }
         ],
         [
@@ -3985,9 +3792,7 @@
           null,
           700,
           {
-            "accounts": [
-              "5400"
-            ]
+            "accounts": ["5400"]
           }
         ],
         [
@@ -3998,13 +3803,8 @@
           800,
           {
             "formula": {
-              "add": [
-                "EBIT"
-              ],
-              "subtract": [
-                "FINANCE",
-                "TAX"
-              ]
+              "add": ["EBIT"],
+              "subtract": ["FINANCE", "TAX"]
             }
           }
         ]
@@ -4022,13 +3822,7 @@
           null,
           100,
           {
-            "accounts": [
-              "1000",
-              "1010",
-              "1100",
-              "1200",
-              "2200"
-            ]
+            "accounts": ["1000", "1010", "1100", "1200", "2200"]
           }
         ],
         [
@@ -4038,10 +3832,7 @@
           null,
           200,
           {
-            "accounts": [
-              "1300",
-              "1350"
-            ]
+            "accounts": ["1300", "1350"]
           }
         ],
         [
@@ -4052,10 +3843,7 @@
           300,
           {
             "formula": {
-              "add": [
-                "CA",
-                "NCA"
-              ]
+              "add": ["CA", "NCA"]
             }
           }
         ],
@@ -4085,9 +3873,7 @@
           null,
           500,
           {
-            "accounts": [
-              "2500"
-            ]
+            "accounts": ["2500"]
           }
         ],
         [
@@ -4098,10 +3884,7 @@
           600,
           {
             "formula": {
-              "add": [
-                "CL",
-                "NCL"
-              ]
+              "add": ["CL", "NCL"]
             }
           }
         ],
@@ -4112,11 +3895,7 @@
           null,
           700,
           {
-            "accounts": [
-              "3000",
-              "3100",
-              "3200"
-            ]
+            "accounts": ["3000", "3100", "3200"]
           }
         ],
         [
@@ -4127,10 +3906,7 @@
           800,
           {
             "formula": {
-              "add": [
-                "TL",
-                "EQ"
-              ]
+              "add": ["TL", "EQ"]
             }
           }
         ]
@@ -4141,13 +3917,7 @@
       "name": "Balance Sheet - IFRS",
       "statementType": "balance",
       "lines": [
-        [
-          "ASSETS",
-          "Assets",
-          "header",
-          null,
-          100
-        ],
+        ["ASSETS", "Assets", "header", null, 100],
         [
           "CURRENT_ASSETS",
           "Current Assets",
@@ -4155,13 +3925,7 @@
           "ASSETS",
           110,
           {
-            "accounts": [
-              "1000",
-              "1010",
-              "1100",
-              "1200",
-              "2200"
-            ]
+            "accounts": ["1000", "1010", "1100", "1200", "2200"]
           }
         ],
         [
@@ -4171,10 +3935,7 @@
           "ASSETS",
           120,
           {
-            "accounts": [
-              "1300",
-              "1350"
-            ]
+            "accounts": ["1300", "1350"]
           }
         ],
         [
@@ -4185,20 +3946,11 @@
           190,
           {
             "formula": {
-              "add": [
-                "CURRENT_ASSETS",
-                "NON_CURRENT_ASSETS"
-              ]
+              "add": ["CURRENT_ASSETS", "NON_CURRENT_ASSETS"]
             }
           }
         ],
-        [
-          "EQUITY_LIAB",
-          "Equity and Liabilities",
-          "header",
-          null,
-          200
-        ],
+        ["EQUITY_LIAB", "Equity and Liabilities", "header", null, 200],
         [
           "EQUITY",
           "Equity",
@@ -4206,11 +3958,7 @@
           "EQUITY_LIAB",
           210,
           {
-            "accounts": [
-              "3000",
-              "3100",
-              "3200"
-            ]
+            "accounts": ["3000", "3100", "3200"]
           }
         ],
         [
@@ -4239,9 +3987,7 @@
           "EQUITY_LIAB",
           230,
           {
-            "accounts": [
-              "2500"
-            ]
+            "accounts": ["2500"]
           }
         ],
         [
@@ -4252,11 +3998,7 @@
           290,
           {
             "formula": {
-              "add": [
-                "EQUITY",
-                "CURRENT_LIAB",
-                "NON_CURRENT_LIAB"
-              ]
+              "add": ["EQUITY", "CURRENT_LIAB", "NON_CURRENT_LIAB"]
             }
           }
         ]
@@ -4274,10 +4016,7 @@
           null,
           100,
           {
-            "accounts": [
-              "1000",
-              "1010"
-            ]
+            "accounts": ["1000", "1010"]
           }
         ],
         [
@@ -4287,11 +4026,7 @@
           null,
           200,
           {
-            "accounts": [
-              "1100",
-              "1200",
-              "2200"
-            ]
+            "accounts": ["1100", "1200", "2200"]
           }
         ],
         [
@@ -4301,10 +4036,7 @@
           null,
           300,
           {
-            "accounts": [
-              "1300",
-              "1350"
-            ]
+            "accounts": ["1300", "1350"]
           }
         ],
         [
@@ -4315,11 +4047,7 @@
           400,
           {
             "formula": {
-              "add": [
-                "CASH",
-                "WORKING_ASSETS",
-                "FIXED_ASSETS"
-              ]
+              "add": ["CASH", "WORKING_ASSETS", "FIXED_ASSETS"]
             }
           }
         ],
@@ -4349,9 +4077,7 @@
           null,
           600,
           {
-            "accounts": [
-              "2500"
-            ]
+            "accounts": ["2500"]
           }
         ],
         [
@@ -4361,11 +4087,7 @@
           null,
           700,
           {
-            "accounts": [
-              "3000",
-              "3100",
-              "3200"
-            ]
+            "accounts": ["3000", "3100", "3200"]
           }
         ],
         [
@@ -4376,11 +4098,7 @@
           800,
           {
             "formula": {
-              "add": [
-                "TRADE_LIAB",
-                "DEBT",
-                "EQUITY"
-              ]
+              "add": ["TRADE_LIAB", "DEBT", "EQUITY"]
             }
           }
         ],
@@ -4392,12 +4110,8 @@
           900,
           {
             "formula": {
-              "add": [
-                "DEBT"
-              ],
-              "subtract": [
-                "CASH"
-              ]
+              "add": ["DEBT"],
+              "subtract": ["CASH"]
             }
           }
         ]
@@ -4410,33 +4124,19 @@
       "tabs": [
         {
           "label": "General",
-          "fields": [
-            "assetTag",
-            "assetCategory",
-            "serialNumber"
-          ]
+          "fields": ["assetTag", "assetCategory", "serialNumber"]
         },
         {
           "label": "Dates",
-          "fields": [
-            "purchaseDate",
-            "commissionDate"
-          ]
+          "fields": ["purchaseDate", "commissionDate"]
         },
         {
           "label": "Assignment",
-          "fields": [
-            "custodian",
-            "location"
-          ]
+          "fields": ["custodian", "location"]
         },
         {
           "label": "Depreciation",
-          "fields": [
-            "depreciationMethod",
-            "usefulLifeMonths",
-            "residualValue"
-          ]
+          "fields": ["depreciationMethod", "usefulLifeMonths", "residualValue"]
         }
       ],
       "properties": {
@@ -4491,11 +4191,7 @@
       "tabs": [
         {
           "label": "Bank",
-          "fields": [
-            "bankName",
-            "branchName",
-            "branchCode"
-          ]
+          "fields": ["bankName", "branchName", "branchCode"]
         },
         {
           "label": "Account",
@@ -4508,10 +4204,7 @@
         },
         {
           "label": "International",
-          "fields": [
-            "swiftCode",
-            "iban"
-          ]
+          "fields": ["swiftCode", "iban"]
         }
       ],
       "properties": {
@@ -4560,26 +4253,15 @@
       "tabs": [
         {
           "label": "General",
-          "fields": [
-            "loanNumber",
-            "loanType",
-            "counterpartyRole"
-          ]
+          "fields": ["loanNumber", "loanType", "counterpartyRole"]
         },
         {
           "label": "Dates",
-          "fields": [
-            "startDate",
-            "maturityDate"
-          ]
+          "fields": ["startDate", "maturityDate"]
         },
         {
           "label": "Terms",
-          "fields": [
-            "principalAmount",
-            "interestRate",
-            "currencyCode"
-          ]
+          "fields": ["principalAmount", "interestRate", "currencyCode"]
         }
       ],
       "properties": {
@@ -4626,27 +4308,15 @@
       "tabs": [
         {
           "label": "General",
-          "fields": [
-            "customerType",
-            "registrationNumber",
-            "taxNumber"
-          ]
+          "fields": ["customerType", "registrationNumber", "taxNumber"]
         },
         {
           "label": "Contact",
-          "fields": [
-            "email",
-            "phone",
-            "billingAddress"
-          ]
+          "fields": ["email", "phone", "billingAddress"]
         },
         {
           "label": "Credit",
-          "fields": [
-            "paymentTerms",
-            "creditLimit",
-            "currencyCode"
-          ]
+          "fields": ["paymentTerms", "creditLimit", "currencyCode"]
         }
       ],
       "properties": {
@@ -4697,28 +4367,15 @@
       "tabs": [
         {
           "label": "Personal",
-          "fields": [
-            "employeeNumber",
-            "firstName",
-            "lastName",
-            "idNumber"
-          ]
+          "fields": ["employeeNumber", "firstName", "lastName", "idNumber"]
         },
         {
           "label": "Contact",
-          "fields": [
-            "email",
-            "phone"
-          ]
+          "fields": ["email", "phone"]
         },
         {
           "label": "Employment",
-          "fields": [
-            "jobTitle",
-            "department",
-            "startDate",
-            "endDate"
-          ]
+          "fields": ["jobTitle", "department", "startDate", "endDate"]
         }
       ],
       "properties": {
@@ -4774,18 +4431,11 @@
       "tabs": [
         {
           "label": "General",
-          "fields": [
-            "vendorType",
-            "registrationNumber",
-            "taxNumber"
-          ]
+          "fields": ["vendorType", "registrationNumber", "taxNumber"]
         },
         {
           "label": "Contact",
-          "fields": [
-            "email",
-            "phone"
-          ]
+          "fields": ["email", "phone"]
         },
         {
           "label": "Payment",
@@ -4844,27 +4494,15 @@
       "tabs": [
         {
           "label": "General",
-          "fields": [
-            "locationName",
-            "locationCode",
-            "responsiblePerson"
-          ]
+          "fields": ["locationName", "locationCode", "responsiblePerson"]
         },
         {
           "label": "Operation",
-          "fields": [
-            "siteName",
-            "reconciliationFrequency",
-            "currencyCode"
-          ]
+          "fields": ["siteName", "reconciliationFrequency", "currencyCode"]
         },
         {
           "label": "Control",
-          "fields": [
-            "activeFrom",
-            "activeTo",
-            "notes"
-          ]
+          "fields": ["activeFrom", "activeTo", "notes"]
         }
       ],
       "properties": {
@@ -4916,26 +4554,15 @@
       "tabs": [
         {
           "label": "General",
-          "fields": [
-            "projectCode",
-            "projectType",
-            "projectManager",
-            "status"
-          ]
+          "fields": ["projectCode", "projectType", "projectManager", "status"]
         },
         {
           "label": "Dates",
-          "fields": [
-            "startDate",
-            "endDate"
-          ]
+          "fields": ["startDate", "endDate"]
         },
         {
           "label": "Budget",
-          "fields": [
-            "budgetAmount",
-            "currencyCode"
-          ]
+          "fields": ["budgetAmount", "currencyCode"]
         }
       ],
       "properties": {
@@ -5043,363 +4670,160 @@
   "roleModuleSeeds": {
     "erp_admin": ["*"]
   },
+  "resourceRoleSeeds": [
+    ["account_owner", "Account Owner"],
+    ["treasury_manager", "Treasury Manager"],
+    ["supplier_manager", "Supplier Manager"],
+    ["line_manager", "Line Manager"],
+    ["cash_custodian", "Cash Custodian"],
+    ["property_manager", "Property Manager"],
+    ["regional_manager", "Regional Manager"],
+    ["team_member", "Team Member"],
+    ["team_lead", "Team Lead"],
+    ["project_manager", "Project Manager"],
+    ["account_manager", "Account Manager"],
+    ["project_administrator", "Project Administrator"],
+    ["scrum_master", "Scrum Master"],
+    ["asset_custodian", "Asset Custodian"],
+    ["cost_centre_manager", "Cost Centre Manager"],
+    ["profit_centre_manager", "Profit Centre Manager"],
+    ["contract_manager", "Contract Manager"],
+    ["meter_custodian", "Meter Custodian"],
+    ["financial_classification_owner", "Financial Classification Owner"],
+    ["mscoa_steward", "mSCOA Steward"],
+    ["service_catalogue_owner", "Service Catalogue Owner"]
+  ],
+  "resourceRoleModuleSeeds": {
+    "account_owner": ["finance"],
+    "treasury_manager": ["treasury_cash"],
+    "supplier_manager": ["procurement"],
+    "line_manager": ["hr_payroll"],
+    "cash_custodian": ["treasury_cash"],
+    "property_manager": ["property_management"],
+    "regional_manager": ["corporate_administration"],
+    "team_member": ["project_management"],
+    "team_lead": ["project_management"],
+    "project_manager": ["project_management"],
+    "account_manager": ["sales", "crm"],
+    "project_administrator": ["project_management", "corporate_administration"],
+    "scrum_master": ["project_management"],
+    "asset_custodian": ["asset_management"],
+    "cost_centre_manager": ["finance"],
+    "profit_centre_manager": ["finance"],
+    "contract_manager": ["contract_management"],
+    "meter_custodian": ["property_management", "asset_management"],
+    "financial_classification_owner": ["finance"],
+    "mscoa_steward": ["public_sector"],
+    "service_catalogue_owner": ["public_sector"]
+  },
+  "resourceRoleTypeMappings": [
+    ["gl_account", "asset", "account_owner", false],
+    ["gl_account", "liability", "account_owner", false],
+    ["gl_account", "equity", "account_owner", false],
+    ["gl_account", "revenue", "account_owner", false],
+    ["gl_account", "expense", "account_owner", false],
+    ["subledger_account", "bank", "treasury_manager", false],
+    ["subledger_account", "loan", "treasury_manager", false],
+    ["subledger_account", "customer", "account_manager", false],
+    ["subledger_account", "vendor", "supplier_manager", false],
+    ["subledger_account", "employee", "line_manager", false],
+    ["subledger_account", "cash_point", "cash_custodian", false],
+    ["subledger_account", "asset", "asset_custodian", false],
+    ["accounting_object", "property", "property_manager", false],
+    ["accounting_object", "region", "regional_manager", false],
+    ["accounting_object", "team", "team_member", false],
+    ["accounting_object", "team", "team_lead", false],
+    ["accounting_object", "team", "scrum_master", false],
+    ["accounting_object", "opex_project", "team_member", false],
+    ["accounting_object", "opex_project", "team_lead", false],
+    ["accounting_object", "opex_project", "project_manager", false],
+    ["accounting_object", "opex_project", "project_administrator", false],
+    ["accounting_object", "opex_project", "scrum_master", false],
+    ["accounting_object", "cost_centre", "cost_centre_manager", false],
+    ["accounting_object", "profit_centre", "profit_centre_manager", false],
+    ["accounting_object", "contract", "contract_manager", false],
+    ["accounting_object", "utility_meter", "meter_custodian", false],
+    ["accounting_dimension", "revenue_type", "financial_classification_owner", false],
+    ["accounting_dimension", "expense_type", "financial_classification_owner", false],
+    ["accounting_dimension", "mscoa_fund", "mscoa_steward", false],
+    ["accounting_dimension", "mscoa_project", "mscoa_steward", false],
+    ["accounting_dimension", "mscoa_item", "mscoa_steward", false],
+    ["accounting_dimension", "mscoa_region", "mscoa_steward", false],
+    ["accounting_dimension", "mscoa_function", "mscoa_steward", false],
+    ["accounting_dimension", "mscoa_costing", "mscoa_steward", false],
+    ["accounting_dimension", "mscoa_outcome", "mscoa_steward", false],
+    ["accounting_dimension", "service", "service_catalogue_owner", false],
+    ["accounting_dimension", "charge_component", "service_catalogue_owner", false]
+  ],
   "rolePermissionSeeds": [
-    [
-      "erp_admin",
-      "master_data",
-      "*",
-      "view"
-    ],
-    [
-      "erp_admin",
-      "master_data",
-      "*",
-      "*"
-    ],
-    [
-      "erp_admin",
-      "transaction",
-      "*",
-      "view"
-    ],
-    [
-      "erp_admin",
-      "transaction",
-      "*",
-      "*"
-    ],
-    [
-      "organisation_finance_manager",
-      "master_data",
-      "*",
-      "view"
-    ],
-    [
-      "organisation_finance_manager",
-      "master_data",
-      "*",
-      "*"
-    ],
-    [
-      "organisation_finance_manager",
-      "transaction",
-      "*",
-      "view"
-    ],
-    [
-      "organisation_finance_manager",
-      "transaction",
-      "*",
-      "*"
-    ],
-    [
-      "organisation_finance_clerk",
-      "master_data",
-      "*",
-      "view"
-    ],
-    [
-      "organisation_finance_clerk",
-      "master_data",
-      "*",
-      "approved"
-    ],
-    [
-      "organisation_finance_clerk",
-      "transaction",
-      "*",
-      "view"
-    ],
-    [
-      "organisation_finance_clerk",
-      "transaction",
-      "*",
-      "draft"
-    ],
-    [
-      "organisation_finance_clerk",
-      "transaction",
-      "*",
-      "submitted"
-    ],
-    [
-      "organisation_approver",
-      "master_data",
-      "*",
-      "view"
-    ],
-    [
-      "organisation_approver",
-      "master_data",
-      "*",
-      "approved"
-    ],
-    [
-      "organisation_approver",
-      "transaction",
-      "*",
-      "view"
-    ],
-    [
-      "organisation_approver",
-      "transaction",
-      "*",
-      "submitted"
-    ],
-    [
-      "organisation_approver",
-      "transaction",
-      "*",
-      "approved"
-    ],
-    [
-      "organisation_approver",
-      "transaction",
-      "*",
-      "rejected"
-    ],
-    [
-      "organisation_master_data_manager",
-      "master_data",
-      "*",
-      "view"
-    ],
-    [
-      "organisation_master_data_manager",
-      "master_data",
-      "*",
-      "*"
-    ],
-    [
-      "organisation_master_data_manager",
-      "transaction",
-      "*",
-      "view"
-    ],
-    [
-      "organisation_reporting_user",
-      "master_data",
-      "*",
-      "view"
-    ],
-    [
-      "organisation_reporting_user",
-      "transaction",
-      "*",
-      "view"
-    ],
-    [
-      "organisation_auditor",
-      "master_data",
-      "*",
-      "view"
-    ],
-    [
-      "organisation_auditor",
-      "transaction",
-      "*",
-      "view"
-    ],
-    [
-      "organisation_sales_user",
-      "master_data",
-      "customer",
-      "view"
-    ],
-    [
-      "organisation_sales_user",
-      "master_data",
-      "customer",
-      "approved"
-    ],
-    [
-      "organisation_sales_user",
-      "master_data",
-      "capex_project",
-      "view"
-    ],
-    [
-      "organisation_sales_user",
-      "master_data",
-      "capex_project",
-      "approved"
-    ],
-    [
-      "organisation_sales_user",
-      "master_data",
-      "cash_point",
-      "view"
-    ],
-    [
-      "organisation_sales_user",
-      "master_data",
-      "cash_point",
-      "approved"
-    ],
-    [
-      "organisation_sales_user",
-      "transaction",
-      "sales",
-      "view"
-    ],
-    [
-      "organisation_sales_user",
-      "transaction",
-      "sales",
-      "draft"
-    ],
-    [
-      "organisation_sales_user",
-      "transaction",
-      "sales",
-      "submitted"
-    ],
-    [
-      "organisation_procurement_user",
-      "master_data",
-      "vendor",
-      "view"
-    ],
-    [
-      "organisation_procurement_user",
-      "master_data",
-      "vendor",
-      "approved"
-    ],
-    [
-      "organisation_procurement_user",
-      "master_data",
-      "asset",
-      "view"
-    ],
-    [
-      "organisation_procurement_user",
-      "master_data",
-      "asset",
-      "approved"
-    ],
-    [
-      "organisation_procurement_user",
-      "master_data",
-      "capex_project",
-      "view"
-    ],
+    ["erp_admin", "master_data", "*", "view"],
+    ["erp_admin", "master_data", "*", "*"],
+    ["erp_admin", "transaction", "*", "view"],
+    ["erp_admin", "transaction", "*", "*"],
+    ["organisation_finance_manager", "master_data", "*", "view"],
+    ["organisation_finance_manager", "master_data", "*", "*"],
+    ["organisation_finance_manager", "transaction", "*", "view"],
+    ["organisation_finance_manager", "transaction", "*", "*"],
+    ["organisation_finance_clerk", "master_data", "*", "view"],
+    ["organisation_finance_clerk", "master_data", "*", "approved"],
+    ["organisation_finance_clerk", "transaction", "*", "view"],
+    ["organisation_finance_clerk", "transaction", "*", "draft"],
+    ["organisation_finance_clerk", "transaction", "*", "submitted"],
+    ["organisation_approver", "master_data", "*", "view"],
+    ["organisation_approver", "master_data", "*", "approved"],
+    ["organisation_approver", "transaction", "*", "view"],
+    ["organisation_approver", "transaction", "*", "submitted"],
+    ["organisation_approver", "transaction", "*", "approved"],
+    ["organisation_approver", "transaction", "*", "rejected"],
+    ["organisation_master_data_manager", "master_data", "*", "view"],
+    ["organisation_master_data_manager", "master_data", "*", "*"],
+    ["organisation_master_data_manager", "transaction", "*", "view"],
+    ["organisation_reporting_user", "master_data", "*", "view"],
+    ["organisation_reporting_user", "transaction", "*", "view"],
+    ["organisation_auditor", "master_data", "*", "view"],
+    ["organisation_auditor", "transaction", "*", "view"],
+    ["organisation_sales_user", "master_data", "customer", "view"],
+    ["organisation_sales_user", "master_data", "customer", "approved"],
+    ["organisation_sales_user", "master_data", "capex_project", "view"],
+    ["organisation_sales_user", "master_data", "capex_project", "approved"],
+    ["organisation_sales_user", "master_data", "cash_point", "view"],
+    ["organisation_sales_user", "master_data", "cash_point", "approved"],
+    ["organisation_sales_user", "transaction", "sales", "view"],
+    ["organisation_sales_user", "transaction", "sales", "draft"],
+    ["organisation_sales_user", "transaction", "sales", "submitted"],
+    ["organisation_procurement_user", "master_data", "vendor", "view"],
+    ["organisation_procurement_user", "master_data", "vendor", "approved"],
+    ["organisation_procurement_user", "master_data", "asset", "view"],
+    ["organisation_procurement_user", "master_data", "asset", "approved"],
+    ["organisation_procurement_user", "master_data", "capex_project", "view"],
     [
       "organisation_procurement_user",
       "master_data",
       "capex_project",
       "approved"
     ],
-    [
-      "organisation_procurement_user",
-      "master_data",
-      "cash_point",
-      "view"
-    ],
-    [
-      "organisation_procurement_user",
-      "master_data",
-      "cash_point",
-      "approved"
-    ],
-    [
-      "organisation_procurement_user",
-      "transaction",
-      "purchasing",
-      "view"
-    ],
-    [
-      "organisation_procurement_user",
-      "transaction",
-      "purchasing",
-      "draft"
-    ],
-    [
-      "organisation_procurement_user",
-      "transaction",
-      "purchasing",
-      "submitted"
-    ],
-    [
-      "organisation_procurement_user",
-      "transaction",
-      "assets",
-      "view"
-    ],
-    [
-      "organisation_procurement_user",
-      "transaction",
-      "assets",
-      "draft"
-    ],
-    [
-      "organisation_procurement_user",
-      "transaction",
-      "assets",
-      "submitted"
-    ]
+    ["organisation_procurement_user", "master_data", "cash_point", "view"],
+    ["organisation_procurement_user", "master_data", "cash_point", "approved"],
+    ["organisation_procurement_user", "transaction", "purchasing", "view"],
+    ["organisation_procurement_user", "transaction", "purchasing", "draft"],
+    ["organisation_procurement_user", "transaction", "purchasing", "submitted"],
+    ["organisation_procurement_user", "transaction", "assets", "view"],
+    ["organisation_procurement_user", "transaction", "assets", "draft"],
+    ["organisation_procurement_user", "transaction", "assets", "submitted"]
   ],
   "transactionGroups": [
-    [
-      "sales",
-      "Sales",
-      10
-    ],
-    [
-      "purchasing",
-      "Purchasing",
-      20
-    ],
-    [
-      "banking",
-      "Banking",
-      30
-    ],
-    [
-      "cash_management",
-      "Cash Management",
-      35
-    ],
-    [
-      "tax",
-      "Tax",
-      40
-    ],
-    [
-      "payroll",
-      "Payroll",
-      50
-    ],
-    [
-      "inventory",
-      "Inventory",
-      60
-    ],
-    [
-      "assets",
-      "Assets",
-      70
-    ],
-    [
-      "loans",
-      "Loans",
-      80
-    ],
-    [
-      "owner",
-      "Owner",
-      85
-    ],
-    [
-      "intercompany",
-      "Intercompany",
-      90
-    ],
-    [
-      "journal",
-      "Journals",
-      100
-    ]
+    ["sales", "Sales", 10],
+    ["purchasing", "Purchasing", 20],
+    ["banking", "Banking", 30],
+    ["cash_management", "Cash Management", 35],
+    ["tax", "Tax", 40],
+    ["payroll", "Payroll", 50],
+    ["inventory", "Inventory", 60],
+    ["assets", "Assets", 70],
+    ["loans", "Loans", 80],
+    ["owner", "Owner", 85],
+    ["intercompany", "Intercompany", 90],
+    ["journal", "Journals", 100]
   ],
   "transactionTypes": [
     [
@@ -5571,13 +4995,7 @@
       "Record a safe cash count shortage.",
       450
     ],
-    [
-      "tax_accrual",
-      "tax",
-      "Tax accrual",
-      "Tax liability accrual.",
-      410
-    ],
+    ["tax_accrual", "tax", "Tax accrual", "Tax liability accrual.", 410],
     [
       "tax_payment",
       "tax",
@@ -5664,15 +5082,7 @@
     ]
   ],
   "lineDefinitionSeeds": [
-    [
-      "manual_journal",
-      1,
-      "debit",
-      "2999",
-      false,
-      null,
-      "Manual journal debit"
-    ],
+    ["manual_journal", 1, "debit", "2999", false, null, "Manual journal debit"],
     [
       "manual_journal",
       2,
@@ -5682,24 +5092,8 @@
       null,
       "Manual journal credit"
     ],
-    [
-      "cash_sale",
-      1,
-      "debit",
-      "1000",
-      true,
-      "cash_point",
-      "Cash received"
-    ],
-    [
-      "cash_sale",
-      2,
-      "credit",
-      "4000",
-      false,
-      null,
-      "Sales revenue"
-    ],
+    ["cash_sale", 1, "debit", "1000", true, "cash_point", "Cash received"],
+    ["cash_sale", 2, "credit", "4000", false, null, "Sales revenue"],
     [
       "customer_invoice",
       1,
@@ -5709,15 +5103,7 @@
       "customer",
       "Customer receivable"
     ],
-    [
-      "customer_invoice",
-      2,
-      "credit",
-      "4000",
-      false,
-      null,
-      "Sales revenue"
-    ],
+    ["customer_invoice", 2, "credit", "4000", false, null, "Sales revenue"],
     [
       "customer_payment",
       1,
@@ -5754,24 +5140,8 @@
       "customer",
       "Customer receivable settlement"
     ],
-    [
-      "supplier_invoice",
-      1,
-      "debit",
-      "5600",
-      false,
-      null,
-      "Purchase expense"
-    ],
-    [
-      "supplier_invoice",
-      2,
-      "credit",
-      "2000",
-      true,
-      "vendor",
-      "Vendor payable"
-    ],
+    ["supplier_invoice", 1, "debit", "5600", false, null, "Purchase expense"],
+    ["supplier_invoice", 2, "credit", "2000", true, "vendor", "Vendor payable"],
     [
       "supplier_payment",
       1,
@@ -5781,15 +5151,7 @@
       "vendor",
       "Vendor payable settlement"
     ],
-    [
-      "supplier_payment",
-      2,
-      "credit",
-      "1010",
-      true,
-      "bank",
-      "Bank payment"
-    ],
+    ["supplier_payment", 2, "credit", "1010", true, "bank", "Bank payment"],
     [
       "supplier_cash_payment",
       1,
@@ -5808,60 +5170,12 @@
       "cash_point",
       "Cash paid"
     ],
-    [
-      "bank_charge",
-      1,
-      "debit",
-      "5100",
-      false,
-      null,
-      "Bank charge expense"
-    ],
-    [
-      "bank_charge",
-      2,
-      "credit",
-      "1010",
-      true,
-      "bank",
-      "Bank account"
-    ],
-    [
-      "bank_receipt_other",
-      1,
-      "debit",
-      "1010",
-      true,
-      "bank",
-      "Bank receipt"
-    ],
-    [
-      "bank_receipt_other",
-      2,
-      "credit",
-      "4100",
-      false,
-      null,
-      "Other income"
-    ],
-    [
-      "bank_deposit",
-      1,
-      "debit",
-      "1010",
-      true,
-      "bank",
-      "Bank account"
-    ],
-    [
-      "bank_deposit",
-      2,
-      "credit",
-      "1000",
-      true,
-      "cash_point",
-      "Cash deposited"
-    ],
+    ["bank_charge", 1, "debit", "5100", false, null, "Bank charge expense"],
+    ["bank_charge", 2, "credit", "1010", true, "bank", "Bank account"],
+    ["bank_receipt_other", 1, "debit", "1010", true, "bank", "Bank receipt"],
+    ["bank_receipt_other", 2, "credit", "4100", false, null, "Other income"],
+    ["bank_deposit", 1, "debit", "1010", true, "bank", "Bank account"],
+    ["bank_deposit", 2, "credit", "1000", true, "cash_point", "Cash deposited"],
     [
       "bank_withdrawal",
       1,
@@ -5871,15 +5185,7 @@
       "cash_point",
       "Cash withdrawn"
     ],
-    [
-      "bank_withdrawal",
-      2,
-      "credit",
-      "1010",
-      true,
-      "bank",
-      "Bank account"
-    ],
+    ["bank_withdrawal", 2, "credit", "1010", true, "bank", "Bank account"],
     [
       "pos_cash_to_safe",
       1,
@@ -5916,15 +5222,7 @@
       "cash_point",
       "Safe cash issued"
     ],
-    [
-      "cash_deposit_to_bank",
-      1,
-      "debit",
-      "1010",
-      true,
-      "bank",
-      "Bank deposit"
-    ],
+    ["cash_deposit_to_bank", 1, "debit", "1010", true, "bank", "Bank deposit"],
     [
       "cash_deposit_to_bank",
       2,
@@ -6015,24 +5313,8 @@
       "cash_point",
       "Till cash surplus"
     ],
-    [
-      "till_cash_over",
-      2,
-      "credit",
-      "4190",
-      false,
-      null,
-      "Cash over income"
-    ],
-    [
-      "till_cash_short",
-      1,
-      "debit",
-      "5190",
-      false,
-      null,
-      "Cash short expense"
-    ],
+    ["till_cash_over", 2, "credit", "4190", false, null, "Cash over income"],
+    ["till_cash_short", 1, "debit", "5190", false, null, "Cash short expense"],
     [
       "till_cash_short",
       2,
@@ -6051,24 +5333,8 @@
       "cash_point",
       "Safe cash surplus"
     ],
-    [
-      "safe_cash_over",
-      2,
-      "credit",
-      "4190",
-      false,
-      null,
-      "Cash over income"
-    ],
-    [
-      "safe_cash_short",
-      1,
-      "debit",
-      "5190",
-      false,
-      null,
-      "Cash short expense"
-    ],
+    ["safe_cash_over", 2, "credit", "4190", false, null, "Cash over income"],
+    ["safe_cash_short", 1, "debit", "5190", false, null, "Cash short expense"],
     [
       "safe_cash_short",
       2,
@@ -6078,51 +5344,11 @@
       "cash_point",
       "Safe cash shortage"
     ],
-    [
-      "tax_accrual",
-      1,
-      "debit",
-      "5400",
-      false,
-      null,
-      "Tax expense"
-    ],
-    [
-      "tax_accrual",
-      2,
-      "credit",
-      "2400",
-      false,
-      null,
-      "Tax payable"
-    ],
-    [
-      "tax_payment",
-      1,
-      "debit",
-      "2400",
-      false,
-      null,
-      "Tax payable settlement"
-    ],
-    [
-      "tax_payment",
-      2,
-      "credit",
-      "1010",
-      true,
-      "bank",
-      "Bank payment"
-    ],
-    [
-      "payroll_accrual",
-      1,
-      "debit",
-      "5200",
-      false,
-      null,
-      "Payroll expense"
-    ],
+    ["tax_accrual", 1, "debit", "5400", false, null, "Tax expense"],
+    ["tax_accrual", 2, "credit", "2400", false, null, "Tax payable"],
+    ["tax_payment", 1, "debit", "2400", false, null, "Tax payable settlement"],
+    ["tax_payment", 2, "credit", "1010", true, "bank", "Bank payment"],
+    ["payroll_accrual", 1, "debit", "5200", false, null, "Payroll expense"],
     [
       "payroll_accrual",
       2,
@@ -6141,42 +5367,10 @@
       "employee",
       "Payroll liability settlement"
     ],
-    [
-      "payroll_payment",
-      2,
-      "credit",
-      "1010",
-      true,
-      "bank",
-      "Bank payment"
-    ],
-    [
-      "asset_purchase_bank",
-      1,
-      "debit",
-      "1300",
-      false,
-      null,
-      "Fixed asset"
-    ],
-    [
-      "asset_purchase_bank",
-      2,
-      "credit",
-      "1010",
-      true,
-      "bank",
-      "Bank payment"
-    ],
-    [
-      "asset_purchase_cash",
-      1,
-      "debit",
-      "1300",
-      false,
-      null,
-      "Fixed asset"
-    ],
+    ["payroll_payment", 2, "credit", "1010", true, "bank", "Bank payment"],
+    ["asset_purchase_bank", 1, "debit", "1300", false, null, "Fixed asset"],
+    ["asset_purchase_bank", 2, "credit", "1010", true, "bank", "Bank payment"],
+    ["asset_purchase_cash", 1, "debit", "1300", false, null, "Fixed asset"],
     [
       "asset_purchase_cash",
       2,
@@ -6186,15 +5380,7 @@
       "cash_point",
       "Cash paid"
     ],
-    [
-      "asset_purchase_account",
-      1,
-      "debit",
-      "1300",
-      false,
-      null,
-      "Fixed asset"
-    ],
+    ["asset_purchase_account", 1, "debit", "1300", false, null, "Fixed asset"],
     [
       "asset_purchase_account",
       2,
@@ -6204,15 +5390,7 @@
       "vendor",
       "Vendor payable"
     ],
-    [
-      "depreciation",
-      1,
-      "debit",
-      "5300",
-      false,
-      null,
-      "Depreciation expense"
-    ],
+    ["depreciation", 1, "debit", "5300", false, null, "Depreciation expense"],
     [
       "depreciation",
       2,
@@ -6231,15 +5409,7 @@
       "bank",
       "Loan proceeds received"
     ],
-    [
-      "loan_received",
-      2,
-      "credit",
-      "2500",
-      true,
-      "loan",
-      "Loan payable"
-    ],
+    ["loan_received", 2, "credit", "2500", true, "loan", "Loan payable"],
     [
       "loan_repayment_principal",
       1,
@@ -6276,315 +5446,182 @@
       "bank",
       "Bank payment"
     ],
+    ["owner_deposit", 1, "debit", "1010", true, "bank", "Owner funds received"],
+    ["owner_deposit", 2, "credit", "3000", false, null, "Owner contribution"],
+    ["owner_withdrawal", 1, "debit", "3200", false, null, "Owner drawing"],
+    ["owner_withdrawal", 2, "credit", "1010", true, "bank", "Owner payment"],
     [
-      "owner_deposit",
+      "municipal_services_invoice",
       1,
       "debit",
-      "1010",
-      true,
-      "bank",
-      "Owner funds received"
-    ],
-    [
-      "owner_deposit",
-      2,
-      "credit",
-      "3000",
+      "5700",
       false,
       null,
-      "Owner contribution"
+      "Property rates",
+      "optional",
+      "property_rates"
     ],
     [
-      "owner_withdrawal",
-      1,
+      "municipal_services_invoice",
+      2,
+      "credit",
+      "5700",
+      false,
+      null,
+      "Property rates rebate",
+      "optional",
+      "property_rates_rebate"
+    ],
+    [
+      "municipal_services_invoice",
+      3,
       "debit",
-      "3200",
+      "5710",
       false,
       null,
-      "Owner drawing"
+      "Electricity consumption",
+      "optional",
+      "electricity_consumption"
     ],
     [
-      "owner_withdrawal",
-      2,
+      "municipal_services_invoice",
+      4,
+      "debit",
+      "5710",
+      false,
+      null,
+      "Electricity network charge",
+      "optional",
+      "electricity_network"
+    ],
+    [
+      "municipal_services_invoice",
+      5,
+      "debit",
+      "5710",
+      false,
+      null,
+      "Electricity service charge",
+      "optional",
+      "electricity_service_charge"
+    ],
+    [
+      "municipal_services_invoice",
+      6,
+      "debit",
+      "5720",
+      false,
+      null,
+      "Water consumption",
+      "optional",
+      "water_consumption"
+    ],
+    [
+      "municipal_services_invoice",
+      7,
+      "debit",
+      "5720",
+      false,
+      null,
+      "Demand management levy",
+      "optional",
+      "water_demand_levy"
+    ],
+    [
+      "municipal_services_invoice",
+      8,
+      "debit",
+      "5730",
+      false,
+      null,
+      "Sewerage",
+      "optional",
+      "sewerage"
+    ],
+    [
+      "municipal_services_invoice",
+      9,
+      "debit",
+      "5740",
+      false,
+      null,
+      "Refuse removal",
+      "optional",
+      "refuse_removal"
+    ],
+    [
+      "municipal_services_invoice",
+      10,
+      "debit",
+      "5750",
+      false,
+      null,
+      "Pre-termination notice",
+      "optional",
+      "pretermination_notice"
+    ],
+    [
+      "municipal_services_invoice",
+      11,
+      "debit",
+      "2200",
+      false,
+      null,
+      "Input VAT",
+      "optional",
+      "input_vat"
+    ],
+    [
+      "municipal_services_invoice",
+      12,
       "credit",
-      "1010",
+      "2000",
       true,
-      "bank",
-      "Owner payment"
-    ],
-    [
-      "municipal_services_invoice", 1, "debit", "5700", false, null, "Property rates", "optional", "property_rates"
-    ],
-    [
-      "municipal_services_invoice", 2, "credit", "5700", false, null, "Property rates rebate", "optional", "property_rates_rebate"
-    ],
-    [
-      "municipal_services_invoice", 3, "debit", "5710", false, null, "Electricity consumption", "optional", "electricity_consumption"
-    ],
-    [
-      "municipal_services_invoice", 4, "debit", "5710", false, null, "Electricity network charge", "optional", "electricity_network"
-    ],
-    [
-      "municipal_services_invoice", 5, "debit", "5710", false, null, "Electricity service charge", "optional", "electricity_service_charge"
-    ],
-    [
-      "municipal_services_invoice", 6, "debit", "5720", false, null, "Water consumption", "optional", "water_consumption"
-    ],
-    [
-      "municipal_services_invoice", 7, "debit", "5720", false, null, "Demand management levy", "optional", "water_demand_levy"
-    ],
-    [
-      "municipal_services_invoice", 8, "debit", "5730", false, null, "Sewerage", "optional", "sewerage"
-    ],
-    [
-      "municipal_services_invoice", 9, "debit", "5740", false, null, "Refuse removal", "optional", "refuse_removal"
-    ],
-    [
-      "municipal_services_invoice", 10, "debit", "5750", false, null, "Pre-termination notice", "optional", "pretermination_notice"
-    ],
-    [
-      "municipal_services_invoice", 11, "debit", "2200", false, null, "Input VAT", "optional", "input_vat"
-    ],
-    [
-      "municipal_services_invoice", 12, "credit", "2000", true, "vendor", "Creditor control", "generated", "creditor_control", "balancing"
+      "vendor",
+      "Creditor control",
+      "generated",
+      "creditor_control",
+      "balancing"
     ]
   ],
   "chartTemplate": [
-    [
-      "1000",
-      "Cash",
-      "asset",
-      true,
-      "cash_point"
-    ],
-    [
-      "1010",
-      "Bank Clearing",
-      "asset",
-      true,
-      "bank"
-    ],
-    [
-      "1100",
-      "Accounts Receivable",
-      "asset",
-      true,
-      "customer"
-    ],
-    [
-      "1150",
-      "Customer Advances",
-      "liability",
-      true,
-      "customer"
-    ],
-    [
-      "1200",
-      "Inventory",
-      "asset",
-      false,
-      null
-    ],
-    [
-      "1300",
-      "Fixed Assets",
-      "asset",
-      false,
-      null
-    ],
-    [
-      "1350",
-      "Accumulated Depreciation",
-      "asset",
-      false,
-      null
-    ],
-    [
-      "2000",
-      "Accounts Payable",
-      "liability",
-      true,
-      "vendor"
-    ],
-    [
-      "2050",
-      "Accrued Expenses",
-      "liability",
-      false,
-      null
-    ],
-    [
-      "2100",
-      "VAT Output",
-      "liability",
-      false,
-      null
-    ],
-    [
-      "2200",
-      "VAT Input",
-      "asset",
-      false,
-      null
-    ],
-    [
-      "2250",
-      "VAT Control",
-      "liability",
-      false,
-      null
-    ],
-    [
-      "2300",
-      "Payroll Liability",
-      "liability",
-      true,
-      "employee"
-    ],
-    [
-      "2400",
-      "Tax Payable",
-      "liability",
-      false,
-      null
-    ],
-    [
-      "2500",
-      "Loan Payable",
-      "liability",
-      true,
-      "loan"
-    ],
-    [
-      "2999",
-      "Suspense",
-      "liability",
-      false,
-      null
-    ],
-    [
-      "3000",
-      "Owner Equity",
-      "equity",
-      false,
-      null
-    ],
-    [
-      "3100",
-      "Retained Earnings",
-      "equity",
-      false,
-      null
-    ],
-    [
-      "3200",
-      "Owner Drawings",
-      "equity",
-      false,
-      null
-    ],
-    [
-      "4000",
-      "Sales Revenue",
-      "revenue",
-      false,
-      null
-    ],
-    [
-      "4100",
-      "Other Income",
-      "revenue",
-      false,
-      null
-    ],
-    [
-      "4190",
-      "Cash Over Income",
-      "revenue",
-      false,
-      null
-    ],
-    [
-      "5000",
-      "Cost of Sales",
-      "expense",
-      false,
-      null
-    ],
-    [
-      "5050",
-      "Inventory Adjustments",
-      "expense",
-      false,
-      null
-    ],
-    [
-      "5100",
-      "Bank Charges",
-      "expense",
-      false,
-      null
-    ],
-    [
-      "5190",
-      "Cash Short Expense",
-      "expense",
-      false,
-      null
-    ],
-    [
-      "5200",
-      "Payroll Expense",
-      "expense",
-      false,
-      null
-    ],
-    [
-      "5300",
-      "Depreciation Expense",
-      "expense",
-      false,
-      null
-    ],
-    [
-      "5400",
-      "Tax Expense",
-      "expense",
-      false,
-      null
-    ],
-    [
-      "5500",
-      "Interest Expense",
-      "expense",
-      false,
-      null
-    ],
-    [
-      "5600",
-      "Purchase Expense",
-      "expense",
-      false,
-      null
-    ],
-    [
-      "5700", "Property Rates", "expense", false, null
-    ],
-    [
-      "5710", "Electricity Expense", "expense", false, null
-    ],
-    [
-      "5720", "Water Expense", "expense", false, null
-    ],
-    [
-      "5730", "Sewerage Expense", "expense", false, null
-    ],
-    [
-      "5740", "Refuse Removal Expense", "expense", false, null
-    ],
-    [
-      "5750", "Municipal Fees", "expense", false, null
-    ]
+    ["1000", "Cash", "asset", true, "cash_point"],
+    ["1010", "Bank Clearing", "asset", true, "bank"],
+    ["1100", "Accounts Receivable", "asset", true, "customer"],
+    ["1150", "Customer Advances", "liability", true, "customer"],
+    ["1200", "Inventory", "asset", false, null],
+    ["1300", "Fixed Assets", "asset", false, null],
+    ["1350", "Accumulated Depreciation", "asset", false, null],
+    ["2000", "Accounts Payable", "liability", true, "vendor"],
+    ["2050", "Accrued Expenses", "liability", false, null],
+    ["2100", "VAT Output", "liability", false, null],
+    ["2200", "VAT Input", "asset", false, null],
+    ["2250", "VAT Control", "liability", false, null],
+    ["2300", "Payroll Liability", "liability", true, "employee"],
+    ["2400", "Tax Payable", "liability", false, null],
+    ["2500", "Loan Payable", "liability", true, "loan"],
+    ["2999", "Suspense", "liability", false, null],
+    ["3000", "Owner Equity", "equity", false, null],
+    ["3100", "Retained Earnings", "equity", false, null],
+    ["3200", "Owner Drawings", "equity", false, null],
+    ["4000", "Sales Revenue", "revenue", false, null],
+    ["4100", "Other Income", "revenue", false, null],
+    ["4190", "Cash Over Income", "revenue", false, null],
+    ["5000", "Cost of Sales", "expense", false, null],
+    ["5050", "Inventory Adjustments", "expense", false, null],
+    ["5100", "Bank Charges", "expense", false, null],
+    ["5190", "Cash Short Expense", "expense", false, null],
+    ["5200", "Payroll Expense", "expense", false, null],
+    ["5300", "Depreciation Expense", "expense", false, null],
+    ["5400", "Tax Expense", "expense", false, null],
+    ["5500", "Interest Expense", "expense", false, null],
+    ["5600", "Purchase Expense", "expense", false, null],
+    ["5700", "Property Rates", "expense", false, null],
+    ["5710", "Electricity Expense", "expense", false, null],
+    ["5720", "Water Expense", "expense", false, null],
+    ["5730", "Sewerage Expense", "expense", false, null],
+    ["5740", "Refuse Removal Expense", "expense", false, null],
+    ["5750", "Municipal Fees", "expense", false, null]
   ],
   "customerSchema": {
     "type": "object",
@@ -6642,10 +5679,7 @@
         }
       }
     },
-    "required": [
-      "knownName",
-      "legalName"
-    ],
+    "required": ["knownName", "legalName"],
     "additionalProperties": false
   },
   "customerUiSchema": {
@@ -6653,145 +5687,59 @@
       {
         "key": "general",
         "title": "General",
-        "fields": [
-          "knownName",
-          "legalName",
-          "registrationNumber",
-          "taxNumber"
-        ]
+        "fields": ["knownName", "legalName", "registrationNumber", "taxNumber"]
       },
       {
         "key": "addresses",
         "title": "Addresses",
-        "fields": [
-          "addressList"
-        ]
+        "fields": ["addressList"]
       },
       {
         "key": "directors",
         "title": "Directors",
-        "fields": [
-          "directorList"
-        ]
+        "fields": ["directorList"]
       },
       {
         "key": "credit",
         "title": "Credit",
-        "fields": [
-          "creditLimits"
-        ]
+        "fields": ["creditLimits"]
       },
       {
         "key": "contacts",
         "title": "Contacts",
-        "fields": [
-          "contacts"
-        ]
+        "fields": ["contacts"]
       }
     ]
   },
   "glAccountTypeSeeds": [
-    [
-      "asset",
-      "Asset",
-      true
-    ],
-    [
-      "liability",
-      "Liability",
-      true
-    ],
-    [
-      "equity",
-      "Equity",
-      true
-    ],
-    [
-      "revenue",
-      "Revenue",
-      true
-    ],
-    [
-      "expense",
-      "Expense",
-      true
-    ]
+    ["asset", "Asset", true],
+    ["liability", "Liability", true],
+    ["equity", "Equity", true],
+    ["revenue", "Revenue", true],
+    ["expense", "Expense", true]
   ],
   "accountingObjectTypeSeeds": [
-    [
-      "property",
-      "Property"
-    ],
-    [
-      "region",
-      "Region"
-    ],
-    [
-      "opex_project",
-      "Operational Project"
-    ],
-    [
-      "cost_centre",
-      "Cost Centre"
-    ],
-    [
-      "profit_centre",
-      "Profit Centre"
-    ],
-    [
-      "contract",
-      "Contract"
-    ],
-    [
-      "utility_meter",
-      "Utility Meter"
-    ]
+    ["property", "Property"],
+    ["team", "Team"],
+    ["region", "Region"],
+    ["opex_project", "Operational Project"],
+    ["cost_centre", "Cost Centre"],
+    ["profit_centre", "Profit Centre"],
+    ["contract", "Contract"],
+    ["utility_meter", "Utility Meter"]
   ],
   "accountingDimensionTypeSeeds": [
-    [
-      "revenue_type",
-      "Revenue Type"
-    ],
-    [
-      "expense_type",
-      "Expense Type"
-    ],
-    [
-      "mscoa_fund",
-      "MSCOA Fund"
-    ],
-    [
-      "mscoa_project",
-      "MSCOA Project"
-    ],
-    [
-      "mscoa_item",
-      "MSCOA Item"
-    ],
-    [
-      "mscoa_region",
-      "MSCOA Region"
-    ],
-    [
-      "mscoa_function",
-      "MSCOA Function"
-    ],
-    [
-      "mscoa_costing",
-      "MSCOA Costing"
-    ],
-    [
-      "mscoa_outcome",
-      "MSCOA Outcome"
-    ],
-    [
-      "service",
-      "Service"
-    ],
-    [
-      "charge_component",
-      "Charge Component"
-    ]
+    ["revenue_type", "Revenue Type"],
+    ["expense_type", "Expense Type"],
+    ["mscoa_fund", "MSCOA Fund"],
+    ["mscoa_project", "MSCOA Project"],
+    ["mscoa_item", "MSCOA Item"],
+    ["mscoa_region", "MSCOA Region"],
+    ["mscoa_function", "MSCOA Function"],
+    ["mscoa_costing", "MSCOA Costing"],
+    ["mscoa_outcome", "MSCOA Outcome"],
+    ["service", "Service"],
+    ["charge_component", "Charge Component"]
   ],
   "accountingDimensionSeeds": [
     ["service", "property_rates", "Property Rates"],
@@ -6813,8 +5761,16 @@
     ["charge_component", "input_vat", "Input VAT"]
   ],
   "legalEntitySeeds": [
-    ["organisation", "Template Organisation (Pty) Ltd", "Template Organisation"],
-    ["municipality", "City of Johannesburg Metropolitan Municipality", "City of Johannesburg"]
+    [
+      "organisation",
+      "Template Organisation (Pty) Ltd",
+      "Template Organisation"
+    ],
+    [
+      "municipality",
+      "City of Johannesburg Metropolitan Municipality",
+      "City of Johannesburg"
+    ]
   ],
   "subledgerAccountSeeds": [
     ["vendor", "COJ-DEMO", "City of Johannesburg", "City of Johannesburg"]
@@ -6830,12 +5786,33 @@
     ["property_rates_rebate", "property_rates", "rebate", true, false, true],
     ["electricity_consumption", "electricity", "consumption", true, true, true],
     ["electricity_network", "electricity", "network_charge", true, true, true],
-    ["electricity_service_charge", "electricity", "service_charge", true, true, true],
+    [
+      "electricity_service_charge",
+      "electricity",
+      "service_charge",
+      true,
+      true,
+      true
+    ],
     ["water_consumption", "water", "consumption", true, true, true],
     ["water_demand_levy", "water", "demand_levy", true, true, true],
     ["sewerage", "sanitation", "sewerage", true, false, true],
-    ["refuse_removal", "waste_management", "refuse_collection", true, false, true],
-    ["pretermination_notice", "administration", "notice_fee", true, false, true],
+    [
+      "refuse_removal",
+      "waste_management",
+      "refuse_collection",
+      true,
+      false,
+      true
+    ],
+    [
+      "pretermination_notice",
+      "administration",
+      "notice_fee",
+      true,
+      false,
+      true
+    ],
     ["input_vat", "tax", "input_vat", false, false, false]
   ],
   "accountingObjectTypeMetadata": {
@@ -6845,19 +5822,11 @@
         "tabs": [
           {
             "label": "General",
-            "fields": [
-              "propertyKind",
-              "ownershipStatus",
-              "usage"
-            ]
+            "fields": ["propertyKind", "ownershipStatus", "usage"]
           },
           {
             "label": "Location",
-            "fields": [
-              "cadastralReference",
-              "physicalAddress",
-              "areaSqm"
-            ]
+            "fields": ["cadastralReference", "physicalAddress", "areaSqm"]
           }
         ],
         "properties": {
@@ -6881,13 +5850,7 @@
           "ownershipStatus": {
             "type": "short_text",
             "title": "Ownership Status",
-            "enum": [
-              "owned",
-              "leased",
-              "managed",
-              "right_of_use",
-              "other"
-            ],
+            "enum": ["owned", "leased", "managed", "right_of_use", "other"],
             "x-reportable": true,
             "uiWidth": "short"
           },
@@ -6922,19 +5885,11 @@
         "sections": [
           {
             "label": "General",
-            "fields": [
-              "propertyKind",
-              "ownershipStatus",
-              "usage"
-            ]
+            "fields": ["propertyKind", "ownershipStatus", "usage"]
           },
           {
             "label": "Location",
-            "fields": [
-              "cadastralReference",
-              "physicalAddress",
-              "areaSqm"
-            ]
+            "fields": ["cadastralReference", "physicalAddress", "areaSqm"]
           }
         ]
       }
@@ -6945,11 +5900,7 @@
         "tabs": [
           {
             "label": "General",
-            "fields": [
-              "regionLevel",
-              "countryCode",
-              "responsiblePerson"
-            ]
+            "fields": ["regionLevel", "countryCode", "responsiblePerson"]
           }
         ],
         "properties": {
@@ -6988,11 +5939,7 @@
         "sections": [
           {
             "label": "General",
-            "fields": [
-              "regionLevel",
-              "countryCode",
-              "responsiblePerson"
-            ]
+            "fields": ["regionLevel", "countryCode", "responsiblePerson"]
           }
         ]
       }
@@ -7003,19 +5950,11 @@
         "tabs": [
           {
             "label": "General",
-            "fields": [
-              "projectCategory",
-              "sponsor",
-              "projectManager"
-            ]
+            "fields": ["projectCategory", "sponsor", "projectManager"]
           },
           {
             "label": "Dates and Budget",
-            "fields": [
-              "startDate",
-              "endDate",
-              "budgetAmount"
-            ]
+            "fields": ["startDate", "endDate", "budgetAmount"]
           }
         ],
         "properties": {
@@ -7063,19 +6002,11 @@
         "sections": [
           {
             "label": "General",
-            "fields": [
-              "projectCategory",
-              "sponsor",
-              "projectManager"
-            ]
+            "fields": ["projectCategory", "sponsor", "projectManager"]
           },
           {
             "label": "Dates and Budget",
-            "fields": [
-              "startDate",
-              "endDate",
-              "budgetAmount"
-            ]
+            "fields": ["startDate", "endDate", "budgetAmount"]
           }
         ]
       }
@@ -7086,11 +6017,7 @@
         "tabs": [
           {
             "label": "General",
-            "fields": [
-              "costCentreClass",
-              "manager",
-              "purpose"
-            ]
+            "fields": ["costCentreClass", "manager", "purpose"]
           }
         ],
         "properties": {
@@ -7120,11 +6047,7 @@
         "sections": [
           {
             "label": "General",
-            "fields": [
-              "costCentreClass",
-              "manager",
-              "purpose"
-            ]
+            "fields": ["costCentreClass", "manager", "purpose"]
           }
         ]
       }
@@ -7135,11 +6058,7 @@
         "tabs": [
           {
             "label": "General",
-            "fields": [
-              "profitCentreClass",
-              "manager",
-              "revenueResponsibility"
-            ]
+            "fields": ["profitCentreClass", "manager", "revenueResponsibility"]
           }
         ],
         "properties": {
@@ -7169,11 +6088,7 @@
         "sections": [
           {
             "label": "General",
-            "fields": [
-              "profitCentreClass",
-              "manager",
-              "revenueResponsibility"
-            ]
+            "fields": ["profitCentreClass", "manager", "revenueResponsibility"]
           }
         ]
       }
@@ -7184,27 +6099,15 @@
         "tabs": [
           {
             "label": "General",
-            "fields": [
-              "contractNumber",
-              "contractType",
-              "counterpartyName"
-            ]
+            "fields": ["contractNumber", "contractType", "counterpartyName"]
           },
           {
             "label": "Dates",
-            "fields": [
-              "startDate",
-              "endDate",
-              "renewalDate"
-            ]
+            "fields": ["startDate", "endDate", "renewalDate"]
           },
           {
             "label": "Value",
-            "fields": [
-              "contractValue",
-              "currencyCode",
-              "responsiblePerson"
-            ]
+            "fields": ["contractValue", "currencyCode", "responsiblePerson"]
           }
         ],
         "properties": {
@@ -7307,27 +6210,15 @@
         "sections": [
           {
             "label": "General",
-            "fields": [
-              "contractNumber",
-              "contractType",
-              "counterpartyName"
-            ]
+            "fields": ["contractNumber", "contractType", "counterpartyName"]
           },
           {
             "label": "Dates",
-            "fields": [
-              "startDate",
-              "endDate",
-              "renewalDate"
-            ]
+            "fields": ["startDate", "endDate", "renewalDate"]
           },
           {
             "label": "Value",
-            "fields": [
-              "contractValue",
-              "currencyCode",
-              "responsiblePerson"
-            ]
+            "fields": ["contractValue", "currencyCode", "responsiblePerson"]
           }
         ]
       }

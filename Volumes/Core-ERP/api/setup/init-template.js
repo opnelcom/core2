@@ -68,6 +68,14 @@ module.exports = async (ctx) => {
       `DELETE FROM erp_user_role WHERE tenant_id=$1 AND organisation_id=$2`,
       `DELETE FROM erp_role_permission WHERE tenant_id=$1 AND organisation_id=$2`,
       `DELETE FROM erp_role WHERE tenant_id=$1 AND organisation_id=$2`,
+      `DELETE FROM erp_resource_assignment WHERE tenant_id=$1 AND organisation_id=$2`,
+      `DELETE FROM erp_object_type_resource_role WHERE tenant_id=$1 AND organisation_id=$2`,
+      `DELETE FROM erp_resource_role_module link
+        USING erp_resource_role role
+        WHERE link.resource_role_id=role.resource_role_id
+          AND role.tenant_id=$1 AND role.organisation_id=$2`,
+      `DELETE FROM erp_resource_role WHERE tenant_id=$1 AND organisation_id=$2`,
+      `DELETE FROM erp_resource WHERE tenant_id=$1 AND organisation_id=$2`,
       `DELETE FROM erp_workflow_history WHERE tenant_id=$1 AND organisation_id=$2`,
       `DELETE FROM erp_accounting_dimension WHERE tenant_id=$1 AND organisation_id=$2`,
       `DELETE FROM erp_accounting_object WHERE tenant_id=$1 AND organisation_id=$2`,
