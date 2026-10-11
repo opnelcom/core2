@@ -48,9 +48,24 @@ module.exports = async (ctx) => {
     });
   } else {
     result = await ctx.broker("core_erp", "query", {
-      text: `INSERT INTO erp_organisation(tenant_id,organisation_code,organisation_name,base_currency_code,is_template,organisation_icon_svg,workflow_status,created_by_email,updated_by_email)
-            VALUES($1,$2,$3,$4,$5,$6,'approved',$7,$7)
-            RETURNING *`,
+      text: `WITH created AS (
+              INSERT INTO erp_organisation(tenant_id,organisation_code,organisation_name,base_currency_code,is_template,organisation_icon_svg,workflow_status,created_by_email,updated_by_email)
+              VALUES($1,$2,$3,$4,$5,$6,'approved',$7,$7)
+              RETURNING *
+            ), root AS (
+              INSERT INTO erp_division(tenant_id,organisation_id,parent_division_id,division_code,division_name,workflow_status,created_by_email,updated_by_email)
+              SELECT tenant_id,organisation_id,NULL,'ROOT',organisation_name,'approved',$7,$7 FROM created
+              RETURNING division_id
+            ), administrator AS (
+              INSERT INTO erp_role(tenant_id,organisation_id,role_code,role_name,role_description,is_admin,is_active)
+              SELECT tenant_id,organisation_id,'security_administrator','Security Administrator',
+                'Initial setup administrator assigned to the organisation creator.',true,true FROM created
+              RETURNING tenant_id,organisation_id,role_id
+            ), assignment AS (
+              INSERT INTO erp_user_role(tenant_id,organisation_id,role_id,email,valid_from,valid_to)
+              SELECT tenant_id,organisation_id,role_id,lower($7),CURRENT_DATE,NULL FROM administrator
+              RETURNING role_id
+            ) SELECT created.* FROM created`,
       values: [
         access.tenantId,
         code,
@@ -61,17 +76,7 @@ module.exports = async (ctx) => {
         access.auth.email,
       ],
     });
-    await ctx.broker("core_erp", "query", {
-      text: `INSERT INTO erp_division(tenant_id,organisation_id,parent_division_id,division_code,division_name,workflow_status,created_by_email,updated_by_email)
-            VALUES($1,$2,NULL,'ROOT',$3,'approved',$4,$4)
-            ON CONFLICT DO NOTHING`,
-      values: [
-        access.tenantId,
-        result.rows[0].organisation_id,
-        name,
-        access.auth.email,
-      ],
-    });
+
   }
   if (!result.rowCount)
     return ctx.send(404, { error: "Organisation not found" });

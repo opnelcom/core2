@@ -1,0 +1,18 @@
+{
+  "format": "objectsphere-catalogue",
+  "version": 1,
+  "source": "my-library",
+  "objects": [
+    {
+      "source_key": "shelf-01-book-01",
+      "name": "Example book",
+      "description": "Replace this example with your catalogue data.",
+      "quantity": 1,
+      "type": "Book",
+      "attributes": {
+        "Author": "Example author",
+        "Location / Shelf": "Shelf 01"
+      }
+    }
+  ]
+}

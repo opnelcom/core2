@@ -12,8 +12,6 @@ module.exports=async ctx=>{
   const transactionTypeId=nullable(ctx.body.transaction_type_id);
   const periodId=ctx.body.fiscal_period_id;
   const divisionId=ctx.body.source_division_id;
-  const supplierId=nullable(ctx.body.supplier_subledger_account_id);
-  const vatRecipientId=nullable(ctx.body.vat_recipient_legal_entity_id);
   const lines=Array.isArray(ctx.body.lines)?ctx.body.lines:[];
   const missing=[[orgId,'organisation'],[transactionTypeId,'transaction type'],[periodId,'fiscal period'],[divisionId,'source division']].filter(([value])=>!value).map(([,label])=>label);
   if(missing.length)return ctx.send(400,{error:`Missing required field${missing.length>1?'s':''}: ${missing.join(', ')}`});
@@ -41,9 +39,8 @@ module.exports=async ctx=>{
   const creditTotal=normalisedLines.reduce((sum,line)=>sum+line.credit_amount,0);
   if(Math.round(debitTotal*100)!==Math.round(creditTotal*100))return ctx.send(400,{error:'Journal debits and credits must balance'});
 
-  const type=await ctx.broker('core_erp','query',{text:`SELECT type_code,allow_additional_lines FROM erp_transaction_type WHERE tenant_id=$1 AND organisation_id=$2 AND transaction_type_id=$3`,values:[access.tenantId,orgId,transactionTypeId]});
+  const type=await ctx.broker('core_erp','query',{text:`SELECT allow_additional_lines FROM erp_transaction_type WHERE tenant_id=$1 AND organisation_id=$2 AND transaction_type_id=$3`,values:[access.tenantId,orgId,transactionTypeId]});
   if(!type.rows.length)return ctx.send(404,{error:'Transaction type was not found'});
-  if(type.rows[0].type_code==='municipal_services_invoice'&&(!supplierId||!vatRecipientId||!clean(ctx.body.supplier_invoice_number)||!nullable(ctx.body.supplier_invoice_date)))return ctx.send(400,{error:'Municipal services invoices require supplier, VAT recipient, supplier invoice number, and supplier invoice date'});
   if(!type.rows[0].allow_additional_lines&&normalisedLines.some(line=>!line.transaction_line_definition_id))return ctx.send(400,{error:'This transaction type does not allow additional lines'});
   const definitions=await ctx.broker('core_erp','query',{text:`SELECT definition.*,subledger.type_code subledger_type_code FROM erp_transaction_line_definition definition LEFT JOIN erp_subledger_account_type subledger ON subledger.subledger_account_type_id=definition.subledger_account_type_id WHERE definition.tenant_id=$1 AND definition.organisation_id=$2 AND definition.transaction_type_id=$3 ORDER BY definition.line_order`,values:[access.tenantId,orgId,transactionTypeId]});
   const definitionById=new Map(definitions.rows.map(row=>[row.transaction_line_definition_id,row]));
@@ -59,7 +56,7 @@ module.exports=async ctx=>{
   const [accounts,subledgers,objects,dimensions,objectRequirements,dimensionRequirements]=await Promise.all([
     ctx.broker('core_erp','query',{text:`SELECT gl_account_id,requires_subledger,required_subledger_account_type_id FROM erp_gl_account WHERE tenant_id=$1 AND organisation_id=$2 AND gl_account_id=ANY($3::uuid[]) AND workflow_status<>'deleted'`,values:[access.tenantId,orgId,accountIds]}),
     ctx.broker('core_erp','query',{text:`SELECT subledger_account_id,subledger_account_type_id FROM erp_subledger_account WHERE tenant_id=$1 AND organisation_id=$2 AND subledger_account_id=ANY($3::uuid[]) AND workflow_status<>'deleted'`,values:[access.tenantId,orgId,subledgerIds]}),
-    ctx.broker('core_erp','query',{text:`SELECT accounting_object_id,accounting_object_type_id FROM erp_accounting_object WHERE tenant_id=$1 AND organisation_id=$2 AND accounting_object_id=ANY($3::uuid[]) AND workflow_status<>'deleted'`,values:[access.tenantId,orgId,objectIds]}),
+    ctx.broker('core_erp','query',{text:`SELECT r.accounting_object_id,r.accounting_object_type_id,r.additional_data,t.type_code,t.schema_json FROM erp_accounting_object r JOIN erp_accounting_object_type t ON t.accounting_object_type_id=r.accounting_object_type_id WHERE r.tenant_id=$1 AND r.organisation_id=$2 AND r.accounting_object_id=ANY($3::uuid[]) AND r.workflow_status<>'deleted'`,values:[access.tenantId,orgId,objectIds]}),
     ctx.broker('core_erp','query',{text:`SELECT accounting_dimension_id,accounting_dimension_type_id FROM erp_accounting_dimension WHERE tenant_id=$1 AND organisation_id=$2 AND accounting_dimension_id=ANY($3::uuid[]) AND workflow_status<>'deleted'`,values:[access.tenantId,orgId,dimensionIds]}),
     ctx.broker('core_erp','query',{text:`SELECT * FROM erp_transaction_line_definition_object_type WHERE tenant_id=$1 AND organisation_id=$2`,values:[access.tenantId,orgId]}),
     ctx.broker('core_erp','query',{text:`SELECT * FROM erp_transaction_line_definition_dimension_type WHERE tenant_id=$1 AND organisation_id=$2`,values:[access.tenantId,orgId]})
@@ -70,6 +67,8 @@ module.exports=async ctx=>{
   const dimensionById=new Map(dimensions.rows.map(row=>[row.accounting_dimension_id,row]));
   for(const line of normalisedLines){
     const label=`Line ${line.line_number}`;
+    const consistencyError=require('../_shared/erp/object-reference-consistency').objectReferenceConsistencyError(line.accounting_objects,objectById);
+    if(consistencyError)return ctx.send(400,{error:`${label}: ${consistencyError}`});
     const account=accountById.get(line.gl_account_id);
     if(!account)return ctx.send(400,{error:`${label} needs a valid GL account`});
     const definition=line.transaction_line_definition_id?definitionById.get(line.transaction_line_definition_id):null;
@@ -122,30 +121,18 @@ module.exports=async ctx=>{
     }
   }
 
-  if(supplierId&&!subledgerById.has(supplierId)){
-    const supplier=await ctx.broker('core_erp','query',{text:`SELECT 1 FROM erp_subledger_account WHERE tenant_id=$1 AND organisation_id=$2 AND subledger_account_id=$3 AND workflow_status<>'deleted'`,values:[access.tenantId,orgId,supplierId]});
-    if(!supplier.rows.length)return ctx.send(400,{error:'Supplier must be a live sub-ledger account in this organisation'});
-  }
-  if(vatRecipientId){
-    const recipient=await ctx.broker('core_erp','query',{text:`SELECT 1 FROM erp_legal_entity WHERE tenant_id=$1 AND organisation_id=$2 AND legal_entity_id=$3 AND workflow_status<>'deleted'`,values:[access.tenantId,orgId,vatRecipientId]});
-    if(!recipient.rows.length)return ctx.send(400,{error:'VAT recipient must be a live legal entity in this organisation'});
-  }
-  for(const line of normalisedLines){
-    const definition=definitionById.get(line.transaction_line_definition_id);
-    if(definition?.subledger_type_code==='vendor'&&supplierId&&line.subledger_account_id!==supplierId)return ctx.send(400,{error:`Line ${line.line_number} must use the header supplier`});
-  }
-  const headerValues=[access.tenantId,orgId,transactionTypeId,periodId,divisionId,supplierId,vatRecipientId,clean(ctx.body.supplier_invoice_number),nullable(ctx.body.supplier_invoice_date),clean(ctx.body.journal_date,new Date().toISOString().slice(0,10)),clean(ctx.body.description),clean(ctx.body.currency_code,'ZAR').toUpperCase(),Number(ctx.body.exchange_rate)||1,access.auth.email];
+  const headerValues=[access.tenantId,orgId,transactionTypeId,periodId,divisionId,clean(ctx.body.journal_date,new Date().toISOString().slice(0,10)),clean(ctx.body.description),clean(ctx.body.currency_code,'ZAR').toUpperCase(),Number(ctx.body.exchange_rate)||1,access.auth.email];
   const lineValues=JSON.stringify(normalisedLines);
   const objectValues=JSON.stringify(normalisedLines.flatMap(line=>line.accounting_objects.map(row=>({journal_line_id:line.journal_line_id,...row}))));
   const dimensionValues=JSON.stringify(normalisedLines.flatMap(line=>line.accounting_dimensions.map(row=>({journal_line_id:line.journal_line_id,...row}))));
   const saveSql=`WITH saved AS (
-      ${id?`UPDATE erp_journal SET transaction_type_id=$3,fiscal_period_id=$4,source_division_id=$5,supplier_subledger_account_id=$6,vat_recipient_legal_entity_id=$7,supplier_invoice_number=$8,supplier_invoice_date=$9,journal_date=$10,description=$11,currency_code=$12,exchange_rate=$13,updated_by_email=$14,updated_at=now() WHERE tenant_id=$1 AND organisation_id=$2 AND journal_id=$18 RETURNING *`:`INSERT INTO erp_journal(tenant_id,organisation_id,transaction_type_id,fiscal_period_id,source_division_id,supplier_subledger_account_id,vat_recipient_legal_entity_id,supplier_invoice_number,supplier_invoice_date,journal_date,description,currency_code,exchange_rate,workflow_status,created_by_email,updated_by_email) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'draft',$14,$14) RETURNING *`}
+      ${id?`UPDATE erp_journal SET transaction_type_id=$3,fiscal_period_id=$4,source_division_id=$5,journal_date=$6,description=$7,currency_code=$8,exchange_rate=$9,updated_by_email=$10,updated_at=now() WHERE tenant_id=$1 AND organisation_id=$2 AND journal_id=$14 RETURNING *`:`INSERT INTO erp_journal(tenant_id,organisation_id,transaction_type_id,fiscal_period_id,source_division_id,journal_date,description,currency_code,exchange_rate,workflow_status,created_by_email,updated_by_email) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft',$10,$10) RETURNING *`}
     ), deleted AS (DELETE FROM erp_journal_line USING saved WHERE erp_journal_line.tenant_id=$1 AND erp_journal_line.journal_id=saved.journal_id),
-    line_payload AS (SELECT * FROM jsonb_to_recordset($15::jsonb) AS row(journal_line_id uuid,line_number integer,transaction_line_definition_id uuid,division_id uuid,gl_account_id uuid,subledger_account_id uuid,description text,debit_amount numeric,credit_amount numeric,currency_code text)),
+    line_payload AS (SELECT * FROM jsonb_to_recordset($11::jsonb) AS row(journal_line_id uuid,line_number integer,transaction_line_definition_id uuid,division_id uuid,gl_account_id uuid,subledger_account_id uuid,description text,debit_amount numeric,credit_amount numeric,currency_code text)),
     inserted_lines AS (INSERT INTO erp_journal_line(journal_line_id,tenant_id,organisation_id,journal_id,transaction_line_definition_id,line_number,division_id,gl_account_id,subledger_account_id,description,debit_amount,credit_amount,currency_code) SELECT p.journal_line_id,$1,$2,saved.journal_id,p.transaction_line_definition_id,p.line_number,p.division_id,p.gl_account_id,p.subledger_account_id,p.description,p.debit_amount,p.credit_amount,p.currency_code FROM saved CROSS JOIN line_payload p),
-    object_payload AS (SELECT * FROM jsonb_to_recordset($16::jsonb) AS row(journal_line_id uuid,type_id uuid,value_id uuid)),
+    object_payload AS (SELECT * FROM jsonb_to_recordset($12::jsonb) AS row(journal_line_id uuid,type_id uuid,value_id uuid)),
     inserted_objects AS (INSERT INTO erp_journal_line_accounting_object(tenant_id,organisation_id,journal_line_id,accounting_object_type_id,accounting_object_id) SELECT $1,$2,journal_line_id,type_id,value_id FROM object_payload),
-    dimension_payload AS (SELECT * FROM jsonb_to_recordset($17::jsonb) AS row(journal_line_id uuid,type_id uuid,value_id uuid)),
+    dimension_payload AS (SELECT * FROM jsonb_to_recordset($13::jsonb) AS row(journal_line_id uuid,type_id uuid,value_id uuid)),
     inserted_dimensions AS (INSERT INTO erp_journal_line_accounting_dimension(tenant_id,organisation_id,journal_line_id,accounting_dimension_type_id,accounting_dimension_id) SELECT $1,$2,journal_line_id,type_id,value_id FROM dimension_payload)
     SELECT * FROM saved`;
   const values=[...headerValues,lineValues,objectValues,dimensionValues];

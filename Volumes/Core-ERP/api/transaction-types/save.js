@@ -87,8 +87,8 @@ module.exports=async ctx=>{
   const typeValues=[access.tenantId,orgId,groupId,code,name,description,isFinancial,allowAdditional,sortOrder,isActive];
   const saved=id
     ? await ctx.broker('core_erp','query',{text:`UPDATE erp_transaction_type SET transaction_group_id=$3,type_code=$4,type_name=$5,type_description=$6,is_financial=$7,allow_additional_lines=$8,sort_order=$9,is_active=$10 WHERE tenant_id=$1 AND organisation_id=$2 AND transaction_type_id=$11 RETURNING *`,values:[...typeValues,id]})
-    : await ctx.broker('core_erp','query',{text:`INSERT INTO erp_transaction_type(tenant_id,organisation_id,transaction_group_id,type_code,type_name,type_description,is_financial,allow_additional_lines,sort_order,is_active) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE SET transaction_group_id=excluded.transaction_group_id,type_name=excluded.type_name,type_description=excluded.type_description,is_financial=excluded.is_financial,allow_additional_lines=excluded.allow_additional_lines,sort_order=excluded.sort_order,is_active=excluded.is_active RETURNING *`,values:typeValues});
-  if(!saved.rows.length)return ctx.send(404,{error:'Transaction type was not found'});
+    : await ctx.broker('core_erp','query',{text:`INSERT INTO erp_transaction_type(tenant_id,organisation_id,transaction_group_id,type_code,type_name,type_description,is_financial,allow_additional_lines,sort_order,is_active) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(tenant_id,organisation_id,type_code) DO NOTHING RETURNING *`,values:typeValues});
+  if(!saved.rows.length)return ctx.send(id?404:409,{error:id?'Transaction type was not found':'A transaction type with this code already exists. Choose a different code.'});
   const typeId=saved.rows[0].transaction_type_id;
   const statements=[{text:`DELETE FROM erp_transaction_line_definition WHERE tenant_id=$1 AND organisation_id=$2 AND transaction_type_id=$3`,values:[access.tenantId,orgId,typeId]}];
   normalisedLines.forEach((line,index)=>{

@@ -90,6 +90,26 @@ services:
       retries: 10
       start_period: 20s
 
+  core-db-dbmanager:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: core-dbmanager
+      POSTGRES_USER: ${DBMANAGER_DB_USER}
+      POSTGRES_PASSWORD: ${DBMANAGER_DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ./Volumes/Databases/Core-DBManager/Data:/var/lib/postgresql/data
+      - ./Volumes/Databases/Core-DBManager/Init:/docker-entrypoint-initdb.d:ro
+      - ./Volumes/Databases/Core-DBManager/Backup:/backup
+    networks: [core-database]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 60s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
   core-broker:
     image: core-runtime:1.0
     build:
@@ -317,6 +337,31 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  core-database-management:
+    image: core-runtime:1.0
+    restart: unless-stopped
+    init: true
+    expose:
+      - "3000"
+    environment:
+      DBMANAGER_SCHEMA: /app/dbmanager-schema/001-schema.sql
+    volumes:
+      - ./Volumes/Core-DBManager:/app/content:ro
+      - ./Volumes/Databases/Core-DBManager/Init:/app/dbmanager-schema:ro
+    networks: [core-application, core-outbound]
+    depends_on:
+      core-saas: { condition: service_healthy }
+      core-broker: { condition: service_healthy }
+      core-db-dbmanager: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "/app/healthcheck.js"]
+      interval: 60s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+
   core-gateway:
     image: core-gateway:1.0
     build:
@@ -339,6 +384,7 @@ services:
       core-tasks: { condition: service_healthy }
       core-tools: { condition: service_healthy }
       core-reference: { condition: service_healthy }
+      core-database-management: { condition: service_healthy }
     healthcheck:
       test:
         [

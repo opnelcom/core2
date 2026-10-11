@@ -162,6 +162,7 @@ module.exports = async (ctx) => {
     accountingTypes: isEnabled(options, "accounting_types"),
     resourceRoles: resourceSchemaReady && isEnabled(options, "resource_roles"),
     permissions: isEnabled(options, "permissions"),
+    reports: isEnabled(options, "reports"),
   };
   wants.accountingTypes = wants.accountingTypes || wants.lineDefinitions;
   wants.resourceRoles =
@@ -203,6 +204,18 @@ module.exports = async (ctx) => {
   const add = (name, text, values = [access.tenantId, sourceId, targetId]) =>
     statements.push({ name, text, values });
 
+  if (wants.reports) add("reports", `INSERT INTO erp_report(tenant_id,organisation_id,report_code,report_name,description,definition_json,is_active,created_by_email,updated_by_email)
+    SELECT $1,$3,report_code,report_name,description,definition_json,false,created_by_email,updated_by_email FROM erp_report WHERE tenant_id=$1 AND organisation_id=$2
+    ON CONFLICT(tenant_id,organisation_id,report_code) DO UPDATE SET report_name=excluded.report_name,description=excluded.description,definition_json=excluded.definition_json,is_active=false,definition_version=erp_report.definition_version+1,updated_at=now()`);
+  if (wants.reports) add("report_modules", `INSERT INTO erp_report_module(report_id,module_id)
+    SELECT target_report.report_id,target_module.module_id FROM erp_report source_report
+    JOIN erp_report_module allocation ON allocation.report_id=source_report.report_id
+    JOIN erp_module source_module ON source_module.module_id=allocation.module_id
+    JOIN erp_report target_report ON target_report.tenant_id=$1 AND target_report.organisation_id=$3 AND target_report.report_code=source_report.report_code
+    JOIN erp_module target_module ON target_module.tenant_id=$1 AND target_module.organisation_id=$3 AND target_module.module_code=source_module.module_code
+    WHERE source_report.tenant_id=$1 AND source_report.organisation_id=$2 ON CONFLICT DO NOTHING`);
+
+
   if (wants.modules)
     add(
       "modules",
@@ -238,12 +251,12 @@ module.exports = async (ctx) => {
   if (wants.currencies)
     add(
       "currencies",
-      `INSERT INTO erp_currency(tenant_id,organisation_id,currency_code,currency_name,decimal_places,is_active,is_seeded)
-    SELECT tenant_id,$3,currency_code,currency_name,decimal_places,is_active,is_seeded
+      `INSERT INTO erp_currency(tenant_id,organisation_id,currency_code,currency_name,decimal_places,format_json,is_active,is_seeded)
+    SELECT tenant_id,$3,currency_code,currency_name,decimal_places,format_json,is_active,is_seeded
     FROM erp_currency
     WHERE tenant_id=$1 AND organisation_id=$2
     ON CONFLICT(tenant_id,organisation_id,currency_code) DO UPDATE
-    SET currency_name=excluded.currency_name,decimal_places=excluded.decimal_places,is_active=excluded.is_active,is_seeded=excluded.is_seeded,updated_at=now()`,
+    SET currency_name=excluded.currency_name,decimal_places=excluded.decimal_places,format_json=excluded.format_json,is_active=excluded.is_active,is_seeded=excluded.is_seeded,updated_at=now()`,
     );
 
   if (wants.taxTypes) {
@@ -347,52 +360,52 @@ module.exports = async (ctx) => {
   if (wants.subledgerAccountTypes)
     add(
       "subledger_account_types",
-      `INSERT INTO erp_subledger_account_type(tenant_id,organisation_id,type_code,type_name,type_description,workflow_path_id,requires_legal_entity,schema_json,ui_schema_json,is_active,is_seeded)
-    SELECT source_type.tenant_id,$3,source_type.type_code,source_type.type_name,source_type.type_description,target_path.workflow_path_id,source_type.requires_legal_entity,source_type.schema_json,source_type.ui_schema_json,source_type.is_active,source_type.is_seeded
+      `INSERT INTO erp_subledger_account_type(tenant_id,organisation_id,type_code,type_name,type_description,workflow_path_id,requires_legal_entity,schema_json,ui_schema_json,is_active,is_seeded,code_numbering)
+    SELECT source_type.tenant_id,$3,source_type.type_code,source_type.type_name,source_type.type_description,target_path.workflow_path_id,source_type.requires_legal_entity,source_type.schema_json,source_type.ui_schema_json,source_type.is_active,source_type.is_seeded,source_type.code_numbering
     FROM erp_subledger_account_type source_type
     LEFT JOIN erp_workflow_path source_path ON source_path.workflow_path_id=source_type.workflow_path_id
     LEFT JOIN erp_workflow_path target_path ON target_path.tenant_id=$1 AND target_path.organisation_id=$3 AND target_path.path_name=source_path.path_name
     WHERE source_type.tenant_id=$1 AND source_type.organisation_id=$2
     ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
-    SET type_name=excluded.type_name,type_description=excluded.type_description,workflow_path_id=excluded.workflow_path_id,requires_legal_entity=excluded.requires_legal_entity,schema_json=excluded.schema_json,ui_schema_json=excluded.ui_schema_json,is_active=excluded.is_active,is_seeded=excluded.is_seeded,updated_at=now()`,
+    SET code_numbering=excluded.code_numbering,type_name=excluded.type_name,type_description=excluded.type_description,workflow_path_id=excluded.workflow_path_id,requires_legal_entity=excluded.requires_legal_entity,schema_json=excluded.schema_json,ui_schema_json=excluded.ui_schema_json,is_active=excluded.is_active,is_seeded=excluded.is_seeded,updated_at=now()`,
     );
 
   if (wants.glAccountTypes)
     add(
       "gl_account_types",
-      `INSERT INTO erp_gl_account_type(tenant_id,organisation_id,type_code,type_name,is_required,is_seeded,is_active)
-    SELECT tenant_id,$3,type_code,type_name,is_required,is_seeded,is_active
+      `INSERT INTO erp_gl_account_type(tenant_id,organisation_id,type_code,type_name,is_required,is_seeded,is_active,code_numbering)
+    SELECT tenant_id,$3,type_code,type_name,is_required,is_seeded,is_active,code_numbering
     FROM erp_gl_account_type
     WHERE tenant_id=$1 AND organisation_id=$2
     ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
-    SET type_name=excluded.type_name,is_required=excluded.is_required,is_seeded=excluded.is_seeded,is_active=excluded.is_active,updated_at=now()`,
+    SET code_numbering=excluded.code_numbering,type_name=excluded.type_name,is_required=excluded.is_required,is_seeded=excluded.is_seeded,is_active=excluded.is_active,updated_at=now()`,
     );
 
   if (wants.accountingTypes)
     add(
       "accounting_object_types",
-      `INSERT INTO erp_accounting_object_type(tenant_id,organisation_id,type_code,type_name,type_description,workflow_path_id,schema_json,ui_schema_json,is_seeded,is_active)
-    SELECT source_type.tenant_id,$3,source_type.type_code,source_type.type_name,source_type.type_description,target_path.workflow_path_id,source_type.schema_json,source_type.ui_schema_json,source_type.is_seeded,source_type.is_active
+      `INSERT INTO erp_accounting_object_type(tenant_id,organisation_id,type_code,type_name,type_description,workflow_path_id,schema_json,ui_schema_json,is_seeded,is_active,code_numbering)
+    SELECT source_type.tenant_id,$3,source_type.type_code,source_type.type_name,source_type.type_description,target_path.workflow_path_id,source_type.schema_json,source_type.ui_schema_json,source_type.is_seeded,source_type.is_active,source_type.code_numbering
     FROM erp_accounting_object_type
     source_type
     LEFT JOIN erp_workflow_path source_path ON source_path.workflow_path_id=source_type.workflow_path_id
     LEFT JOIN erp_workflow_path target_path ON target_path.tenant_id=$1 AND target_path.organisation_id=$3 AND target_path.path_name=source_path.path_name
     WHERE source_type.tenant_id=$1 AND source_type.organisation_id=$2
     ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
-    SET type_name=excluded.type_name,type_description=excluded.type_description,workflow_path_id=excluded.workflow_path_id,schema_json=excluded.schema_json,ui_schema_json=excluded.ui_schema_json,is_seeded=excluded.is_seeded,is_active=excluded.is_active,updated_at=now()`,
+    SET code_numbering=excluded.code_numbering,type_name=excluded.type_name,type_description=excluded.type_description,workflow_path_id=excluded.workflow_path_id,schema_json=excluded.schema_json,ui_schema_json=excluded.ui_schema_json,is_seeded=excluded.is_seeded,is_active=excluded.is_active,updated_at=now()`,
     );
 
   if (wants.accountingTypes)
     add(
       "accounting_dimension_types",
-      `INSERT INTO erp_accounting_dimension_type(tenant_id,organisation_id,type_code,type_name,type_description,workflow_path_id,schema_json,ui_schema_json,is_seeded,is_active)
-    SELECT source_type.tenant_id,$3,source_type.type_code,source_type.type_name,source_type.type_description,target_path.workflow_path_id,source_type.schema_json,source_type.ui_schema_json,source_type.is_seeded,source_type.is_active
+      `INSERT INTO erp_accounting_dimension_type(tenant_id,organisation_id,type_code,type_name,type_description,workflow_path_id,schema_json,ui_schema_json,is_seeded,is_active,code_numbering)
+    SELECT source_type.tenant_id,$3,source_type.type_code,source_type.type_name,source_type.type_description,target_path.workflow_path_id,source_type.schema_json,source_type.ui_schema_json,source_type.is_seeded,source_type.is_active,source_type.code_numbering
     FROM erp_accounting_dimension_type source_type
     LEFT JOIN erp_workflow_path source_path ON source_path.workflow_path_id=source_type.workflow_path_id
     LEFT JOIN erp_workflow_path target_path ON target_path.tenant_id=$1 AND target_path.organisation_id=$3 AND target_path.path_name=source_path.path_name
     WHERE source_type.tenant_id=$1 AND source_type.organisation_id=$2
     ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
-    SET type_name=excluded.type_name,type_description=excluded.type_description,workflow_path_id=excluded.workflow_path_id,schema_json=excluded.schema_json,ui_schema_json=excluded.ui_schema_json,is_seeded=excluded.is_seeded,is_active=excluded.is_active,updated_at=now()`,
+    SET code_numbering=excluded.code_numbering,type_name=excluded.type_name,type_description=excluded.type_description,workflow_path_id=excluded.workflow_path_id,schema_json=excluded.schema_json,ui_schema_json=excluded.ui_schema_json,is_seeded=excluded.is_seeded,is_active=excluded.is_active,updated_at=now()`,
     );
 
   if (wants.accountingTypes)
@@ -852,6 +865,7 @@ module.exports = async (ctx) => {
                WHEN source_permissions.resource_kind='subledger_account' THEN target_subledger_type.subledger_account_type_id::text
                WHEN source_permissions.resource_kind='accounting_object' THEN target_object_type.accounting_object_type_id::text
                WHEN source_permissions.resource_kind='accounting_dimension' THEN target_dimension_type.accounting_dimension_type_id::text
+               WHEN source_permissions.resource_kind='report' THEN target_report.report_id::text
                ELSE source_permissions.resource_code
              END,
              source_permissions.workflow_status,source_permissions.action_code,source_permissions.applies_to_children,source_permissions.valid_from,source_permissions.valid_to
@@ -866,7 +880,10 @@ module.exports = async (ctx) => {
       LEFT JOIN erp_accounting_object_type target_object_type ON target_object_type.tenant_id=$1 AND target_object_type.organisation_id=$3 AND target_object_type.type_code=source_object_type.type_code
       LEFT JOIN erp_accounting_dimension_type source_dimension_type ON source_dimension_type.accounting_dimension_type_id::text=source_permissions.resource_code AND source_permissions.resource_kind='accounting_dimension'
       LEFT JOIN erp_accounting_dimension_type target_dimension_type ON target_dimension_type.tenant_id=$1 AND target_dimension_type.organisation_id=$3 AND target_dimension_type.type_code=source_dimension_type.type_code
+      LEFT JOIN erp_report source_report ON source_report.tenant_id=$1 AND source_report.organisation_id=$2 AND source_report.report_id::text=source_permissions.resource_code AND source_permissions.resource_kind='report'
+      LEFT JOIN erp_report target_report ON target_report.tenant_id=$1 AND target_report.organisation_id=$3 AND target_report.report_code=source_report.report_code
       WHERE source_permissions.resource_kind IN('gl_account','legal_entity')
+        OR (source_permissions.resource_kind='report' AND target_division.division_id IS NOT NULL AND target_report.report_id IS NOT NULL)
         OR (source_permissions.resource_kind='resource' AND (source_permissions.division_code IS NULL OR target_division.division_id IS NOT NULL))
          OR (target_division.division_id IS NOT NULL AND source_permissions.resource_kind IN('subledger_account','accounting_object','accounting_dimension','transaction')
              AND (source_permissions.resource_code='*'
@@ -892,11 +909,13 @@ module.exports = async (ctx) => {
     );
   }
 
+  const copiedKinds = [["accounting_objects","accounting_object"],["accounting_dimensions","accounting_dimension"],["subledger_accounts","subledger_account"]]
+    .filter(([name]) => statements.some(statement => statement.name === name)).map(([,kind])=>kind);
+
   let copied = Object.values(detail).reduce((total, count) => total + count, 0);
   if (statements.length) {
-    const r = await ctx.broker("core_erp", "transaction", {
-      statements: statements.map(({ text, values }) => ({ text, values })),
-    });
+    const plan = await require("../_shared/erp/copy-schema-references").prepareSchemaReferenceCopy(ctx,access.tenantId,sourceId,targetId,statements,copiedKinds);
+    const r = await plan.commit();
     r.results.forEach((result, index) => {
       const count = result.rowCount || 0;
       detail[statements[index].name] = count;

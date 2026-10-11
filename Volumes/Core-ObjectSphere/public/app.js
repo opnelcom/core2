@@ -1061,7 +1061,7 @@
       });
       const handle = document.createElement("span");
       handle.className = "drag-handle";
-      handle.textContent = "⋮⋮";
+      handle.textContent = "â‹®â‹®";
       handle.title = "Drag to reorder";
       const id = document.createElement("span");
       id.textContent = attribute.attribute_id;
@@ -3439,6 +3439,9 @@
     uploadSelectedFile($("photo-file"), "photo"),
   );
   $("describe-item").addEventListener("click", describeItem);
+  $("import-catalogue").addEventListener("click", () => {
+    window.ObjectSphereCatalogue.open({parentId:selectedId,parentName:selectedItem()?.item_name || "",returnFocus:$("import-catalogue"),onImported:async()=>{expanded.add(selectedId);await load();}}).catch(e=>setAlert(e.message));
+  });
   $("import-photo").addEventListener("click", () =>
     $("import-photo-file").click(),
   );

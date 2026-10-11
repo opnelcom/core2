@@ -1,0 +1,19 @@
+"use strict";
+const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),assert=require('node:assert/strict');
+const pub=path.resolve('Volumes/Core-ERP/public');
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:process.env.ERP_BROWSER_EXECUTABLE||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});try{
+const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+await page.route('http://erp.test/**',route=>route.fulfill({contentType:'text/html',body:fs.readFileSync(path.join(pub,'index.html'),'utf8').replace(/<script[\s\S]*?<\/script>/g,'').replace(/<link[^>]*>/g,'')}));await page.goto('http://erp.test/');
+await page.addStyleTag({content:fs.readFileSync(path.join(pub,'style.css'),'utf8')});
+await page.evaluate(()=>{window.requests=[];window.messages=[];window.confirmed=false;window.confirm=()=>confirmed;window.mockApi=async(p,o)=>{requests.push({p,body:JSON.parse(o.body)});return {organisation:{organisation_id:'template-id'},examples:{inserted:12}};};});
+for(const file of ['currency-format.js','trial-balance-math.js','report-builder.js'])await page.addScriptTag({content:fs.readFileSync(path.join(pub,file),'utf8')});
+let source=fs.readFileSync(path.join(pub,'app.js'),'utf8').replace(/  load\(\)\.catch\(\(e\) => alert\(e\.message\)\);\s*\}\)\(\);\s*$/,
+'  api=window.mockApi; load=async()=>{}; ensureTaxTypes=async()=>{}; alert=m=>window.messages.push(m); window.templateFixture={prepare(){boot={can_bootstrap_setup:true,can_initialise_template_org:true,organisations:[]};state.navigation={is_administrator:true,permissions:[]};buildSetupMenu();applyMenuMode("setup");show("organisations");},schema:initialiseSchema,definitions:initialiseTemplateOrganisation,examples:initialiseTemplateOrganisationExamples};})();');
+assert.ok(source.includes('window.templateFixture'),'Missing fixture injection');await page.addScriptTag({content:source});assert.deepEqual(errors,[]);await page.evaluate(()=>templateFixture.prepare());
+assert.equal(await page.locator('[data-menu-action="init-template-examples"]').count(),1);
+await page.locator('#setup-menu [data-menu-group="recovery"]').click();
+fs.mkdirSync('tmp/template-initialisation-browser',{recursive:true});for(const width of [1440,390]){await page.setViewportSize({width,height:900});assert.ok(await page.locator('[data-menu-action="init-template-examples"]').isVisible());await page.screenshot({path:'tmp/template-initialisation-browser/'+width+'-closed.png',fullPage:true});await page.evaluate(()=>document.getElementById('organisation-form').hidden=false);await page.screenshot({path:'tmp/template-initialisation-browser/'+width+'-open.png',fullPage:true});await page.evaluate(()=>document.getElementById('organisation-form').hidden=true);}
+await page.locator('[data-menu-action="init-template-examples"]').click();assert.equal(await page.evaluate(()=>requests.length),0);
+await page.evaluate(()=>confirmed=true);await page.locator('[data-menu-action="init-template-examples"]').click();await page.waitForFunction(()=>messages.length>0);assert.deepEqual(await page.evaluate(()=>requests[0]),{p:'setup/init-template-examples',body:{confirmed:true}});
+await page.evaluate(()=>templateFixture.definitions());await page.evaluate(()=>templateFixture.schema());assert.deepEqual(await page.evaluate(()=>requests.map(r=>r.p)),['setup/init-template-examples','setup/init-template','setup/schema']);assert.ok((await page.evaluate(()=>requests[1].body)).confirmed);assert.deepEqual(errors,[]);console.log('PASS: real ERP Recovery menu at desktop/mobile, closed/open organisation screen, confirmation cancellation, example/definition/schema routing and response messages');
+}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

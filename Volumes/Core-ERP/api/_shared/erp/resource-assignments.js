@@ -2,6 +2,7 @@
 
 function day(value, fallback) {
   if (value === null || value === undefined || value === "") return fallback;
+  if (value instanceof Date) return Number.isFinite(value.getTime()) ? Math.floor(value.getTime() / 86400000) : NaN;
   if (value === "-infinity") return -Infinity;
   if (value === "infinity") return Infinity;
   const time = Date.parse(`${String(value).slice(0, 10)}T00:00:00Z`);

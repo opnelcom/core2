@@ -15,10 +15,11 @@ module.exports=async ctx=>{
                  to_regclass('erp_user_organisation_context') organisation_context`
   });
   const tables=schemaTables.rows[0]||{};
-  const currencyDefaults=currencies.map(([currency_code,currency_name,decimal_places,is_seeded])=>({
+  const currencyDefaults=currencies.map(([currency_code,currency_name,decimal_places,is_seeded,format_json = {}])=>({
     currency_code,
     currency_name,
     decimal_places,
+    format_json,
     is_seeded,
     is_active:true
   }));

@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { URL } = require('url');
+const {tenantSession} = require('./tenant-session');
 
 const root = process.env.CONTENT_ROOT || '/app/content';
 const logRoot = process.env.LOG_ROOT || '/app/logs';
@@ -73,6 +74,7 @@ const server=http.createServer(async(req,res)=>{
     const file=safeJoin(apiRoot,rel+'.js'); if(!file||!fs.existsSync(file))return send(res,404,{error:'API endpoint not found'});
     clearContentApiCache(); const handler=require(file);
     const ctx={req,res,url:u,query:Object.fromEntries(u.searchParams),cookies:cookies(req.headers.cookie),body:await body(req),config,logger:{info:(m,x)=>log('info',m,x),warn:(m,x)=>log('warn',m,x),error:(m,x)=>log('error',m,x)},broker,smtp,send:(s,b,h)=>send(res,s,b,h),setCookie:(n,v,o)=>setCookie(res,n,v,o),clearCookie:n=>clearCookie(res,n),auth:()=>auth(ctx),signSession,crypto,requestId};
+    ctx.tenantSession=()=>tenantSession(ctx);
     const result=await handler(ctx); if(!res.writableEnded&&result!==undefined)send(res,200,result);
     return;
   }

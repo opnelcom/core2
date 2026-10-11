@@ -86,7 +86,10 @@ module.exports=async ctx=>{
   }
   if(wants.divisions)add('divisions',`DELETE FROM erp_division WHERE tenant_id=$1 AND organisation_id=$2`);
   if(wants.countries)add('countries',`DELETE FROM erp_country WHERE tenant_id=$1 AND organisation_id=$2`);
-  if(wants.currencies)add('currencies',`DELETE FROM erp_currency WHERE tenant_id=$1 AND organisation_id=$2`);
+  if(wants.currencies){
+    add('exchange_rates',`DELETE FROM erp_exchange_rate WHERE tenant_id=$1 AND organisation_id=$2`);
+    add('currencies',`DELETE FROM erp_currency WHERE tenant_id=$1 AND organisation_id=$2`);
+  }
   if(wants.taxTypes){
     add('tax_rates',`DELETE FROM erp_tax_rate WHERE tenant_id=$1 AND organisation_id=$2`);
     add('tax_types',`DELETE FROM erp_tax_type WHERE tenant_id=$1 AND organisation_id=$2`);

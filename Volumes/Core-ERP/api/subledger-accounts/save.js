@@ -1,5 +1,8 @@
 "use strict";
+const { numberedRecordStatement, saveNumberedTransaction } = require("../_shared/erp/code-numbering");
 const { randomUUID } = require("crypto");
+const { validateSchemaReferences } = require("../_shared/erp/schema-references");
+const { objectSaveStatements } = require("../_shared/erp/object-versions");
 const {
   authTenant,
   requireModuleAccess,
@@ -8,6 +11,7 @@ const {
   clean,
   nullable,
   parseJson,
+  validateSchema,
 } = require("../_shared/erp");
 
 module.exports = async (ctx) => {
@@ -23,7 +27,7 @@ module.exports = async (ctx) => {
   const legalEntityId = nullable(ctx.body.legal_entity_id);
   const code = clean(ctx.body.account_code);
   const name = clean(ctx.body.account_name);
-  if (!orgId || !divisionId || !typeId || !code || !name)
+  if (!orgId || !divisionId || !typeId || !name)
     return ctx.send(400, {
       error:
         "Organisation, owner division, subledger account type, code and name are required",
@@ -44,7 +48,7 @@ module.exports = async (ctx) => {
   if (permissionDenied)
     return ctx.send(permissionDenied.status, permissionDenied.body);
   const type = await ctx.broker("core_erp", "query", {
-    text: `SELECT requires_legal_entity FROM erp_subledger_account_type WHERE tenant_id=$1 AND organisation_id=$2 AND subledger_account_type_id=$3 AND is_active=true`,
+    text: `SELECT requires_legal_entity,schema_json FROM erp_subledger_account_type WHERE tenant_id=$1 AND organisation_id=$2 AND subledger_account_type_id=$3 AND is_active=true`,
     values: [access.tenantId, orgId, typeId],
   });
   if (!type.rowCount)
@@ -56,6 +60,15 @@ module.exports = async (ctx) => {
     return ctx.send(400, {
       error: "This subledger account type requires a legal entity",
     });
+  let data;
+  try {
+    data = parseJson(ctx.body.additional_data, {});
+  } catch {
+    return ctx.send(400, { error: "Additional data must be valid JSON" });
+  }
+  const errors = validateSchema(type.rows[0].schema_json, data);
+  if (!errors.length) errors.push(...await validateSchemaReferences(ctx, access, orgId, type.rows[0].schema_json, data));
+  if (errors.length) return ctx.send(400, { error: "Additional data is invalid", errors });
   let effectiveDates = {
     valid_from: ctx.body.valid_from || new Date().toISOString().slice(0, 10),
     valid_to: ctx.body.valid_to || null,
@@ -102,15 +115,15 @@ module.exports = async (ctx) => {
     legalEntityId,
     code,
     name,
-    parseJson(ctx.body.additional_data, {}),
+    data,
     access.auth.email,
   ];
   const text = submittedId
     ? `UPDATE erp_subledger_account SET owner_division_id=$3,subledger_account_type_id=$4,legal_entity_id=$5,account_code=$6,account_name=$7,additional_data=$8::jsonb,updated_by_email=$9,updated_at=now() WHERE tenant_id=$1 AND organisation_id=$2 AND subledger_account_id=$10 AND workflow_status IN('draft','rejected','approved','blocked')`
     : `INSERT INTO erp_subledger_account(subledger_account_id,tenant_id,organisation_id,owner_division_id,subledger_account_type_id,legal_entity_id,account_code,account_name,additional_data,workflow_status,created_by_email,updated_by_email,approved_by_email,approved_at) VALUES($10,$1,$2,$3,$4,$5,$6,$7,$8::jsonb,'approved',$9,$9,$9,now())`;
-  const statements = [{ text, values: [...values, id] }];
+  const statements = [numberedRecordStatement({ text, values: [...values, id] }, { kind: "subledger_account", typeParameter: 4, codeParameter: 6, idParameter: 10, submittedId })];
   if (resourcePlan.replace) statements.push(...resourcePlan.statements);
-  await ctx.broker("core_erp", "transaction", { statements });
+  await saveNumberedTransaction(ctx, objectSaveStatements({ statements, submittedId, access, organisationId: orgId, kind: "subledger_account", id, schema: type.rows[0].schema_json, data }));
   const result = await ctx.broker("core_erp", "query", {
     text: `SELECT * FROM erp_subledger_account WHERE tenant_id=$1 AND organisation_id=$2 AND subledger_account_id=$3`,
     values: [access.tenantId, orgId, id],

@@ -1,0 +1,354 @@
+[
+  {
+    "file": "dashboard.jpg",
+    "mode": "main",
+    "caption": "The live template dashboard: five subledgers, no fiscal periods and no journals. Counts describe this capture, not every organisation.",
+    "sha256": "f049f2356ebb43ce565daed2d872d2343e8675fc20f667390c4431bab6960dc4",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "vendor-editor.jpg",
+    "mode": "editor",
+    "caption": "Live template view. Inspect the visible labels and selected tab; the editor is shown without saving changes.",
+    "sha256": "07b019b32bb8380ec84edd45368c24115e4b13037034fc32705a7e33c1820931",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "type-definition.jpg",
+    "mode": "type",
+    "caption": "Definition identifies the type and its workflow.",
+    "sha256": "e4802dc03b84a35dee1d3f7ff883fc1d910b23b6c36aa6c22cc0b57ce465245f",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "type-scope.jpg",
+    "mode": "type",
+    "caption": "Scope controls module mappings.",
+    "sha256": "a8bb3395b61e6185554e3cf7daa48375accf92ea3ff8a15a7e090159b605d6d1",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "type-design.jpg",
+    "mode": "type",
+    "caption": "Design combines the schema definition and generated preview. The JSON area is scrollable.",
+    "sha256": "2ce3b2bd791e2874aa5f582d5662bff041fda323f7c6002432fdc6fcf175235b",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "setup-organisations.jpg",
+    "mode": "main",
+    "caption": "Live template: Organisations. This is the captured list/sandbox state; it is not evidence of a completed setup action.",
+    "sha256": "bf89e36e674280ae7b3f6acfba24433f311ff04e09dcdd175bec01170e6533f5",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "setup-divisions.jpg",
+    "mode": "main",
+    "caption": "Live template: Divisions. This is the captured list/sandbox state; it is not evidence of a completed setup action.",
+    "sha256": "bb84c4e55b5b68fe35de6ebd3d901f40dfabdd807695f7b3d86362d8ddf434cd",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "setup-fiscal-year.jpg",
+    "mode": "main",
+    "caption": "Live template: Fiscal Year. This is the captured list/sandbox state; it is not evidence of a completed setup action.",
+    "sha256": "cdc829fa4e89ddda9613b8cfce8079645c16ebd2352611fb23c5adbcc7871afe",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "setup-countries.jpg",
+    "mode": "main",
+    "caption": "Live template: Countries. This is the captured list/sandbox state; it is not evidence of a completed setup action.",
+    "sha256": "adf0055402444838bca2b35e0d6c132ef2ea0146d799a76288fb43be1a05a07a",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "setup-currencies.jpg",
+    "mode": "main",
+    "caption": "Live template: Currencies. This is the captured list/sandbox state; it is not evidence of a completed setup action.",
+    "sha256": "06f19cab2ce4673dd82e447bd8892acaba0aa465bdc42e4724ccec30e3604be3",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "setup-tax-types.jpg",
+    "mode": "main",
+    "caption": "Live template: Tax Types. This is the captured list/sandbox state; it is not evidence of a completed setup action.",
+    "sha256": "d5fc732ff56f267a76030f33f6cf88aa28f17ad5878b67a4ddb4caacdc1b1dd0",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "setup-resource-roles.jpg",
+    "mode": "main",
+    "caption": "Live template: Resource Roles. This is the captured list/sandbox state; it is not evidence of a completed setup action.",
+    "sha256": "83e0fd7974a03c682d0d0e9b4a47c7a3cb6c38ac718f8ec03c64f2f6f69b9f24",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "setup-financial-statement-formats.jpg",
+    "mode": "main",
+    "caption": "Live template: Financial Statement Formats. This is the captured list/sandbox state; it is not evidence of a completed setup action.",
+    "sha256": "aa6b303988e95b3635ab64fdcb19c45f2b128ef59af98b97f152a4e911f45a4a",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "setup-schema-ui-tester.jpg",
+    "mode": "main",
+    "caption": "Live template: Schema UI Tester. This is the captured list/sandbox state; it is not evidence of a completed setup action.",
+    "sha256": "80c30067ab7f4543b6ad975a9d6e80cf468a5edb5feb945cde96576710629042",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "setup-modules.jpg",
+    "mode": "main",
+    "caption": "Live template: Modules. This is the captured list/sandbox state; it is not evidence of a completed setup action.",
+    "sha256": "5655b9f40817a3265ee477d664a2f8d13ba3dc6d24f8872ab1fca5f5509873e2",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "setup-gl-account-types.jpg",
+    "mode": "main",
+    "caption": "Live template: GL Account Types. This is the captured list/sandbox state; it is not evidence of a completed setup action.",
+    "sha256": "ef9dbd5a6e8ed3e2328af8c1bbfb27104723ac9e0a2fe37929f0f640521e81a0",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "setup-subledger-account-types.jpg",
+    "mode": "main",
+    "caption": "Live template: Subledger Account Types. This is the captured list/sandbox state; it is not evidence of a completed setup action.",
+    "sha256": "bc4c1ce47110cb260606c43c8b25685ff3553bc2a8e4f51e9ea8f7b5b17af4e0",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "setup-accounting-object-types.jpg",
+    "mode": "main",
+    "caption": "Live template: Accounting Object Types. This is the captured list/sandbox state; it is not evidence of a completed setup action.",
+    "sha256": "311c055d016ecbce4aec6f1223bc96d9fb6e6ef20d9b82f9718b415f3ee7b4c4",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "setup-accounting-dimension-types.jpg",
+    "mode": "main",
+    "caption": "Live template: Accounting Dimension Types. This is the captured list/sandbox state; it is not evidence of a completed setup action.",
+    "sha256": "76ec4c3d159a54d7590ce5bcd86d7a6779a3fb8ee4a066ccf0fce3c08b8c4be5",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "setup-transaction-groups.jpg",
+    "mode": "main",
+    "caption": "Live template: Transaction Groups. This is the captured list/sandbox state; it is not evidence of a completed setup action.",
+    "sha256": "ef9d222389dd31f24aa58d05690939e83aaa9444b1f0ef4b63ab2faebabe163f",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "setup-transaction-types.jpg",
+    "mode": "main",
+    "caption": "Live template: Transaction Types. This is the captured list/sandbox state; it is not evidence of a completed setup action.",
+    "sha256": "69a6fa12a12d65b49f55676abb501ab5dddf64950375db01e3f9490280348cde",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "setup-workflows.jpg",
+    "mode": "main",
+    "caption": "Live template: Workflows. This is the captured list/sandbox state; it is not evidence of a completed setup action.",
+    "sha256": "d6e44ef92fb79df37a143c34cd3d0b33c99f652b64ac018e6fc71ddfb38fa95b",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "permissions.jpg",
+    "mode": "main",
+    "caption": "The live roles list explicitly separates setup administration from business access.",
+    "sha256": "295986bf1346749d6db231b732a870b7b2e56665ef8ce7b1b60a58088802e6b1",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "report-ledger-balances.jpg",
+    "mode": "main",
+    "caption": "Live Ledger Balances filter/result view; the template has no posted example journals.",
+    "sha256": "7b85d57d8b76dc8f6e97c68a8944d7a4c9170d60a7a67c7e61e3568e4a4740c8",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "report-trial-balance.jpg",
+    "mode": "main",
+    "caption": "Live Trial Balance. Empty/template results are not the illustrated business-case totals.",
+    "sha256": "372d32f82cb5d84907f1e21909d3a05a1c982816b34f90f15245adba844f077d",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "report-financial-statement.jpg",
+    "mode": "main",
+    "caption": "Live Financial Statement filters; a suitable fiscal setup and posted activity are prerequisites for meaningful results.",
+    "sha256": "10b2e501f3af954c614f7f60ddfe52dc3e25a88b60f2216c8b220ffe345f5a0a",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "policy-insured-items.jpg",
+    "mode": "editor",
+    "caption": "Saved INS-PROPERTY-2026 insured-items grid. The right-hand columns require horizontal scrolling.",
+    "sha256": "54540b25f28f45b17529379e5c9288ae5f5ee3ebc837f4fd506476cba2ead03c",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "claim-assessment.jpg",
+    "mode": "editor",
+    "caption": "INS-CLAIM-001 assessment: the example vehicle claim, distinct from the warehouse policy.",
+    "sha256": "c339ece298d5a7c617d5e8fd362eace570c2b72b2d63b0bcd272fbe464a6a7f9",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "claim-settlement.jpg",
+    "mode": "editor",
+    "caption": "Claim settlement components. The figure is an operational record, not proof of a posted receipt.",
+    "sha256": "2bd3366a17aa9d6b21405b7dd25bd6ffa77bdf6000ddd83c777ad027492afd84",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "claim-versions.jpg",
+    "mode": "editor",
+    "caption": "Saved version list for the example claim.",
+    "sha256": "353a541b6617389746006cf3226f222ccc397ad3caea29ae0516b75aea945ae3",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "module-sales.jpg",
+    "mode": "menu",
+    "caption": "Sales menu.",
+    "sha256": "571126b16166954d1b231cb66cfda5b581db34d9297084d1ae86dd022d20ae98",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "module-crm.jpg",
+    "mode": "menu",
+    "caption": "CRM menu.",
+    "sha256": "9207417b8b92efe5e1983f1c3a84a5dcc2f30fb6a2e04eeb0560e71b00e83f55",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "module-procurement.jpg",
+    "mode": "menu",
+    "caption": "Procurement menu.",
+    "sha256": "4621ad6464cc3b8eda11c1af9e456a8bd3219cf0931a7078c312c44650e2453d",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "module-hr-payroll.jpg",
+    "mode": "menu",
+    "caption": "HR & Payroll menu.",
+    "sha256": "1d1f23b60eeb16538588b0e1df61c06cc2fb2fd69d59f5b21a3308f13b33370c",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "module-finance.jpg",
+    "mode": "menu",
+    "caption": "Finance menu.",
+    "sha256": "403d7fd1f52b06f661b16f47f59b79dbac379875fc45c4efdaed705092ec9b00",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "module-treasury-cash.jpg",
+    "mode": "menu",
+    "caption": "Treasury & Cash menu.",
+    "sha256": "975f1227efaaa0f20c9eea1a0baea8875aab18aa1b7ddcf2f28ac2fdbdce0cd5",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "module-tax.jpg",
+    "mode": "menu",
+    "caption": "Tax menu.",
+    "sha256": "6ae502efe54b470c931c07f7c64f439bde51ceac4538363cba299c9855e4cbd4",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "module-asset-management.jpg",
+    "mode": "menu",
+    "caption": "Asset Management menu.",
+    "sha256": "14bf425defb1ec1002c07e5b3ca1b8068115b2ff8cdf826d272c06df57039961",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "module-project-management.jpg",
+    "mode": "menu",
+    "caption": "Project Management menu.",
+    "sha256": "a1672d08d714b04b88073435ed54acd3d4f4691ed968fde26980a67cc6a0804c",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "module-contract-management.jpg",
+    "mode": "menu",
+    "caption": "Contract Management menu.",
+    "sha256": "63e8573e2d6ae06eae994dc69d899a0caef90bde04e693319c0283cde8a86449",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "module-property-management.jpg",
+    "mode": "menu",
+    "caption": "Property Management menu.",
+    "sha256": "4f574f4daff6eeea420279af85889626a3ff81cff40675e2749d0733bbb5c05a",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "module-public-sector.jpg",
+    "mode": "menu",
+    "caption": "Public Sector menu.",
+    "sha256": "01f033c300637bf9dd36896487cec722bc835b29592916268da73de0d062aa61",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "module-corporate-administration.jpg",
+    "mode": "menu",
+    "caption": "Corporate Administration menu.",
+    "sha256": "a83342679679c21014e68a1de026f259b0d8845aeaa17722a156d29cd62bbac2",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  },
+  {
+    "file": "module-insurance-management.jpg",
+    "mode": "menu",
+    "caption": "Insurance Management menu.",
+    "sha256": "8d0a9f7b62081bf639e444409e174fdb658bff44ab2b24da4b187da2f3a31353",
+    "captured": "2026-10-05",
+    "organisation": "TEMPLATE"
+  }
+]

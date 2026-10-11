@@ -94,3 +94,8 @@ test("optional roles may have gaps or no assignments", () => {
     [],
   );
 });
+
+test("database Date values are accepted when editing existing objects", () => {
+  assert.deepEqual(validateResourceAssignments([], [], new Date("2026-01-01T00:00:00Z"), null), []);
+  assert.ok(validateResourceAssignments([], [], new Date("invalid"), null).length);
+});

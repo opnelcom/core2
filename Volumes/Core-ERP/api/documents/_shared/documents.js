@@ -1,7 +1,7 @@
 'use strict';
-const {authTenant,clean}=require('../../_shared/erp');
+const {authTenant,clean,requireModuleAccess,requireResourcePermission}=require('../../_shared/erp');
 
-const entityKinds=new Set(['gl_account','subledger_account','journal','legal_entity']);
+const entityKinds=new Set(['gl_account','subledger_account','journal','legal_entity','accounting_object']);
 
 function parseDataUrl(value){
   const match=String(value||'').match(/^data:([^;,]+);base64,(.+)$/);
@@ -9,22 +9,31 @@ function parseDataUrl(value){
   return {mimeType:match[1],base64:match[2]};
 }
 
-async function requireEntity(ctx,access,orgId,kind,id){
+async function requireEntity(ctx,access,orgId,kind,id,workflowStatus='view'){
   const tables={
     gl_account:['erp_gl_account','gl_account_id'],
     subledger_account:['erp_subledger_account','subledger_account_id'],
     journal:['erp_journal','journal_id'],
-    legal_entity:['erp_legal_entity','legal_entity_id']
+    legal_entity:['erp_legal_entity','legal_entity_id'],
+    accounting_object:['erp_accounting_object','accounting_object_id']
   };
   const [table,column]=tables[kind]||[];
   if(!table)return false;
   const r=await ctx.broker('core_erp','query',{
-    text:`SELECT 1 FROM ${table}
+    text:`SELECT ${kind==='accounting_object'?'accounting_object_type_id,owner_division_id':'1'} FROM ${table}
           WHERE tenant_id=$1 AND organisation_id=$2 AND ${column}=$3
           AND workflow_status <> 'deleted'`,
     values:[access.tenantId,orgId,id]
   });
-  return !!r.rowCount;
+  if(!r.rowCount)return false;
+  if(kind==='accounting_object'){
+    const object=r.rows[0];
+    const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:orgId,resourceKind:'accounting_object_type',resourceCode:object.accounting_object_type_id});
+    if(moduleDenied)return moduleDenied;
+    const denied=await requireResourcePermission(ctx,access,{organisationId:orgId,divisionId:object.owner_division_id,resourceKind:'accounting_object',resourceCode:object.accounting_object_type_id,workflowStatus});
+    if(denied)return denied;
+  }
+  return true;
 }
 
 async function listDocuments(ctx){
@@ -35,7 +44,9 @@ async function listDocuments(ctx){
   const entityId=clean(ctx.query.entity_id||ctx.body.entity_id);
   if(!orgId||!kind||!entityId)return ctx.send(400,{error:'Organisation, entity kind and entity id are required'});
   if(!entityKinds.has(kind))return ctx.send(400,{error:'Unsupported entity kind'});
-  if(!await requireEntity(ctx,access,orgId,kind,entityId))return ctx.send(404,{error:'Entity not found'});
+  const entity=await requireEntity(ctx,access,orgId,kind,entityId);
+  if(!entity)return ctx.send(404,{error:'Entity not found'});
+  if(entity.status)return ctx.send(entity.status,entity.body);
   const r=await ctx.broker('core_erp','query',{
     text:`SELECT document_id,entity_kind,entity_id,document_type,file_name,mime_type,file_size,description,created_by_email,created_at,
                  'data:' || mime_type || ';base64,' || encode(file_data,'base64') AS data_url
@@ -60,7 +71,9 @@ async function uploadDocument(ctx){
   const parsed=parseDataUrl(ctx.body.data_url);
   if(!orgId||!kind||!entityId||!fileName||!parsed)return ctx.send(400,{error:'Organisation, entity, file name and data are required'});
   if(!entityKinds.has(kind))return ctx.send(400,{error:'Unsupported entity kind'});
-  if(!await requireEntity(ctx,access,orgId,kind,entityId))return ctx.send(404,{error:'Entity not found'});
+  const entity=await requireEntity(ctx,access,orgId,kind,entityId,'*');
+  if(!entity)return ctx.send(404,{error:'Entity not found'});
+  if(entity.status)return ctx.send(entity.status,entity.body);
   const size=Buffer.from(parsed.base64,'base64').length;
   if(size>10*1024*1024)return ctx.send(400,{error:'Document must be 10MB or smaller'});
   const r=await ctx.broker('core_erp','query',{
@@ -80,6 +93,17 @@ async function deleteDocument(ctx){
   if(access.status)return ctx.send(access.status,access.body);
   const id=clean(ctx.body.document_id||ctx.query.document_id);
   if(!id)return ctx.send(400,{error:'Document id is required'});
+  const document=await ctx.broker('core_erp','query',{
+    text:`SELECT organisation_id,entity_kind,entity_id FROM erp_supporting_document WHERE tenant_id=$1 AND document_id=$2 AND deleted=false`,
+    values:[access.tenantId,id]
+  });
+  if(!document.rowCount)return ctx.send(404,{error:'Document not found'});
+  const record=document.rows[0];
+  if(record.entity_kind==='accounting_object'){
+    const entity=await requireEntity(ctx,access,record.organisation_id,record.entity_kind,record.entity_id,'*');
+    if(!entity)return ctx.send(404,{error:'Entity not found'});
+    if(entity.status)return ctx.send(entity.status,entity.body);
+  }
   const r=await ctx.broker('core_erp','query',{
     text:`UPDATE erp_supporting_document
           SET deleted=true,deleted_at=now(),updated_at=now()

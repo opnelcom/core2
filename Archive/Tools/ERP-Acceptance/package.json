@@ -1,0 +1,7 @@
+{
+  "name": "erp-acceptance", "version": "0.1.0", "private": true,
+  "description": "Independent ERP acceptance walkthrough and API runner",
+  "engines": { "node": ">=22" },
+  "scripts": { "start": "node server.js", "test": "node --test test/*.test.js", "run": "node cli.js", "browser:install": "playwright install chromium" },
+  "dependencies": { "playwright": "1.62.1" }
+}

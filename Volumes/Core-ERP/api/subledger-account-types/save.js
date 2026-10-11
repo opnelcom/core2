@@ -1,10 +1,12 @@
 "use strict";
+const { validateCodeNumbering } = require("../_shared/erp/code-numbering");
 const {
   authTenant,
   requireAdmin,
   clean,
   nullable,
   bool,
+  validateSchemaDefinition,
   validateWorkflowPath,
   validateTypeResourceRoleMappings,
   saveTypeResourceRoleMappings,
@@ -33,6 +35,9 @@ module.exports = async (ctx) => {
   if (access.status) return ctx.send(access.status, access.body);
   const denied = requireAdmin(access);
   if (denied) return ctx.send(denied.status, denied.body);
+  const numbering = validateCodeNumbering(ctx.body.code_numbering);
+  if (numbering.error) return ctx.send(400, { error: numbering.error });
+  const numberingJson = numbering.value === null ? null : JSON.stringify(numbering.value);
   const id = nullable(ctx.body.subledger_account_type_id);
   const orgId = ctx.body.organisation_id;
   const code = clean(ctx.body.type_code).toLowerCase().replace(/\s+/g, "_");
@@ -49,6 +54,8 @@ module.exports = async (ctx) => {
     return ctx.send(400, {
       error: "Schema and UI schema must be valid JSON objects",
     });
+  const schemaErrors = validateSchemaDefinition(schema);
+  if (schemaErrors.length) return ctx.send(400, { error: "Schema attributes are invalid", errors: schemaErrors });
   const invalidWorkflow = await validateWorkflowPath(ctx, access, {
     organisationId: orgId,
     workflowPathId,
@@ -75,7 +82,7 @@ module.exports = async (ctx) => {
   }
   const result = id
     ? await ctx.broker("core_erp", "query", {
-        text: `UPDATE erp_subledger_account_type SET type_code=$3,type_name=$4,type_description=$5,workflow_path_id=$6,requires_legal_entity=$7,schema_json=$8::jsonb,ui_schema_json=$9::jsonb,is_active=$10,updated_at=now() WHERE tenant_id=$1 AND subledger_account_type_id=$2 RETURNING *`,
+        text: `UPDATE erp_subledger_account_type SET type_code=$3,type_name=$4,type_description=$5,workflow_path_id=$6,requires_legal_entity=$7,schema_json=$8::jsonb,ui_schema_json=$9::jsonb,is_active=$10,code_numbering=COALESCE($11::jsonb,code_numbering),updated_at=now() WHERE tenant_id=$1 AND subledger_account_type_id=$2 AND organisation_id=$12 RETURNING *`,
         values: [
           access.tenantId,
           id,
@@ -87,10 +94,12 @@ module.exports = async (ctx) => {
           JSON.stringify(schema),
           JSON.stringify(uiSchema),
           bool(ctx.body.is_active),
+          numberingJson,
+          orgId,
         ],
       })
     : await ctx.broker("core_erp", "query", {
-        text: `INSERT INTO erp_subledger_account_type(tenant_id,organisation_id,type_code,type_name,type_description,workflow_path_id,requires_legal_entity,schema_json,ui_schema_json,is_seeded,is_active) VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,false,$10) RETURNING *`,
+        text: `INSERT INTO erp_subledger_account_type(tenant_id,organisation_id,type_code,type_name,type_description,workflow_path_id,requires_legal_entity,schema_json,ui_schema_json,is_seeded,is_active,code_numbering) VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,false,$10,COALESCE($11::jsonb,'{"mode":"manual"}'::jsonb)) RETURNING *`,
         values: [
           access.tenantId,
           orgId,
@@ -102,6 +111,7 @@ module.exports = async (ctx) => {
           JSON.stringify(schema),
           JSON.stringify(uiSchema),
           bool(ctx.body.is_active),
+          numberingJson,
         ],
       });
   if (!result.rowCount)

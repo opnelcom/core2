@@ -6,7 +6,7 @@
     <title>Core ERP</title>
     <link
       rel="stylesheet"
-      href="/erp/style.css?v=20261001-viewport-scroll-layout"
+      href="/erp/style.css?v=20261011-exchange-rates"
     />
     <script>
       (function () {
@@ -174,6 +174,7 @@
           </button>
         </div>
         <div class="sidebar-menu-scroll">
+          <nav id="favourites-menu" aria-label="Favourites" hidden></nav>
           <nav id="technical-menu" aria-label="Technical menu"></nav>
           <nav id="module-menu" aria-label="Modules menu" hidden></nav>
           <nav id="role-menu" aria-label="Roles menu" hidden></nav>
@@ -191,9 +192,7 @@
         <header class="topbar">
           <div>
             <h1 id="page-title">Dashboard</h1>
-            <p id="page-subtitle">
-              Configuration-heavy ERP core seeded with sensible defaults.
-            </p>
+            <p id="page-subtitle" hidden></p>
           </div>
           <div class="topbar-actions">
             <button id="refresh">Refresh</button>
@@ -341,6 +340,7 @@
               ><label class="check"
                 ><input type="checkbox" id="copy-permissions" checked /> Roles
                 and permissions</label
+              ><label class="check"><input type="checkbox" id="copy-reports" checked /> Report definitions (copied inactive for review)</label
               >
             </div>
             <div class="actions">
@@ -461,6 +461,8 @@
                   type="button"
                   id="add-fiscal-year"
                   class="add-record-button"
+                  aria-label="Add fiscal year"
+                  title="Add fiscal year"
                 >
                   +
                 </button>
@@ -474,7 +476,7 @@
             </div>
             <div class="editor-stack">
               <div id="fiscal-editor-panel" class="panel form" hidden>
-                <form id="fiscal-form" class="form">
+                <form id="fiscal-form" class="form accounting-record-editor erp-field-rows">
                   <h2>Define Fiscal Year</h2>
                   <input type="hidden" id="fiscal-year-id" /><label
                     >Code<input
@@ -502,7 +504,8 @@
                     ><input type="checkbox" id="fiscal-periods" checked />
                     Create 12 monthly periods</label
                   >
-                  <div class="actions">
+                  <div class="actions account-editor-actions">
+                    <button type="button" class="secondary" data-panel-cancel>Cancel</button>
                     <button type="submit">Save Fiscal Year</button
                     ><button
                       type="button"
@@ -515,8 +518,9 @@
                 </form>
               </div>
               <div id="fiscal-period-panel" class="panel form" hidden>
-                <form id="fiscal-period-form" class="form">
+                <form id="fiscal-period-form" class="form accounting-record-editor erp-field-rows">
                   <h2>Edit Fiscal Period</h2>
+                  <p id="period-year-context" class="muted"></p>
                   <input type="hidden" id="fiscal-period-id" /><input
                     type="hidden"
                     id="period-year-id"
@@ -544,7 +548,8 @@
                       <option value="locked">Locked</option>
                     </select></label
                   >
-                  <div class="actions">
+                  <div class="actions account-editor-actions">
+                    <button type="button" class="secondary" data-panel-cancel>Cancel</button>
                     <button type="submit">Save Period</button
                     ><button
                       type="button"
@@ -618,12 +623,12 @@
                   ></select></label
                 ><label
                   >Owner division<select id="account-division"></select></label
-                ><label>Code<input id="account-code" required /></label
-                ><label>Name<input id="account-name" required /></label
                 ><label
                   >Legal entity<select
                     id="account-legal-entity"
                   ></select></label
+                ><label>Code<input id="account-code" required /></label
+                ><label>Name<input id="account-name" required /></label
                 ><label
                   >Required subledger<select
                     id="account-subledger-family"
@@ -976,6 +981,11 @@
           <form id="journal-form" class="panel form" hidden>
             <h2>Transaction Capture</h2>
             <input type="hidden" id="journal-id" />
+            <div class="tabs setup-type-tabs" role="tablist" aria-label="Transaction capture">
+              <button type="button" id="journal-transaction-tab" class="tab active" role="tab" data-setup-type-tab="journal" data-tab="transaction" aria-controls="journal-transaction-panel" aria-selected="true">Transaction</button>
+              <button type="button" id="journal-documents-tab" class="tab" role="tab" data-setup-type-tab="journal" data-tab="documents" aria-controls="journal-documents-panel" aria-selected="false" tabindex="-1">Documents</button>
+            </div>
+            <div id="journal-transaction-panel" class="setup-type-panel" role="tabpanel" aria-labelledby="journal-transaction-tab" data-setup-type-panel="journal" data-panel="transaction">
             <div class="journal-header">
               <div class="journal-header-left">
                 <label
@@ -1000,6 +1010,8 @@
               </div>
             </div>
             <div id="journal-lines"></div>
+            </div>
+            <div id="journal-documents-panel" class="setup-type-panel" role="tabpanel" aria-labelledby="journal-documents-tab" data-setup-type-panel="journal" data-panel="documents" hidden>
             <section class="document-section">
               <div class="document-toolbar">
                 <h2>Documents</h2>
@@ -1014,7 +1026,9 @@
               <input id="journal-document-file" type="file" hidden />
               <div id="journal-document-list" class="document-list"></div>
             </section>
+            </div>
             <div class="actions">
+              <button type="button" id="return-trial-balance" class="secondary" hidden>Back to Trial Balance</button>
               <button type="button" id="add-journal-line" class="secondary">
                 Add Line</button
               ><button type="submit" id="journal-save">Save Draft</button
@@ -1054,6 +1068,39 @@
             </div>
           </form>
         </section>
+        <section id="view-reportdefinitions" class="view" hidden>
+          <div class="split"><div class="panel">
+            <div class="panel-head"><h2>Report definitions</h2><div class="panel-actions"><button type="button" id="new-report-definition" class="add-record-button" aria-label="Add report definition" title="Add report definition">+</button></div></div>
+            <input id="report-definition-search" class="grid-search" placeholder="Search report definitions" aria-label="Search report definitions" />
+            <p id="report-definitions-status" role="status"></p><div id="report-definition-list"></div>
+            </div>
+            <form id="report-definition-form" class="panel form accounting-record-editor" aria-labelledby="report-definition-title" hidden>
+              <button type="button" id="close-report-definition" class="panel-close" aria-label="Close report editor">&times;</button>
+              <div class="panel-head"><h2 id="report-definition-title">Report definition</h2></div>
+              <div class="account-fixed-tabs account-editor-tabs" role="tablist" aria-label="Report definition fields"><button type="button" id="report-tab-details" class="account-detail-tab" role="tab" aria-controls="report-panel-details" data-report-tab="details">Details</button><button type="button" id="report-tab-columns" class="account-detail-tab" role="tab" aria-controls="report-panel-columns" data-report-tab="columns">Columns</button><button type="button" id="report-tab-filters" class="account-detail-tab" role="tab" aria-controls="report-panel-filters" data-report-tab="filters">Filters and parameters</button><button type="button" id="report-tab-sort" class="account-detail-tab" role="tab" aria-controls="report-panel-sort" data-report-tab="sort">Sorting</button><button type="button" id="report-tab-scope" class="account-detail-tab" role="tab" aria-controls="report-panel-scope" data-report-tab="scope">Scope</button></div>
+              <div id="report-panel-details" role="tabpanel" aria-labelledby="report-tab-details" data-report-panel="details">
+              <div class="report-design-row">
+                <label>Code<input id="report-design-code" required maxlength="60" pattern="[a-z][a-z0-9_]*" /></label>
+                <label>Name<input id="report-design-name" required maxlength="120" /></label>
+                <label>Active<input id="report-design-active" type="checkbox" checked /></label>
+              </div>
+              <label>Description<textarea id="report-design-description" rows="3" maxlength="4000"></textarea></label>
+              <label>Row source<select id="report-design-dataset" required aria-describedby="report-design-dataset-help"></select><small id="report-design-dataset-help" class="detail-field-help">Choose one row source. A child collection includes parent fields. Changing the source clears columns, filters and sorting.</small></label>
+              </div><div id="report-panel-columns" role="tabpanel" aria-labelledby="report-tab-columns" data-report-panel="columns" hidden><h3>Columns</h3><div class="schema-grid-scroll"><table class="data-grid report-column-grid"><thead><tr><th scope="col">Field</th><th scope="col">Column heading</th><th scope="col">Actions</th></tr></thead><tbody id="report-design-columns"></tbody></table></div><button type="button" id="report-add-column">Add column</button>
+              </div><div id="report-panel-filters" role="tabpanel" aria-labelledby="report-tab-filters" data-report-panel="filters" hidden><h3>Filters and user parameters</h3><p>All conditions apply together. An empty optional parameter skips its condition.</p><div class="schema-grid-scroll"><table class="data-grid report-config-grid report-filters-grid"><thead><tr><th scope="col">Field</th><th scope="col">Condition</th><th scope="col">Input</th><th scope="col">Fixed value</th><th scope="col">Parameter key</th><th scope="col">Parameter label</th><th scope="col">Required</th><th scope="col">Actions</th></tr></thead><tbody id="report-design-filters"></tbody></table></div><button type="button" id="report-add-filter">Add condition</button>
+              </div><div id="report-panel-sort" role="tabpanel" aria-labelledby="report-tab-sort" data-report-panel="sort" hidden><h3>Sorting</h3><div class="schema-grid-scroll"><table class="data-grid report-config-grid report-sort-grid"><thead><tr><th scope="col">Field</th><th scope="col">Direction</th><th scope="col">Actions</th></tr></thead><tbody id="report-design-sort"></tbody></table></div><button type="button" id="report-add-sort">Add sort</button>
+              </div><div id="report-panel-scope" role="tabpanel" aria-labelledby="report-tab-scope" data-report-panel="scope" hidden><h3>Modules</h3><p>Allocate this report to one or more modules for menu navigation. Report permissions control who can run it.</p><div id="report-design-modules" class="module-checklist"></div></div><div class="actions account-editor-actions"><button type="submit">Save report</button><button type="button" id="cancel-report-definition" class="secondary">Cancel</button></div>
+            </form>
+          </div>
+        </section>
+        <section id="view-customreports" class="view" hidden>
+          <div class="panel"><h2>Defined reports</h2>
+            <p>Organisation and division use the active workspace context. Report grants control access. Excel export runs a new live query, with a maximum of 10,000 rows.</p>
+            <form id="custom-report-form"><label>Report<select id="custom-report-choice"></select></label><p id="custom-report-description"></p><div id="custom-report-parameters" class="report-design-row"></div><button id="custom-report-run" type="submit">Run report</button></form>
+            <div class="actions"><button id="custom-report-previous" type="button" disabled>Previous</button><button id="custom-report-next" type="button" disabled>Next</button><button id="custom-report-export" type="button" disabled>Export Excel</button></div>
+            <p id="custom-report-status" role="status" aria-live="polite"></p><div id="custom-report-result" class="report-table-scroll"></div>
+          </div>
+        </section>
         <section id="view-reports" class="view" hidden>
           <div class="panel">
             <div class="panel-head">
@@ -1063,7 +1110,7 @@
             <div class="report-controls">
               <label id="report-format-label"
                 >Format<select id="report-format"></select></label
-              ><label>Fiscal year<select id="report-year"></select></label
+              ><label id="report-year-label">Fiscal year<select id="report-year"></select></label
               ><label id="report-period-from-label"
                 >Period from<select id="report-period-from"></select></label
               ><label id="report-period-to-label"
@@ -1084,6 +1131,17 @@
                 >Division<select id="report-division"></select
               ></label>
             </div>
+            <div id="trial-balance-controls" class="report-controls" hidden>
+              <label>Range<select id="trial-range-mode"><option value="periods">Fiscal periods</option><option value="dates">Dates</option></select></label>
+              <label id="trial-date-from-label" hidden>From date<input id="trial-date-from" type="date" /></label>
+              <label id="trial-date-to-label" hidden>To date<input id="trial-date-to" type="date" /></label>
+              <label>Find account<input id="trial-account-search" type="search" placeholder="Account code or name" /></label>
+              <label>Account type<select id="trial-account-type"><option value="">All account types</option></select></label>
+              <label class="check"><input id="trial-hide-empty" type="checkbox" checked />Hide accounts without a balance or movement</label>
+              <button id="trial-export" type="button" class="secondary">Export CSV</button>
+            </div>
+            <p id="trial-balance-status" role="status" hidden></p>
+            <div id="trial-balance-detail" hidden></div>
             <div id="report-result"></div>
           </div>
         </section>
@@ -1165,6 +1223,11 @@
         <section id="view-currencies" class="view" hidden>
           <div class="split">
             <div class="panel">
+              <div id="currency-tabs" class="tabs setup-type-tabs" aria-label="Currency setup">
+                <button type="button" class="tab active">Currency definitions</button>
+                <button type="button" class="tab">Exchange rates</button>
+              </div>
+              <div id="currency-definition-panel">
               <div class="panel-head">
                 <h2>Currencies</h2>
                 <button
@@ -1181,21 +1244,47 @@
                 placeholder="Search currencies"
               />
               <div id="currency-list"></div>
+              </div>
+              <div id="exchange-rate-list-panel" hidden>
+                <div class="panel-head"><h2>Exchange rates</h2><div class="panel-actions"><button type="button" id="add-exchange-rate" class="add-record-button" aria-label="Add exchange rate" title="Add exchange rate">+</button></div></div>
+                <input id="exchange-rate-search" class="grid-search" placeholder="Search exchange rates" aria-label="Search exchange rates" />
+                <p id="exchange-rate-list-error" class="form-error" role="alert" hidden></p>
+                <div id="exchange-rate-list"></div>
+              </div>
             </div>
             <form id="currency-form" class="panel form" hidden>
+              <p id="currency-error" class="form-error" role="alert" hidden></p>
               <h2>Manage Currency</h2>
               <label
                 >Code<input id="currency-code" maxlength="3" required /></label
               ><label>Name<input id="currency-name" required /></label
               ><label
-                >Decimals<input id="currency-decimals" type="number" value="2"
+                >Decimals<input id="currency-decimals" type="number" value="2" min="0" max="2" required
               /></label>
+              <label>Symbol<input id="currency-symbol" maxlength="12" placeholder="e.g. R" /></label>
+              <label>Symbol position<select id="currency-symbol-position"><option value="before">Before amount</option><option value="after">After amount</option></select></label>
+              <label>Thousands separator<select id="currency-thousands"><option value=",">Comma</option><option value=".">Point</option><option value=" ">Space</option><option value="">None</option></select></label>
+              <label>Decimal separator<select id="currency-decimal-separator"><option value=".">Point</option><option value=",">Comma</option></select></label>
+              <p>Preview: <output id="currency-format-preview"></output></p>
               <div class="actions">
                 <button type="submit">Save Currency</button
                 ><button type="button" id="new-currency" class="secondary">
                   New
                 </button>
               </div>
+            </form>
+            <form id="exchange-rate-form" class="panel form accounting-record-editor erp-field-rows" hidden>
+              <h2>Manage Exchange Rate</h2>
+              <p id="exchange-rate-error" class="form-error" role="alert" hidden></p>
+              <label>From currency<select id="exchange-rate-from" required></select></label>
+              <label>To currency<select id="exchange-rate-to" required></select></label>
+              <label>Effective from<input id="exchange-rate-date" type="date" min="0001-01-01" max="9999-12-31" required /></label>
+              <label>Rate<input id="exchange-rate-value" inputmode="decimal" maxlength="29" required aria-describedby="exchange-rate-preview" /></label>
+              <div id="exchange-rate-preview" class="exchange-rate-preview" aria-live="polite"><strong id="exchange-rate-forward"></strong><span id="exchange-rate-reverse"></span><small>Reverse rate calculated</small></div>
+              <label hidden>Correction reason<textarea id="exchange-rate-reason" maxlength="1000" rows="3" aria-describedby="exchange-rate-reason-help"></textarea><small id="exchange-rate-reason-help" class="detail-field-help">Required when changing a saved rate</small></label>
+              <p id="exchange-rate-updated" class="empty"></p>
+              <div id="exchange-rate-history"></div>
+              <div class="actions account-editor-actions"><button type="button" class="secondary" data-panel-cancel>Cancel</button><button type="submit" id="exchange-rate-save">Save Rate</button></div>
             </form>
           </div>
         </section>
@@ -1267,16 +1356,17 @@
               <input id="gl-account-type-search" class="grid-search" placeholder="Search GL account types" />
               <div id="gl-account-type-list"></div>
             </div>
-            <form id="gl-account-type-form" class="panel form" hidden>
+            <form id="gl-account-type-form" class="panel form accounting-record-editor" hidden>
               <h2>Manage GL Account Type</h2>
               <input type="hidden" id="gl-account-type-id" />
               <label>Code<input id="gl-account-type-code" required /></label>
               <label>Name<input id="gl-account-type-name" required /></label>
               <label class="check"><input type="checkbox" id="gl-account-type-required" checked /> Required in chart</label>
               <label class="check"><input type="checkbox" id="gl-account-type-active" checked /> Active</label>
-              <div class="actions">
+              <div class="actions account-editor-actions">
+                <button type="button" class="secondary" data-panel-cancel>Cancel</button>
                 <button type="submit">Save GL Account Type</button>
-                <button type="button" id="new-gl-account-type" class="secondary">New</button>
+                <button type="button" id="new-gl-account-type" class="secondary" hidden>New</button>
               </div>
             </form>
           </div>
@@ -1363,10 +1453,6 @@
                   id="accounting-object-type-schema"
                   placeholder="Use properties with type, options: [{code, description}], and uiWidth: short, medium, wide, full"
                 ></textarea></label
-              ><label
-                >UI schema<textarea
-                  id="accounting-object-type-ui-schema"
-                ></textarea></label
               ><label class="check"
                 ><input
                   type="checkbox"
@@ -1422,10 +1508,6 @@
                 >JSON schema<textarea
                   id="accounting-dimension-type-schema"
                   placeholder="Use properties with type, options: [{code, description}], and uiWidth: short, medium, wide, full"
-                ></textarea></label
-              ><label
-                >UI schema<textarea
-                  id="accounting-dimension-type-ui-schema"
                 ></textarea></label
               ><label class="check"
                 ><input
@@ -1581,7 +1663,8 @@
               />
               <div id="transaction-reference"></div>
             </div>
-            <form id="transaction-type-form" class="panel form" hidden>
+            <form id="transaction-type-form" class="panel form" hidden novalidate>
+              <p id="transaction-type-error" role="alert" class="form-error" hidden></p>
               <h2>Manage Transaction Type</h2>
               <input type="hidden" id="transaction-type-id" /><label
                 >Group<select id="transaction-type-group"></select></label
@@ -1634,6 +1717,7 @@
                 >
                   New
                 </button>
+                <button type="button" id="copy-transaction-type" class="secondary">Copy</button>
               </div>
             </form>
           </div>
@@ -1670,6 +1754,8 @@
                   Users</button
                 ><button type="button" class="tab" data-role-tab="master">
                   Master Data</button
+                ><button type="button" class="tab" data-role-tab="reports">
+                  Reports</button
                 ><button type="button" class="tab" data-role-tab="transaction">
                   Transactions
                 </button>
@@ -1700,6 +1786,11 @@
                 </div>
                 <div id="master-permission-lines"></div>
               </div>
+              <div class="permission-section" id="role-tab-reports" hidden>
+                <h2>Report permissions</h2>
+                <p>Assign individual reports by division. Module assignments control navigation and do not grant report access.</p>
+                <div id="report-permission-lines"></div>
+              </div>
               <div class="permission-section" id="role-tab-transaction" hidden>
                 <div class="panel-head">
                   <h2>Transaction Permissions</h2>
@@ -1722,6 +1813,26 @@
             </form>
           </div>
         </section>
+        <section id="view-schemauitester" class="view" hidden>
+          <div class="schema-ui-tester-layout">
+            <section class="panel schema-ui-tester-source">
+              <h2>Schema JSON</h2>
+              <p class="muted">Paste an object schema to test its fields, tabs and grids.</p>
+              <label for="schema-ui-tester-json">Schema JSON</label>
+              <textarea id="schema-ui-tester-json" rows="20" spellcheck="false" placeholder='{"type":"object","properties":{},"required":[]}'></textarea>
+              <div class="actions">
+                <button type="button" id="schema-ui-tester-render">Render preview</button>
+                <button type="button" id="schema-ui-tester-clear" class="secondary">Clear</button>
+              </div>
+              <p id="schema-ui-tester-status" class="schema-preview-message" role="status" aria-live="polite"></p>
+            </section>
+            <section class="panel schema-design-preview schema-ui-tester-preview">
+              <h2>UI preview</h2>
+              <p class="muted">Try the controls and add grid rows. Nothing entered here is saved. Reference choices use the active organisation.</p>
+              <div id="schema-ui-tester-fields"></div>
+            </section>
+          </div>
+        </section>
         <section id="view-modules" class="view" hidden>
           <div class="split">
             <div class="panel">
@@ -1738,7 +1849,7 @@
               />
               <div id="module-list"></div>
             </div>
-            <form id="module-form" class="panel form" hidden>
+            <form id="module-form" class="panel form accounting-record-editor" hidden>
               <h2>Manage Module</h2>
               <input type="hidden" id="module-id" /><label
                 >Code<input id="module-code" required /></label
@@ -1754,8 +1865,9 @@
                 Active</label
               >
               <div class="actions">
+                <button type="button" class="secondary" data-panel-cancel>Cancel</button>
                 <button type="submit">Save Module</button
-                ><button type="button" id="new-module" class="secondary">
+                ><button type="button" id="new-module" class="secondary" hidden>
                   New
                 </button>
               </div>
@@ -1909,7 +2021,7 @@
               />
               <div id="resource-list"></div>
             </div>
-            <form id="resource-form" class="panel form" hidden>
+            <form id="resource-form" class="panel form accounting-record-editor" hidden>
               <h2>Manage Resource</h2>
               <input type="hidden" id="resource-id" />
               <label>Code<input id="resource-code" required /></label>
@@ -1936,8 +2048,9 @@
                 Active</label
               >
               <div class="actions">
+                <button type="button" id="cancel-resource" class="secondary">Cancel</button>
                 <button type="submit">Save Resource</button>
-                <button type="button" id="new-resource" class="secondary">
+                <button type="button" id="new-resource" class="secondary" hidden>
                   New
                 </button>
               </div>
@@ -2032,6 +2145,11 @@
         </form>
       </section>
     </div>
-    <script src="/erp/app.js?v=20261001-auth-schema-separation"></script>
+    <script src="/erp/currency-format.js?v=20261003"></script>
+    <script src="/erp/trial-balance-math.js?v=20261003"></script>
+    <script src="/erp/report-builder.js?v=field-captions-20261005-menu"></script>
+    <script src="/erp/exchange-rate-math.js?v=20261011"></script>
+    <script src="/erp/exchange-rates.js?v=20261011"></script>
+    <script src="/erp/app.js?v=20261011-exchange-rates"></script>
   </body>
 </html>

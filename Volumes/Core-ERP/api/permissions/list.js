@@ -26,7 +26,8 @@ module.exports=async ctx=>{
                    adt.type_name AS accounting_dimension_type_name,
                    tt.type_code AS transaction_type_code,
                    tt.type_name AS transaction_type_name,
-                   tg.group_name AS transaction_group_name
+                   tg.group_name AS transaction_group_name,
+                   report.report_name
             FROM erp_role_permission rp
             LEFT JOIN erp_division d ON d.division_id=rp.division_id
             LEFT JOIN erp_subledger_account_type sat ON sat.tenant_id=rp.tenant_id
@@ -46,6 +47,7 @@ module.exports=async ctx=>{
               AND tt.transaction_type_id::text=rp.resource_code
               AND rp.resource_kind='transaction'
             LEFT JOIN erp_transaction_group tg ON tg.transaction_group_id=tt.transaction_group_id
+            LEFT JOIN erp_report report ON report.tenant_id=rp.tenant_id AND report.organisation_id=rp.organisation_id AND report.report_id::text=rp.resource_code AND rp.resource_kind='report'
             WHERE rp.tenant_id=$1 AND rp.organisation_id=$2
             ORDER BY rp.resource_kind,d.division_code,rp.workflow_status,rp.resource_code`,
       values:[access.tenantId,orgId]

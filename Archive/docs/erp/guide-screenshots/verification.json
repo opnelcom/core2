@@ -1,0 +1,21 @@
+{
+  "pdf": "\\\\192.168.1.31\\joppenheim\\projects\\saas14\\output\\pdf\\erp-full-guide.pdf",
+  "pages": 135,
+  "bookmarks": 108,
+  "figures": 44,
+  "unique_screenshots": 44,
+  "modules": 16,
+  "subledger_types": 8,
+  "object_types": 10,
+  "dimension_types": 17,
+  "transaction_types": 52,
+  "empty_pages": [],
+  "bookmark_destinations_valid": true,
+  "contents_links_valid": true,
+  "checked_internal_links": 124,
+  "transaction_codes_present": true,
+  "all_pages_rendered": true,
+  "all_pages_visually_reviewed": true,
+  "live_business_records_saved": false,
+  "example_journals_posted": false
+}

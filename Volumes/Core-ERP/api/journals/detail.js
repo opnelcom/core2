@@ -1,38 +1,25 @@
 'use strict';
-const {authTenant,requireModuleAccess}=require('../_shared/erp');
+const {authTenant,requireModuleAccess,isAdministrator}=require('../_shared/erp');
+const {transactionVisibilitySql}=require('../_shared/erp/transaction-visibility');
 
 module.exports=async ctx=>{
-  const access=await authTenant(ctx);
+  let access=await authTenant(ctx);
   if(access.status)return ctx.send(access.status,access.body);
   const id=ctx.query.journal_id;
   if(!id)return ctx.send(400,{error:'journal_id is required'});
+  const owner=await ctx.broker('core_erp','query',{
+    text:`SELECT organisation_id FROM erp_journal WHERE tenant_id=$1 AND journal_id=$2`,values:[access.tenantId,id]
+  });
+  if(!owner.rows.length)return ctx.send(404,{error:'Journal not found'});
+  if(access.organisationId!==owner.rows[0].organisation_id){
+    access=await authTenant(ctx,owner.rows[0].organisation_id);
+    if(access.status)return ctx.send(access.status,access.body);
+  }
   const journal=await ctx.broker('core_erp','query',{
-    text:`SELECT *
-          FROM erp_journal j
-          WHERE j.tenant_id=$1 AND j.journal_id=$2
-          AND (
-            EXISTS (
-              WITH RECURSIVE ancestors AS (
-                SELECT division_id,parent_division_id FROM erp_division WHERE division_id=j.source_division_id
-                UNION ALL
-                SELECT parent.division_id,parent.parent_division_id
-                FROM erp_division parent
-                JOIN ancestors child ON child.parent_division_id=parent.division_id
-              )
-              SELECT 1
-              FROM erp_user_role ur
-              JOIN erp_role role ON role.role_id=ur.role_id
-              JOIN erp_role_permission rp ON rp.role_id=role.role_id
-              JOIN ancestors scope ON scope.division_id=rp.division_id
-              WHERE ur.tenant_id=$1 AND ur.organisation_id=j.organisation_id AND lower(ur.email)=lower($3)
-              AND role.is_active=true AND ur.valid_from <= CURRENT_DATE AND (ur.valid_to IS NULL OR ur.valid_to >= CURRENT_DATE)
-              AND rp.resource_kind='transaction'
-              AND (rp.workflow_status='view' OR rp.workflow_status='*' OR rp.workflow_status=j.workflow_status)
-              AND (rp.resource_code=j.transaction_type_id::text OR rp.resource_code='*')
-            )
-            OR lower(j.created_by_email)=lower($3)
-          )`,
-    values:[access.tenantId,id,access.auth.email]
+    text:`SELECT j.* FROM erp_journal j WHERE j.tenant_id=$1 AND j.journal_id=$2 AND j.organisation_id=$4
+      AND (${transactionVisibilitySql({tenant:'$1',organisation:'$4',division:'j.source_division_id',transactionType:'j.transaction_type_id',status:"CASE WHEN j.workflow_status='reversed' THEN 'approved' ELSE j.workflow_status END",email:'$3',administrator:'$5'})}
+        OR lower(j.created_by_email)=lower($3))`,
+    values:[access.tenantId,id,access.auth.email,owner.rows[0].organisation_id,isAdministrator(access)]
   });
   if(!journal.rowCount)return ctx.send(404,{error:'Journal not found'});
   const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:journal.rows[0].organisation_id,resourceKind:'transaction_type',resourceCode:journal.rows[0].transaction_type_id});

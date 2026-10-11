@@ -1,5 +1,6 @@
 'use strict';
-const {authTenant,requireBusinessAccess}=require('../_shared/erp');
+const {authTenant,requireBusinessAccess,isAdministrator}=require('../_shared/erp');
+const {transactionVisibilitySql}=require('../_shared/erp/transaction-visibility');
 
 function accountAmountSql(statementType){
   if(statementType==='income')return `CASE
@@ -121,29 +122,10 @@ async function financialStatement(ctx,access){
               JOIN erp_fiscal_period fp ON fp.fiscal_period_id=j.fiscal_period_id
               WHERE j.tenant_id=$1
                 AND j.organisation_id=$2
-                AND j.workflow_status='approved'
+                AND j.workflow_status IN ('approved','reversed')
                 AND ${dateCondition}
                 AND ($6::uuid IS NULL OR l.division_id IN (SELECT division_id FROM selected_division))
-                AND (
-                  EXISTS (
-                    WITH RECURSIVE ancestors AS (
-                      SELECT division_id,parent_division_id FROM erp_division WHERE division_id=l.division_id
-                      UNION ALL
-                      SELECT parent.division_id,parent.parent_division_id
-                      FROM erp_division parent
-                      JOIN ancestors child ON child.parent_division_id=parent.division_id
-                    )
-                    SELECT 1
-                    FROM erp_user_role ur
-                    JOIN erp_role role ON role.role_id=ur.role_id
-                    JOIN erp_role_permission rp ON rp.role_id=role.role_id
-                    JOIN ancestors scope ON scope.division_id=rp.division_id
-                    WHERE ur.tenant_id=$1 AND ur.organisation_id=$2 AND lower(ur.email)=lower($7)
-                    AND role.is_active=true AND ur.valid_from <= CURRENT_DATE AND (ur.valid_to IS NULL OR ur.valid_to >= CURRENT_DATE)
-                    AND rp.resource_kind='transaction' AND rp.workflow_status='view'
-                    AND (rp.resource_code=j.transaction_type_id::text OR rp.resource_code='*')
-                  )
-                )
+                AND ${transactionVisibilitySql({tenant:'$1',organisation:'$2',division:'l.division_id',transactionType:'j.transaction_type_id',status:"'approved'",email:'$7',administrator:'$9'})}
             )
             SELECT m.financial_statement_line_id,
                    ${accountAmountSql(statementType)} amount
@@ -155,7 +137,7 @@ async function financialStatement(ctx,access){
               AND m.organisation_id=$2
               AND m.financial_statement_format_id=$3
             GROUP BY m.financial_statement_line_id,t.type_code`,
-      values:[access.tenantId,orgId,formatId,bounds.start_date,bounds.end_date,divisionId,access.auth.email,includeChildren]
+      values:[access.tenantId,orgId,formatId,bounds.start_date,bounds.end_date,divisionId,access.auth.email,includeChildren,isAdministrator(access)]
     });
   }
 
@@ -208,28 +190,9 @@ async function ledgerBalances(ctx,access){
             WHERE j.tenant_id=$1
               AND j.organisation_id=$2
               AND fp.fiscal_year_id=$3
-              AND j.workflow_status='approved'
+              AND j.workflow_status IN ('approved','reversed')
               AND ($4::uuid IS NULL OR l.division_id IN (SELECT division_id FROM selected_division))
-              AND (
-                EXISTS (
-                  WITH RECURSIVE ancestors AS (
-                    SELECT division_id,parent_division_id FROM erp_division WHERE division_id=l.division_id
-                    UNION ALL
-                    SELECT parent.division_id,parent.parent_division_id
-                    FROM erp_division parent
-                    JOIN ancestors child ON child.parent_division_id=parent.division_id
-                  )
-                  SELECT 1
-                  FROM erp_user_role ur
-                  JOIN erp_role role ON role.role_id=ur.role_id
-                  JOIN erp_role_permission rp ON rp.role_id=role.role_id
-                  JOIN ancestors scope ON scope.division_id=rp.division_id
-                  WHERE ur.tenant_id=$1 AND ur.organisation_id=$2 AND lower(ur.email)=lower($5)
-                  AND role.is_active=true AND ur.valid_from <= CURRENT_DATE AND (ur.valid_to IS NULL OR ur.valid_to >= CURRENT_DATE)
-                  AND rp.resource_kind='transaction' AND rp.workflow_status='view'
-                  AND (rp.resource_code=j.transaction_type_id::text OR rp.resource_code='*')
-                )
-              )
+              AND ${transactionVisibilitySql({tenant:'$1',organisation:'$2',division:'l.division_id',transactionType:'j.transaction_type_id',status:"'approved'",email:'$5',administrator:'$7'})}
           )
           SELECT a.account_code,
                  a.account_name,
@@ -249,7 +212,7 @@ async function ledgerBalances(ctx,access){
           GROUP BY a.account_code,a.account_name,t.type_code,t.type_name
           HAVING COALESCE(sum(l.debit_amount),0) <> 0 OR COALESCE(sum(l.credit_amount),0) <> 0
           ORDER BY t.type_code,a.account_code`,
-    values:[access.tenantId,orgId,fiscalYearId,divisionId,access.auth.email,includeChildren]
+    values:[access.tenantId,orgId,fiscalYearId,divisionId,access.auth.email,includeChildren,isAdministrator(access)]
   });
   return {report:'ledger',rows:r.rows};
 }

@@ -23,7 +23,8 @@ INSERT INTO core_theme(theme_name,css_file) VALUES
 ('Electrical Industry','electrical.css'),
 ('Financial Industry','financial.css'),
 ('Data Chef','data-chef.css'),
-('Smart Home','smart-home.css')
+('Smart Home','smart-home.css'),
+('African Safaris','african-safaris.css')
 ON CONFLICT(theme_name) DO UPDATE SET css_file=excluded.css_file,status='active',updated_at=now();
 INSERT INTO core_application(application_code,application_name,application_description,application_icon_svg,application_type,route_prefix) VALUES
 ('core-saas','Core','Launch applications, switch tenants, and access your workspace from one central hub.','<svg viewBox="0 0 48 48" role="img" aria-label="Core"><rect class="app-icon-stroke" x="9" y="9" width="12" height="12" rx="3"/><rect class="app-icon-stroke" x="27" y="9" width="12" height="12" rx="3"/><rect class="app-icon-stroke" x="9" y="27" width="12" height="12" rx="3"/><rect class="app-icon-stroke" x="27" y="27" width="12" height="12" rx="3"/><path class="app-icon-line" d="M21 15h6M15 21v6M33 21v6M21 33h6"/></svg>','public_application','/'),

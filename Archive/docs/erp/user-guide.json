@@ -1,0 +1,458 @@
+{
+  "edition": "01",
+  "date": "2026-10-05",
+  "sections": [
+    {
+      "section": "START HERE",
+      "title": "Your route through the ERP",
+      "intro": "A practical guide for people who configure the ERP and people who use it every day.",
+      "blocks": [
+        {
+          "title": "New to the system?",
+          "text": "Start with the class selector on page 3. Learn the difference between an account, a business object and a classification before creating records."
+        },
+        {
+          "title": "Setting up an organisation?",
+          "text": "Use the roadmap on page 9, then review types and custom forms on page 10, transactions on page 11 and access on page 12."
+        },
+        {
+          "title": "Working with records?",
+          "text": "Pages 4-6 explain the core classes. Page 7 gives a repeatable capture routine. Page 8 explains grids, references and history."
+        },
+        {
+          "title": "Want a business example?",
+          "text": "Follow the property example on page 13 or the policy-to-claim example on page 14. Use page 15 when something does not work."
+        }
+      ],
+      "callout": "Edition 01 | 5 October 2026. Based on the current source implementation and recommended template. Available menus, fields and actions depend on your organisation configuration and access."
+    },
+    {
+      "section": "01 / THE MODEL",
+      "title": "Choose the right class",
+      "intro": "The class sets a record's role. Its type supplies a business meaning and custom fields. An individual record is one instance of that type.",
+      "blocks": [
+        {
+          "title": "GL account | Where does the value belong?",
+          "text": "A chart-of-accounts record classifies financial value: for example bank, supplier control or an expense account. It is the financial account used on a transaction line."
+        },
+        {
+          "title": "Subledger | Whose or which account is it?",
+          "text": "Use an account-level record when financial detail is needed for a customer, supplier, bank, asset or another configured subledger type. A transaction line links the relevant subledger to its GL account."
+        },
+        {
+          "title": "Accounting object | What business context is involved?",
+          "text": "Use a business record such as a property, contract, project, cost centre, insurance policy or claim. It can hold operational detail and classify transactions. Creating it does not create a journal."
+        },
+        {
+          "title": "Accounting dimension | How should it be classified?",
+          "text": "Use a reusable reference or classification such as an expense type, measurement unit or insurance cover type. Dimensions can classify transaction lines or be referenced by custom fields."
+        },
+        {
+          "title": "Legal entity and resource | Who is involved?",
+          "text": "Legal entities identify parties and can link to subledger accounts. Resources represent people or other configured resources assigned through resource roles. A resource role is distinct from a security role."
+        }
+      ],
+      "callout": "Example: a repair can use an expense GL account, a vendor subledger, a property object and an expense-type dimension. These describe different aspects of the same transaction."
+    },
+    {
+      "section": "02 / ACCOUNTS",
+      "title": "Work with subledgers",
+      "intro": "Use the GL account for financial classification and the subledger for account-level detail.",
+      "blocks": [
+        {
+          "title": "Choose the type before capturing",
+          "text": "Open Sub Ledgers in the Technical menu, or the corresponding entry in a module. Choose the relevant type and add a record. The recommended template includes the account families listed below."
+        },
+        {
+          "title": "Capture identification",
+          "text": "Provide the account type, owner division, code and name. Link a legal entity when appropriate; the selected type can make this link mandatory. Complete the custom fields displayed for that type."
+        },
+        {
+          "title": "Check the financial relationship",
+          "text": "On a transaction line, select the GL account and the required subledger. GL account settings and transaction line definitions can require a particular subledger type. A vendor account cannot satisfy a bank-account requirement."
+        },
+        {
+          "title": "Keep operational fields in perspective",
+          "text": "Asset useful life, loan interest rate and bank information are recorded attributes. Entering these attributes alone does not run depreciation, calculate interest or generate a payment."
+        }
+      ],
+      "callout": "Template account families: Bank account, Customer account, Vendor account, Employee, Cash Point, Asset, Capital Project (WIP/AUC), Loan account. These are starting options, not compulsory account structures."
+    },
+    {
+      "section": "03 / BUSINESS CONTEXT",
+      "title": "Work with accounting objects",
+      "intro": "Objects give operational information a home and let transactions identify the business context they relate to.",
+      "blocks": [
+        {
+          "title": "Create and identify",
+          "text": "Open Accounting Objects in the Technical menu or choose a type in a module. Use the add control, choose Object type and Owner division, and enter Code, Name and validity dates. Complete the type-specific tabs and save."
+        },
+        {
+          "title": "Use a parent deliberately",
+          "text": "The Parent object selector links an object into a hierarchy. The parent must be in the same organisation. An object cannot be its own parent and the hierarchy cannot contain a cycle. A parent link does not itself define a financial roll-up calculation."
+        },
+        {
+          "title": "Add useful detail",
+          "text": "A property may have market-value observations, measurements and features. A contract may have parties, fixed charges and milestones. These are fields and grids supplied by the type schema."
+        },
+        {
+          "title": "Assign responsibility and evidence",
+          "text": "Use Resources and Documents where available. Resource-role mappings on the type determine the intended assignments; some assignments may be required. Versions provide read-only snapshots of successful record saves."
+        },
+        {
+          "title": "Use the object on transactions",
+          "text": "Transaction line definitions decide which object types are mandatory or optional. Choose the actual record on the line. Saving an object, changing its operational stage or adding a grid row does not post a transaction."
+        }
+      ],
+      "callout": "Template object types: Property, Team, Region, Operational Project, Cost Centre, Profit Centre, Contract, Utility Meter, Insurance policy, Insurance claim."
+    },
+    {
+      "section": "04 / CLASSIFICATIONS",
+      "title": "Work with dimensions",
+      "intro": "Dimensions provide shared vocabulary. Consistent selections are easier to compare than differently spelled free text.",
+      "blocks": [
+        {
+          "title": "Create a reusable choice",
+          "text": "Open Accounting Dimensions, select the type and add a record with its owner division, code, name and any custom details. For example, define a measurement unit once and select it on multiple property records."
+        },
+        {
+          "title": "Financial classifications",
+          "text": "Revenue Type and Expense Type help distinguish the nature of activity. The template also includes MSCOA Fund, Project, Item, Region, Function, Costing and Outcome types. Their presence does not establish regulatory compliance or a complete reporting model."
+        },
+        {
+          "title": "Operational reference vocabularies",
+          "text": "Service and Charge Component support service-related scenarios. Measurement Type, Measurement Unit, Property Feature Type and Valuation Method support property data. Insurance cover type and Insurance claim cause support policies and claims."
+        },
+        {
+          "title": "Choose a dimension or an object?",
+          "text": "Use a dimension for a reusable category or reference choice. Use an accounting object for a business entity with its own operational details and relationships. The template includes Region as an object and MSCOA Region as a dimension; choose by purpose rather than a similar name."
+        },
+        {
+          "title": "Make it available where needed",
+          "text": "A dimension type must be configured and mapped appropriately. Transaction line definitions can require it. Custom reference fields can restrict selectable types. Users also need access to the relevant records."
+        }
+      ],
+      "callout": "Keep codes stable and names readable. Do not create a new reference record merely to work around a missing permission or a restricted selector."
+    },
+    {
+      "section": "05 / DAILY USE",
+      "title": "A reliable capture routine",
+      "intro": "Use this sequence for subledgers, objects and dimensions. The displayed form varies by type.",
+      "blocks": [
+        {
+          "title": "1. Confirm your context",
+          "text": "Check Organisation and division context before adding or editing data. Menu visibility depends on module mappings and access; a different organisation may have different types and forms."
+        },
+        {
+          "title": "2. Find before you create",
+          "text": "Search existing records by code or name. Select the right type first. Reuse the existing record when it represents the same business entity or classification."
+        },
+        {
+          "title": "3. Complete identification and details",
+          "text": "Enter the built-in fields, then work through the custom tabs. Required custom fields and required grid columns are configured separately. A row can be incomplete even when the header is complete."
+        },
+        {
+          "title": "4. Select related records",
+          "text": "Reference fields select actual ERP records. Save a referenced parent before using its saved grid as the source for another selector. A familiar display name is not a substitute for the correct record."
+        },
+        {
+          "title": "5. Review and save",
+          "text": "Check dates, decimal precision, resource assignments and required fields. Save the record. Resolve validation messages at the named field or row rather than deleting valid information just to make the form pass."
+        },
+        {
+          "title": "6. Follow the configured workflow",
+          "text": "Use the workflow actions available to your role and record state. Saving data, completing approval and posting a financial transaction are separate activities. Use Versions to inspect earlier saved data where supported."
+        }
+      ],
+      "callout": "Good record codes are an organisation convention. Agree a reusable naming policy with your administrator; the template examples do not mandate one."
+    },
+    {
+      "section": "06 / RICH RECORDS",
+      "title": "Grids, references and history",
+      "intro": "A custom form can hold one value, a related-record selection or a collection of rows.",
+      "blocks": [
+        {
+          "title": "Grids save with the record",
+          "text": "Add or remove rows in the appropriate tab. All grids and custom fields save together. Row-count, required-column and uniqueness rules apply only where configured. Separate grids represent separate collections."
+        },
+        {
+          "title": "Dated observations versus effective periods",
+          "text": "A valuation or meter reading records an observation date. A period-controlled measurement or charge has a start and optional end date. A blank end means indefinitely. Both ends are inclusive: end the old period the day before the new one begins when overlap is prohibited."
+        },
+        {
+          "title": "Groups and overlaps",
+          "text": "Period rules can group rows by a classification or other columns. Different groups may overlap. Gaps are permitted and previous periods are not closed automatically. Dates alone do not activate period validation."
+        },
+        {
+          "title": "References must be eligible",
+          "text": "Selectors list accessible records allowed by the field definition. Some selectors also use a saved parent grid: a claim affected item, for example, must be listed on its selected saved policy. Changing the parent can make a previous selection unavailable."
+        },
+        {
+          "title": "Versions record successful saves",
+          "text": "Subledger, object and dimension saves capture complete record snapshots with their saved schemas and assignments. Even an unchanged save creates a version. Versions are read-only; there is no restore action. Document uploads and workflow actions have separate histories."
+        },
+        {
+          "title": "Historical limits",
+          "text": "Older unversioned records receive a baseline when first edited. That baseline cannot reconstruct changes made before versioning. Copied organisations do not inherit source version history."
+        }
+      ],
+      "callout": "Capture is not calculation: market observations do not automatically determine the latest value, meter readings do not calculate consumption, and contract charge rows do not generate invoices."
+    },
+    {
+      "section": "07 / ADMINISTRATOR ROADMAP",
+      "title": "Set up in a sensible order",
+      "intro": "This is a recommended review sequence. Adapt it to your organisation rather than treating the template as policy.",
+      "blocks": [
+        {
+          "title": "1. Organisation foundations",
+          "text": "Under Setup > Organisation, review Organisations, Divisions, Fiscal Year, Countries, Currencies and Tax Types. Agree organisation scope, division ownership and the fiscal calendar before capturing business records."
+        },
+        {
+          "title": "2. Accounting structure",
+          "text": "Under Setup > Accounting Model, review GL Account Types, Subledger Account Types, Accounting Object Types and Accounting Dimension Types. Create or review the actual GL Accounts through the operational menu."
+        },
+        {
+          "title": "3. Business forms and responsibility",
+          "text": "Review schemas, module mappings, workflow paths and resource-role mappings on the relevant types. Under Setup > Organisation, review Resource Roles. Test forms with realistic examples before wider use."
+        },
+        {
+          "title": "4. Transaction definitions",
+          "text": "Under Setup > Transactions, review Transaction Groups, Transaction Types and Workflows. Confirm line definitions, GL accounts, subledger requirements and object/dimension classifications."
+        },
+        {
+          "title": "5. Access and outputs",
+          "text": "Under Setup > Security, review Permissions. Confirm role/module access and division/type/workflow permissions. Review Financial Statement Formats under Setup > Organisation and test reports with authorised users."
+        },
+        {
+          "title": "6. Prove one complete scenario",
+          "text": "Create reference data, capture one representative record and run the intended transaction workflow in a suitable test organisation. Check the resulting report and permissions before repeating the pattern."
+        }
+      ],
+      "callout": "Copy Data can reuse selected organisation configuration and records. Include referenced master records where needed: custom references without a matching destination record are cleared and must be reselected."
+    },
+    {
+      "section": "08 / TYPE DESIGN",
+      "title": "Configure types and forms",
+      "intro": "A type is a reusable definition. Design it once and let its records use the same form and validation.",
+      "blocks": [
+        {
+          "title": "Keep the three layers separate",
+          "text": "The class supplies the core role. The type supplies its code, name, description and configuration. The schema supplies additional data and presentation; it does not redefine the object class or replace built-in code/name/division fields."
+        },
+        {
+          "title": "Use one schema definition",
+          "text": "Edit Schema JSON on the relevant type. Use the existing preview and Setup > Accounting Model > Schema UI Tester to inspect rendering. The tester is a runtime sandbox, not a saved type configuration. There is no separate editable UI schema."
+        },
+        {
+          "title": "Start with supported field types",
+          "text": "Supported controls include text, whole numbers, decimals, currency, booleans, dates, email, URL, selections, references and grids. Raw object/array fields use JSON textareas rather than generated nested forms. This is a custom convention, not full JSON Schema support."
+        },
+        {
+          "title": "Separate appearance from constraints",
+          "text": "Titles, tabs, field order, widths and textarea rows affect presentation. Required fields, text lengths, numeric bounds, allowed choices and configured grid/reference rules affect server validation. A placeholder is an example; a default is an initial form convenience."
+        },
+        {
+          "title": "Handle decimal values carefully",
+          "text": "Decimal and currency fields have precision and scale. Excess fractional digits are rejected rather than rounded. Enter ungrouped text such as 12345.60 without symbols or commas. A currency-code label does not convert amounts or store a currency automatically."
+        },
+        {
+          "title": "Treat a schema change as a data change",
+          "text": "Renaming a field changes its storage key. New required fields, shorter limits or removed choices can invalidate existing records. Plan compatibility and migration before applying these changes. Use the schema guide for supported attributes and limitations."
+        }
+      ],
+      "callout": "Recommended design habit: test one valid record, one invalid record and one existing record with each changed type. Previewing a control alone does not prove the full save behaviour."
+    },
+    {
+      "section": "09 / FINANCIAL CAPTURE",
+      "title": "Configure and use transactions",
+      "intro": "A transaction type defines a repeatable capture pattern. Its lines connect financial accounts with business classifications.",
+      "blocks": [
+        {
+          "title": "Set the capture pattern",
+          "text": "Use Transaction Groups to organise types. In Transaction Types, review the definition, line definitions and scope. Set the intended GL accounts, debit/credit sides, subledger requirements and required object/dimension types."
+        },
+        {
+          "title": "Check each line",
+          "text": "Select the correct division, account, subledger and required classifications. Configured lines must use their configured GL account and debit/credit side. A subledger may be mandatory, optional or not used; a mandatory type restriction must match."
+        },
+        {
+          "title": "Balance and period controls",
+          "text": "Journals need at least two lines and matching debit and credit totals at cent precision. The period validator accepts open and soft_closed periods and rejects closed or locked periods. Workflow and access controls still apply."
+        },
+        {
+          "title": "Related objects must agree",
+          "text": "When a line captures related objects, their configured root references can be checked for consistency. For example, a selected claim must refer to the policy selected on that line. Choose the correct pair rather than altering the claim to bypass the check."
+        },
+        {
+          "title": "Keep master data and postings distinct",
+          "text": "Contract values, insurance schedules and claim stages record business information. They do not generate journal amounts. Capture financial transactions through the relevant type and follow the organisation's authorised accounting process."
+        },
+        {
+          "title": "Review the result",
+          "text": "Use Reports > Ledger Balances, Trial Balance or Financial Statement as appropriate. Financial Statement Formats define the intended presentation. A report needs correctly captured and classified transactions; adding a schema field does not automatically add a report column."
+        }
+      ],
+      "callout": "Before reusing a transaction type, confirm its lines suit the actual scenario. A template example is a starting configuration, not approval for a particular accounting treatment."
+    },
+    {
+      "section": "10 / ACCESS & MAINTENANCE",
+      "title": "Make setup usable and controlled",
+      "intro": "A correct definition still needs the right module mappings, permissions and reference data.",
+      "blocks": [
+        {
+          "title": "Modules organise available functions",
+          "text": "Types are mapped to modules. Operational menus reflect active types, mappings and access. Insurance-specific template types belong to Insurance Management; shared supplier, asset and property types retain their own mappings."
+        },
+        {
+          "title": "Security roles control access",
+          "text": "Review module membership and the resource permissions relevant to each division, type and workflow state. Test with a representative user. Administrator visibility is not evidence that everyday users can see or change the same record."
+        },
+        {
+          "title": "Resource roles describe responsibility",
+          "text": "Resource Roles are used for assignments such as handler or responsible person. They are separate from security roles. A type can require assignments; maintain the necessary resources before capturing records that depend on them."
+        },
+        {
+          "title": "Use recovery tools for their stated purpose",
+          "text": "Initialise Schema maintains database structures and applies supported additive template upgrades. Existing non-template organisations do not automatically receive new template grids or type permissions. Follow the deployment procedure when using it."
+        },
+        {
+          "title": "Understand template initialisation",
+          "text": "Initialise Template Org performs full template seeding and can overwrite template configuration. ERP Reset is a destructive recovery function. Neither should be treated as an ordinary way to fix one missing field or permission."
+        },
+        {
+          "title": "Review copies after creation",
+          "text": "Copy selected configuration and records deliberately. Inspect custom references, role access, fiscal setup and report formats in the destination. Copied grid projections are rebuilt, but object version history starts with normal destination saves."
+        }
+      ],
+      "callout": "Troubleshoot in this order: organisation context, active type, module mapping, permissions, then record/reference eligibility. These controls solve different problems."
+    },
+    {
+      "section": "11 / WALKTHROUGH",
+      "title": "A property, with useful evidence",
+      "intro": "Recommended template scenario: capture a property and its operational detail without confusing valuation, measurements and accounting.",
+      "blocks": [
+        {
+          "title": "1. Prepare shared references",
+          "text": "Create or review Measurement Type, Measurement Unit, Property Feature Type and Valuation Method dimension records. Select choices that match your organisation's vocabulary."
+        },
+        {
+          "title": "2. Create the property",
+          "text": "Choose Property under Accounting Objects. Enter identification, owner division and validity dates. Complete the property kind, ownership, usage and address fields relevant to your organisation."
+        },
+        {
+          "title": "3. Capture market observations",
+          "text": "In Market Values, capture the valuation date, amount, currency code, method, valuer and notes. Multiple rows are observations; the system does not automatically choose one as the current value or revalue a financial account."
+        },
+        {
+          "title": "4. Capture effective measurements",
+          "text": "In Measurements, select a measurement type and unit, quantity and effective dates. The template groups periods by measurement type and prohibits overlaps within that group. Leave the end blank only when the row should continue indefinitely."
+        },
+        {
+          "title": "5. Record features",
+          "text": "In Features, select a feature type and whole-number value. These rows have no period control. Duplicate feature types are permitted unless a uniqueness rule is configured."
+        },
+        {
+          "title": "6. Save and use the record",
+          "text": "Save the complete property, inspect Versions after a later correction, and attach evidence where appropriate. Select the property on transaction lines when the transaction definition calls for it. Capture financial amounts separately."
+        }
+      ],
+      "callout": "Illustrative period change: floor area 250.0000 ends on 30 September 2026; floor area 275.0000 begins on 1 October 2026. Ending and starting both rows on 1 October would overlap because endpoints are inclusive."
+    },
+    {
+      "section": "12 / WALKTHROUGH",
+      "title": "From policy to claim",
+      "intro": "Recommended template scenario for an organisation buying insurance. It is not an insurer accounting model.",
+      "blocks": [
+        {
+          "title": "1. Prepare the parties and items",
+          "text": "Review vendor subledgers for insurer/broker, the legal policyholder, relevant resources and insurance dimensions. Insured items can reference supported asset subledgers or property objects."
+        },
+        {
+          "title": "2. Save the policy first",
+          "text": "Create an Insurance policy with its policy number, parties, dates, currency and responsibility. Review Coverage, Insured Items, Premium Schedule and Endorsements. Save the policy and its insured-items grid before creating the claim."
+        },
+        {
+          "title": "3. Link a claim to that policy",
+          "text": "Create an Insurance claim. Select the saved policy, enter incident details and cause, then select affected items from that policy's saved insured-items list. The server checks the same membership rule."
+        },
+        {
+          "title": "4. Track operational progress",
+          "text": "Record the claim stage, assessment, approved amount, excess, events and settlement components. These fields describe the case. Stage changes do not generate transactions or calculate remaining limits and coverage eligibility."
+        },
+        {
+          "title": "5. Capture finance separately",
+          "text": "The template offers premium invoice, credit, payment, allocation, accrual/reversal, recovery recognition, settlement receipt and premium refund types. Insurance lines require a policy; recovery/settlement lines also require a consistent claim. Amounts are entered manually."
+        },
+        {
+          "title": "6. Apply the agreed accounting policy",
+          "text": "Reporting or approving a claim is not by itself a reason to recognise a recovery. Capture loss, repair and asset-disposal transactions separately through the appropriate configuration. Review tax only when applicable; it is not inferred from the policy."
+        }
+      ],
+      "callout": "Template illustration: an annual property premium of 60000 can be demonstrated with monthly allocations of 5000. This is an example amount and schedule, not an automated allocation or a mandatory policy."
+    },
+    {
+      "section": "13 / QUICK ANSWERS",
+      "title": "When something does not work",
+      "intro": "Start with the visible symptom and check the rule that actually controls it.",
+      "blocks": [
+        {
+          "title": "I cannot see a type or menu",
+          "text": "Confirm organisation context, active status, module mapping and your role's module/resource access. Ask the administrator to verify your division and type permissions using your user context."
+        },
+        {
+          "title": "A referenced record is missing",
+          "text": "Check the permitted class/type, access and any saved-parent-grid restriction. Save the source record first. After copying an organisation, reselect references that could not be matched in the destination."
+        },
+        {
+          "title": "Save says additional data is invalid",
+          "text": "Review the named fields and grid rows. Check required values, allowed choices, text limits, decimal scale, row limits, uniqueness and period overlaps. A field that was valid before a schema change may now fail."
+        },
+        {
+          "title": "My period rows overlap",
+          "text": "Check the configured grouping columns and inclusive endpoints. Close the old period the day before the next begins. The system does not close periods automatically; date-only observation grids behave differently."
+        },
+        {
+          "title": "The transaction will not validate",
+          "text": "Check balancing, fiscal period, configured account/side, required subledger type, mandatory classifications and related-object consistency. Resolve the underlying data or configuration before repeating the workflow action."
+        },
+        {
+          "title": "I expected a calculation or a restore button",
+          "text": "Recorded readings, valuations, premiums and charges are not automatic calculations. Versions are read-only snapshots. Reports of current grid rows are distinct from historical snapshots; discuss a specific reporting or calculation requirement with your administrator."
+        }
+      ],
+      "callout": "For useful support, provide the organisation, division, record/type code, action, exact validation message and expected result. Avoid including passwords or unrelated confidential record data."
+    },
+    {
+      "section": "REFERENCE",
+      "title": "Keep the guide trustworthy",
+      "intro": "This first edition explains the current model and common tasks. Organisation-specific policy should be documented alongside it.",
+      "blocks": [
+        {
+          "title": "What was verified for this edition",
+          "text": "The guide was checked against current frontend navigation/forms, record-save validators, transaction validation, the schema convention and canonical template seeds. Live browser workflows and database operations were not executed for this PDF."
+        },
+        {
+          "title": "Application rules versus template examples",
+          "text": "Application rules govern required built-in identifiers, schema validation, reference eligibility, hierarchy cycles, transaction balancing and access. Template examples supply recommended types, fields, vocabularies and transaction definitions. Organisations can use different configuration."
+        },
+        {
+          "title": "Authoritative project references",
+          "text": "docs/erp/schema-json.md documents the implemented custom schema convention and limitations. docs/erp/insurance-management.md documents the insurance scenario. Volumes/Core-ERP/seeds/template-defaults.json contains the recommended template and business examples."
+        },
+        {
+          "title": "Implementation references",
+          "text": "Volumes/Core-ERP/public/app.js and public/index.html define the menus and forms. The subledger-accounts, accounting-objects and accounting-dimensions save endpoints enforce record capture rules. api/_shared/erp/journals.js checks transaction lines, balancing and periods."
+        },
+        {
+          "title": "A reusable publishing approach",
+          "text": "This guide is stored as structured sections in docs/erp/user-guide.json. Tools/ERP/build-user-guide.py generates the PDF and reads template inventories from the canonical seed. The same sections can later be adapted into contextual help without copying the template lists."
+        },
+        {
+          "title": "What to customise next",
+          "text": "Agree your first-time setup policy, naming conventions, permission examples and priority workflows. Add verified screenshots from the deployed organisation, then publish task-specific help beside the relevant screens."
+        }
+      ],
+      "callout": "Maintenance trigger: update the guide whenever menus, class behaviour, setup procedures or template scenarios change. Rebuild and visually inspect the PDF before distribution."
+    }
+  ]
+}

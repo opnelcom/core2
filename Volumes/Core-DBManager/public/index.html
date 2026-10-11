@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Core Database Management</title><link rel="stylesheet" href="/dbmanager/migration.css?v=5"><link rel="stylesheet" href="/dbmanager/style.css?v=1"><script defer src="/dbmanager/connections.js?v=1"></script><script defer src="/dbmanager/migration.js?v=5"></script></head>
+<body>
+  <header class="workspace"><strong>Core Database Management</strong><button id="theme" type="button">Dark mode</button></header>
+  <div class="shell">
+    <aside id="sidebar"><div class="sidebar-head"><strong>Tools</strong><button id="menu-toggle" type="button" aria-expanded="true" aria-controls="tool-menu" aria-label="Collapse menu">‹</button></div><nav id="tool-menu" aria-label="Migration tools"></nav></aside>
+    <main>
+      <header><p class="eyebrow">PostgreSQL</p><h1 id="tool-title">Database connections</h1><p id="tool-description">Manage the PostgreSQL connections shared by your tenant.</p></header>
+      <p id="status" role="status" aria-live="polite"></p>
+      <section id="view-connections" class="view connection-view" hidden>
+        <div class="panel">
+          <div class="panel-head"><h2>Saved connections</h2><div class="actions"><button id="reload-connections" type="button">Reload connections</button><button id="new-connection" type="button" aria-label="Add connection" title="Add connection">+</button></div></div>
+          <p id="tenant-help">All active tenant users can maintain and use these connections. Passwords are never saved.</p>
+          <input id="connection-search" type="search" aria-label="Search connections" placeholder="Find a connection">
+          <div id="connection-list" class="connection-list"></div>
+        </div>
+        <section id="connection-editor" class="panel connection-editor" aria-label="Connection editor" hidden>
+          <div class="panel-head"><h2 id="editor-title">New connection</h2><button id="close-editor" type="button" aria-label="Close connection editor">×</button></div>
+          <form id="saved-form" autocomplete="off">
+            <div class="connection-grid">
+              <label>Name<input name="connection_name" required maxlength="120"></label>
+              <label>Database type<select name="engine"><option value="postgresql">PostgreSQL</option></select></label>
+              <label>Host<input name="host" required maxlength="255" placeholder="db.example.com"></label>
+              <label>Port<input name="port" type="number" value="5432" min="1" max="65535" required></label>
+              <label>Database<input name="database_name" required maxlength="255"></label>
+              <label>Username<input name="username" required maxlength="255"></label>
+              <label>TLS<select name="ssl_mode"><option value="verify-full">Verify server certificate</option><option value="disable">Disabled</option></select></label>
+            </div>
+            <label>Description<textarea name="description" maxlength="4000" rows="3"></textarea></label>
+            <div id="delete-confirm" hidden><p>Delete connection <strong id="delete-confirm-name"></strong>?</p><div class="actions"><button id="cancel-delete" type="button">Keep connection</button><button id="confirm-delete" type="button" class="danger">Confirm delete</button></div></div>
+            <div class="actions"><button id="delete-connection" type="button" class="danger" hidden>Delete connection</button><button id="cancel-editor" type="button">Cancel</button><button id="save-connection" type="submit" class="primary">Save connection</button></div>
+          </form>
+        </section>
+      </section>
+      <section id="view-inserts" class="view">
+        <details id="connection-panel" class="panel" open><summary>Source connection</summary>
+          <form id="connection-form" autocomplete="off">
+            <div class="connection-grid">
+              <label>Saved connection<select id="saved-connection" name="connection_id" required><option value="">Loading connections…</option></select></label>
+              <label>Password<input name="password" type="password" autocomplete="new-password"></label>
+            </div>
+            <p id="saved-details"></p>
+            <div class="actions"><span>Enter the password when connecting. It stays in this page until disconnect.</span><button id="disconnect" type="button" disabled>Disconnect</button><button type="submit" class="primary">Connect and browse</button></div>
+          </form>
+        </details>
+        <div class="tool-grid">
+          <section class="panel"><div class="panel-head"><h2>Source tables</h2><span id="selection-count">No columns selected</span></div>
+            <input id="tree-search" type="search" placeholder="Find a schema, table or column" aria-label="Search source tables" disabled>
+            <div class="actions compact"><button id="expand" type="button" disabled>Expand all</button><button id="collapse" type="button" disabled>Collapse all</button><button id="clear-selection" type="button" disabled>Clear selection</button></div>
+            <p class="help">Each selected column can use its source value, a fixed typed value, or NULL for every exported row. Enter values without SQL quotes.</p>
+            <div id="source-tree" class="source-tree"><p class="empty">Connect to browse schemas, tables and column types.</p></div>
+          </section>
+          <section class="panel output-panel"><div class="panel-head"><h2>INSERT statements</h2><span id="output-count">No statements generated</span></div>
+            <p class="help">Preview includes up to 100 rows per selected table. Full generation reads all rows, subject to a 50 MiB output limit.</p>
+            <div class="actions compact"><button id="preview" type="button" disabled>Generate preview</button><button id="generate-all" class="primary" type="button" disabled>Generate all rows</button><button id="cancel" type="button" hidden>Cancel</button></div>
+            <p class="help">Selected columns are inserted into the original schema and table. Omitted required fields and foreign-key order may need adjustment before execution.</p>
+            <textarea id="output" readonly spellcheck="false" aria-label="Generated INSERT statements" placeholder="Your generated SQL will appear here. Select any text to copy it."></textarea>
+            <div class="actions compact"><button id="select-output" type="button" disabled>Select all</button><button id="copy-selected" type="button" disabled>Copy selection</button><button id="copy-all" type="button" disabled>Copy all</button><button id="download" type="button" disabled>Download SQL</button></div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+</body></html>

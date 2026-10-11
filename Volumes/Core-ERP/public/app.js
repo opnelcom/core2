@@ -51,6 +51,7 @@
     resourceRoles: [],
     resourceRoleMappings: [],
     resources: [],
+    reportDefinitions: [],
     resourceAssignments: [],
     dashboardSummary: null,
   };
@@ -65,6 +66,10 @@
   let selectedAccountingDimensionTypeId = "";
   let selectedTransactionTypeId = "";
   let selectedReport = "financial_statement";
+  let trialBalanceState = null;
+  let trialReportSequence = 0;
+  let trialDetailSequence = 0;
+  let trialBalanceReturn = null;
   let selectedFinancialFormatId = "";
   let selectedResourceRoleId = "";
   let resourceRoleModalReturnFocus = null;
@@ -109,6 +114,8 @@
     "ledgerfamilies",
     "accountingobjecttypes",
     "accountingdimensiontypes",
+    "schemauitester",
+    "reportdefinitions",
     "financialformats",
     "transactiongroups",
     "transactiontypes",
@@ -340,6 +347,7 @@
     return icon;
   }
   const menuIconSvg = {
+    favourite: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 3 2.8 5.7 6.3.9-4.6 4.4 1.1 6.3-5.6-3-5.6 3 1.1-6.3L3 9.6l6.2-.9Z"/></svg>',
     dashboard:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10.5V20h14v-9.5"/><path d="M9.5 20v-6h5v6"/></svg>',
     legalEntity:
@@ -778,10 +786,25 @@
     });
     const j = await r.json();
     if (!r.ok)
-      throw Object.assign(new Error(j.error || "Request failed"), {
+      throw Object.assign(new Error([j.error || "Request failed", ...(Array.isArray(j.errors) ? j.errors : [])].join("\n")), {
         details: j,
       });
     return j;
+  }
+  const reportBuilder = window.createReportBuilder({
+    api, context: () => state, table, fillModuleSelect, selectedModuleIds, syncRequiredMarkers,
+    notify: message => alert(message),
+    saved: async () => { await ensureReportDefinitions(); await loadMenuData(true); },
+  });
+  const exchangeRateEditor = window.createExchangeRateEditor({
+    api, context: () => state, currencies: () => state.currencies, table,
+    installSetupTypeTabs, showSetupTypeTab, syncRequiredMarkers,
+  });
+  async function ensureReportDefinitions() {
+    if (!state.orgId) { state.reportDefinitions = []; return; }
+    const orgId = state.orgId;
+    const data = await api(`report-definitions/list?organisation_id=${orgId}${state.navigation.is_administrator ? "&setup=1" : `&division_id=${state.divisionId || ""}`}`);
+    if (orgId === state.orgId) state.reportDefinitions = data.reports || [];
   }
   function alert(message) {
     $("alert").hidden = !message;
@@ -945,6 +968,14 @@
       ?.insertAdjacentElement("beforebegin", label);
   }
   function showResourceEditorTab(prefix, tabName) {
+    if (prefix === "account") {
+      showAccountEditorTab(tabName === "details" ? "identification" : tabName);
+      return;
+    }
+    if (prefix === "accounting-object" || prefix === "accounting-dimension") {
+      showAccountingEditorTab(prefix, tabName === "details" ? "general" : tabName);
+      return;
+    }
     const form = $(`${prefix}-form`);
     if (!form) return;
     form
@@ -968,6 +999,99 @@
     const heading = form?.querySelector("h2");
     if (!form || !heading || form.querySelector(".resource-object-tabs"))
       return;
+    if (prefix === "accounting-object" || prefix === "accounting-dimension") {
+      form.classList.add("accounting-record-editor");
+      const tabs = document.createElement("div");
+      tabs.className = "account-fixed-tabs resource-object-tabs account-editor-tabs";
+      tabs.setAttribute("role", "tablist");
+      tabs.innerHTML = '<button type="button" class="account-detail-tab" data-record-tab="general">Identification</button><button type="button" class="account-detail-tab" data-record-tab="resources">Resources</button>';
+      tabs.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-record-tab]");
+        if (button) showAccountingEditorTab(prefix, button.dataset.recordTab);
+      });
+      const general = document.createElement("div");
+      general.className = "account-fixed-panel accounting-record-general";
+      general.dataset.recordPanel = "general";
+      const schema = $(`${prefix}-detail-fields`);
+      const actions = form.querySelector(".actions");
+      [...form.children].forEach((node) => {
+        if (node !== heading && node !== schema && node !== actions && !node.classList.contains("panel-close")) general.append(node);
+      });
+      const resources = document.createElement("section");
+      resources.className = "resource-object-assignment-panel";
+      resources.dataset.recordPanel = "resources";
+      resources.innerHTML = `<div id="${prefix}-resource-assignment-editor"></div>`;
+      if (prefix === "accounting-object") {
+        const documentsTab = document.createElement("button");
+        documentsTab.type = "button";
+        documentsTab.className = "account-detail-tab";
+        documentsTab.dataset.recordTab = "documents";
+        documentsTab.textContent = "Documents";
+        tabs.append(documentsTab);
+        const documents = document.createElement("section");
+        documents.className = "document-section account-fixed-panel";
+        documents.dataset.recordPanel = "documents";
+        documents.hidden = true;
+        documents.innerHTML = '<div class="document-toolbar"><h2>Documents</h2><button type="button" id="upload-accounting-object-document" class="add-record-button" aria-label="Upload document" title="Upload document">+</button></div><input id="accounting-object-document-file" type="file" hidden><div id="accounting-object-document-list" class="document-list"></div>';
+        form.append(documents);
+        documents.querySelector("button").addEventListener("click", () => $("accounting-object-document-file").click());
+        documents.querySelector("input").addEventListener("change", () => uploadEntityDocument("accountingObject"));
+      }
+      actions.classList.add("account-editor-actions");
+      $(`new-${prefix}`).hidden = true;
+      const cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.className = "secondary";
+      cancel.textContent = "Cancel";
+      cancel.addEventListener("click", () => form.querySelector(".panel-close").click());
+      actions.prepend(cancel);
+      form.append(tabs, general, schema, resources, actions);
+      const documentsPanel = form.querySelector('[data-record-panel="documents"]');
+      if (documentsPanel) form.insertBefore(documentsPanel, actions);
+      form.addEventListener("invalid", (event) => {
+        const panel = event.target.closest("[data-account-detail-panel]");
+        showAccountingEditorTab(prefix, panel ? `schema:${panel.dataset.accountDetailPanel}` : "general");
+      }, true);
+      showAccountingEditorTab(prefix, "general");
+      return;
+    }
+    if (prefix === "account") {
+      const tabs = form.querySelector(".account-fixed-tabs");
+      tabs.classList.add("resource-object-tabs", "account-editor-tabs");
+      const general = tabs.querySelector('[data-account-fixed-tab="identification"]');
+      general.textContent = "Identification";
+      const resources = document.createElement("button");
+      resources.type = "button";
+      resources.className = "account-detail-tab";
+      resources.dataset.accountFixedTab = "resources";
+      resources.dataset.resourceEditTab = "resources";
+      resources.textContent = "Resources";
+      tabs.insertBefore(resources, tabs.querySelector('[data-account-fixed-tab="documents"]'));
+      heading.insertAdjacentElement("afterend", tabs);
+      const resourcePanel = document.createElement("section");
+      resourcePanel.className = "resource-object-assignment-panel account-fixed-panel";
+      resourcePanel.dataset.accountFixedPanel = "resources";
+      resourcePanel.hidden = true;
+      resourcePanel.innerHTML = '<div id="account-resource-assignment-editor"></div>';
+      form.append(resourcePanel);
+      const actions = form.querySelector(".actions");
+      actions.classList.add("account-editor-actions");
+      actions.querySelector('[type="submit"]').textContent = "Save account";
+      $("new-account").hidden = true;
+      const cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.className = "secondary";
+      cancel.textContent = "Cancel";
+      cancel.addEventListener("click", () => form.querySelector(".panel-close").click());
+      actions.prepend(cancel);
+      form.append(actions);
+      form.addEventListener("invalid", (event) => {
+        const schemaPanel = event.target.closest("[data-account-detail-panel]");
+        const fixedPanel = event.target.closest("[data-account-fixed-panel]");
+        showAccountEditorTab(schemaPanel ? `schema:${schemaPanel.dataset.accountDetailPanel}` : fixedPanel?.dataset.accountFixedPanel || "identification");
+      }, true);
+      return;
+    }
     const tabs = document.createElement("div");
     tabs.className = "tabs resource-object-tabs";
     tabs.setAttribute("role", "tablist");
@@ -1103,17 +1227,6 @@
     label.append(textarea);
     after?.insertAdjacentElement("afterend", label);
   }
-  function installLedgerFamilyUiSchemaField() {
-    if ($("ledger-family-ui-schema")) return;
-    const schema = $("ledger-family-schema")?.closest("label");
-    const label = document.createElement("label");
-    label.textContent = "UI schema";
-    const textarea = document.createElement("textarea");
-    textarea.id = "ledger-family-ui-schema";
-    textarea.placeholder = '{"sections":[]}';
-    label.append(textarea);
-    schema?.insertAdjacentElement("afterend", label);
-  }
   function moveControlToPanel(panel, id) {
     const control = $(id);
     const wrapper =
@@ -1125,9 +1238,14 @@
   function showSetupTypeTab(prefix, tab) {
     document
       .querySelectorAll(`[data-setup-type-tab="${prefix}"]`)
-      .forEach((button) =>
-        button.classList.toggle("active", button.dataset.tab === tab),
-      );
+      .forEach((button) => {
+        const active = button.dataset.tab === tab;
+        button.classList.toggle("active", active);
+        if (button.getAttribute("role") === "tab") {
+          button.setAttribute("aria-selected", String(active));
+          button.tabIndex = active ? 0 : -1;
+        }
+      });
     document
       .querySelectorAll(`[data-setup-type-panel="${prefix}"]`)
       .forEach((panel) => {
@@ -1187,7 +1305,97 @@
       .addEventListener("click", () => addResourceRoleMappingRow(prefix));
     form.insertBefore(section, form.querySelector(".actions"));
   }
+  function installCodeNumberingFields(formId, prefix) {
+    const form = $(formId);
+    if (!form || $(`${prefix}-numbering`)) return;
+    form.classList.add("code-numbering-type-editor");
+    form.querySelector(".actions").classList.add("account-editor-actions");
+    const boundEditor = () => requestAnimationFrame(() => {
+      if (form.hidden) return;
+      form.style.maxHeight = `${Math.max(180, innerHeight - form.getBoundingClientRect().top - 12)}px`;
+    });
+    new MutationObserver(boundEditor).observe(form, { attributes: true, attributeFilter: ["hidden"] });
+    window.addEventListener("resize", boundEditor);
+    const section = document.createElement("section");
+    section.id = `${prefix}-numbering`;
+    section.className = "setup-section full code-numbering-fields";
+    section.innerHTML = `<label>Record code assignment<select id="${prefix}-numbering-mode"><option value="manual">User-entered code</option><option value="automatic">Automatic sequential number</option></select></label>
+      <label data-number-range>Range start<input id="${prefix}-numbering-start" type="number" min="0" max="9007199254740990" step="1"></label>
+      <label data-number-range>Range end<input id="${prefix}-numbering-end" type="number" min="0" max="9007199254740990" step="1"></label>
+      <label data-number-range>Zero padding<input id="${prefix}-numbering-padding" type="number" min="0" max="32" step="1" value="0"></label>
+      <label data-number-range>Prefix<input id="${prefix}-numbering-prefix" maxlength="32" placeholder="e.g. PROP-"></label>
+      <p class="empty" id="${prefix}-numbering-status" aria-live="polite"></p>`;
+    form.insertBefore(section, form.querySelector(".actions"));
+    section.addEventListener("input", () => updateCodeNumberingFields(prefix));
+    form.addEventListener("invalid", event => {
+      if (section.contains(event.target)) showSetupTypeTab(prefix, "definition");
+    }, true);
+    loadCodeNumberingFields(prefix, {});
+  }
+  function updateCodeNumberingFields(prefix) {
+    const section = $(`${prefix}-numbering`);
+    const automatic = $(`${prefix}-numbering-mode`).value === "automatic";
+    section.querySelectorAll("[data-number-range]").forEach(label => {
+      label.hidden = !automatic;
+      const input = label.querySelector("input");
+      input.disabled = !automatic;
+      input.required = automatic && (input.id.endsWith("start") || input.id.endsWith("end"));
+    });
+    syncRequiredMarkers(section);
+    const status = $(`${prefix}-numbering-status`);
+    status.hidden = !automatic;
+    if (!automatic) { status.textContent = ""; return; }
+    const start = Number($(`${prefix}-numbering-start`).value);
+    const end = Number($(`${prefix}-numbering-end`).value);
+    const padding = Number($(`${prefix}-numbering-padding`).value);
+    const codePrefix = $(`${prefix}-numbering-prefix`).value;
+    const next = Math.max(start, Number(section.dataset.next || start));
+    $(`${prefix}-numbering-end`).setCustomValidity(end < start ? "Range end must be at least the range start" : "");
+    status.textContent = next > end
+      ? "Range exhausted."
+      : `Next candidate: ${codePrefix}${String(next).padStart(Math.min(32, Math.max(0, padding)), "0")}`;
+  }
+  function loadCodeNumberingFields(prefix, type) {
+    const config = type.code_numbering || { mode: "manual" };
+    $(`${prefix}-numbering-mode`).value = config.mode;
+    for (const key of ["start", "end", "padding", "prefix"])
+      $(`${prefix}-numbering-${key}`).value = config[key] ?? (key === "padding" ? 0 : "");
+    $(`${prefix}-numbering`).dataset.next = type.code_number_next ?? "";
+    $(`${prefix}-numbering-end`).setCustomValidity("");
+    updateCodeNumberingFields(prefix);
+  }
+  function collectCodeNumberingFields(prefix) {
+    const mode = $(`${prefix}-numbering-mode`).value;
+    if (mode === "manual") return { mode };
+    return { mode, start: Number($(`${prefix}-numbering-start`).value), end: Number($(`${prefix}-numbering-end`).value),
+      padding: Number($(`${prefix}-numbering-padding`).value), prefix: $(`${prefix}-numbering-prefix`).value };
+  }
+  function updateRecordCodeField(prefix, type, existing) {
+    const input = $(`${prefix}-code`);
+    const automatic = type?.code_numbering?.mode === "automatic";
+    input.required = !automatic;
+    input.readOnly = automatic;
+    input.placeholder = automatic && !existing ? "Assigned automatically on Save" : "";
+    if (automatic && !existing) input.value = "";
+    syncRequiredMarkers(input.closest("form"));
+  }
+  function updateAccountCodeNumbering() {
+    const family = $("account-form-family").value || selectedAccountScopeCode || "gl";
+    const type = family === "gl"
+      ? state.glAccountTypes.find(type => type.gl_account_type_id === $("account-type").value)
+      : state.subledgerAccountTypes.find(type => type.type_code === family);
+    updateRecordCodeField("account", type, !!$("account-id").value);
+  }
+  function updateAccountingCodeNumbering(kind) {
+    const config = accountingMasterConfig(kind);
+    const type = state[config.typesKey].find(type => type[config.typeId] === $(`${config.prefix}-type`).value);
+    updateRecordCodeField(config.prefix, type, !!$(`${config.prefix}-id`).value);
+  }
   function installSetupTypeEditors() {
+    for (const [formId, prefix] of [["gl-account-type-form", "gl-account-type"], ["ledger-family-form", "ledger-family"],
+      ["accounting-object-type-form", "accounting-object-type"], ["accounting-dimension-type-form", "accounting-dimension-type"]])
+      installCodeNumberingFields(formId, prefix);
+
     installResourceRoleMappingField("gl-account-type-form", "gl-account-type");
     installResourceRoleMappingField("ledger-family-form", "ledger-family");
     installResourceRoleMappingField(
@@ -1204,7 +1412,6 @@
       "Description",
       "ledger-family-name",
     );
-    installLedgerFamilyUiSchemaField();
     ensureTextareaField(
       "accounting-object-type-form",
       "accounting-object-type-description",
@@ -1229,6 +1436,7 @@
             "gl-account-type-name",
             "gl-account-type-required",
             "gl-account-type-active",
+            "gl-account-type-numbering",
           ],
         },
         {
@@ -1252,6 +1460,7 @@
             "ledger-family-workflow-path",
             "ledger-family-legal-entity",
             "ledger-family-active",
+            "ledger-family-numbering",
           ],
         },
         {
@@ -1267,7 +1476,7 @@
         {
           name: "design",
           label: "Design",
-          controlIds: ["ledger-family-schema", "ledger-family-ui-schema"],
+          controlIds: ["ledger-family-schema"],
         },
       ],
     });
@@ -1284,6 +1493,7 @@
             "accounting-object-type-description",
             "accounting-object-type-workflow-path",
             "accounting-object-type-active",
+            "accounting-object-type-numbering",
           ],
         },
         {
@@ -1301,7 +1511,6 @@
           label: "Design",
           controlIds: [
             "accounting-object-type-schema",
-            "accounting-object-type-ui-schema",
           ],
         },
       ],
@@ -1319,6 +1528,7 @@
             "accounting-dimension-type-description",
             "accounting-dimension-type-workflow-path",
             "accounting-dimension-type-active",
+            "accounting-dimension-type-numbering",
           ],
         },
         {
@@ -1336,7 +1546,6 @@
           label: "Design",
           controlIds: [
             "accounting-dimension-type-schema",
-            "accounting-dimension-type-ui-schema",
           ],
         },
       ],
@@ -1372,6 +1581,74 @@
       ],
     });
   }
+  function installSchemaDesignEditors() {
+    for (const prefix of ["ledger-family", "accounting-object-type", "accounting-dimension-type"]) {
+      const editor = $(`${prefix}-schema`);
+      if (!editor) continue;
+      editor.placeholder = '{"type":"object","properties":{"amount":{"type":"currency","precision":14,"scale":2,"uiWidth":"medium"}},"required":[]}';
+      const guide = document.createElement("details");
+      guide.className = "schema-design-guide";
+      guide.innerHTML = '<summary>Field types and layout attributes</summary><p>Use integer for whole numbers; decimal for rates and measurements; currency for money; short_text for codes; text for names; long_text for descriptions; boolean, date, date_time, email, url, or select for specialised fields.</p><p>Text: maxLength, minLength, pattern. Numbers: minimum, maximum. Decimal and currency: precision (total digits), scale (decimal places); precision 14 and scale 2 allow 12 digits before the decimal. Layout: uiWidth (short, medium, wide, full), rows, placeholder, helpText. Choices: options [{code, description}] or enum.</p>';
+      guide.innerHTML += '<p>Grids: type "grid", rowSchema with ordinary column definitions; optional periodControl {from, to, groupBy, allowOverlap:false}. Blank end dates mean indefinitely. References: type "reference", target {class, types:[typeCode]}, or target {anyOf:[{class, types}]}. Mixed references store class:UUID. Optional referenceSource {field, grid, column} restricts choices to a saved root-reference record’s grid. sortOrder controls independent field and grid-column ordering. Save stores ordinary fields and all grids together, preserving a complete object version.</p>';
+      const preview = document.createElement("section");
+      preview.className = "schema-design-preview";
+      preview.innerHTML = `<h3>Field preview</h3><p class="schema-preview-message"></p><div id="${prefix}-schema-preview"></div>`;
+      editor.closest("label").after(guide, preview);
+      editor.addEventListener("input", () => renderSchemaDesignPreview(prefix));
+    }
+  }
+  function installSchemaUiTester() {
+    const editor = $("schema-ui-tester-json");
+    const container = $("schema-ui-tester-fields");
+    const status = $("schema-ui-tester-status");
+    if (!editor || !container || !status) return;
+    const clearPreview = () => {
+      container.replaceChildren();
+      container.referenceLoads = [];
+    };
+    $("schema-ui-tester-render").addEventListener("click", () => {
+      clearPreview();
+      try {
+        if (!editor.value.trim()) throw new Error("Enter schema JSON first.");
+        const schema = JSON.parse(editor.value);
+        if (!schema || typeof schema !== "object" || Array.isArray(schema)) throw new Error("Schema must be a JSON object.");
+        if (schema.type !== undefined && schema.type !== "object") throw new Error("Schema root must use type object.");
+        if (schema.properties !== undefined && (!schema.properties || typeof schema.properties !== "object" || Array.isArray(schema.properties))) throw new Error("Schema properties must be an object.");
+        if (!Object.keys(schema.properties || {}).length) {
+          status.textContent = "No custom fields defined.";
+          return;
+        }
+        renderSchemaDetailFields(container.id, schema);
+        status.textContent = "Preview rendered. This is a visual test, not server validation.";
+      } catch (error) {
+        clearPreview();
+        status.textContent = `Cannot render: ${error.message}`;
+      }
+    });
+    $("schema-ui-tester-clear").addEventListener("click", () => {
+      editor.value = "";
+      clearPreview();
+      status.textContent = "";
+      editor.focus();
+    });
+  }
+  function renderSchemaDesignPreview(prefix) {
+    const editor = $(`${prefix}-schema`);
+    const container = $(`${prefix}-schema-preview`);
+    if (!editor || !container) return;
+    const message = container.parentElement.querySelector(".schema-preview-message");
+    try {
+      const schema = JSON.parse(editor.value || "{}");
+      if (!schema || typeof schema !== "object" || Array.isArray(schema)) throw new Error("Schema must be a JSON object.");
+      message.textContent = Object.keys(schema.properties || {}).length ? "Preview of the fields defined above." : "No additional fields defined.";
+      container.hidden = !Object.keys(schema.properties || {}).length;
+      renderSchemaDetailFields(container.id, schema);
+      container.querySelectorAll("input,select,textarea,button").forEach((control) => { control.disabled = true; });
+    } catch (error) {
+      message.textContent = `Cannot preview: ${error.message}`;
+      container.hidden = true;
+    }
+  }
   function setTransactionTypeEditorOpen(open) {
     const view = $("view-transactiontypes");
     const form = $("transaction-type-form");
@@ -1401,6 +1678,7 @@
       newButton.textContent = "New";
       actions.append(newButton);
     }
+    actions.append($("copy-transaction-type"));
     if (saveButton) {
       saveButton.textContent = "Save Transaction Type";
       actions.append(saveButton);
@@ -1461,7 +1739,12 @@
         else td.textContent = value ?? "";
         tr.append(td);
       });
-      if (onClick) tr.addEventListener("click", () => onClick(row));
+      if (onClick) {
+        tr.addEventListener("click", () => onClick(row));
+        tr.addEventListener("keydown", (event) => {
+          if (event.target === tr && ["Enter", " "].includes(event.key)) { event.preventDefault(); onClick(row); }
+        });
+      }
       body.append(tr);
     });
     el.append(body);
@@ -1641,6 +1924,38 @@
       boot.organisations.find((o) => o.organisation_id === state.orgId) ||
       boot.organisations[0]
     );
+  }
+  function organisationCurrency() {
+    const code = currentOrg()?.base_currency_code;
+    return state.currencies.find((currency) => currency.currency_code === code) || { currency_code: code, decimal_places: 2 };
+  }
+  function formatOrgMoney(value) {
+    return CurrencyFormat.format(value, organisationCurrency());
+  }
+  function parseOrgMoney(value) {
+    return CurrencyFormat.parse(value, organisationCurrency());
+  }
+  function currencyFormSettings() {
+    return { currency_code: $("currency-code").value.toUpperCase(), decimal_places: Number($("currency-decimals").value), format_json: {
+      symbol: $("currency-symbol").value,
+      symbol_position: $("currency-symbol-position").value,
+      thousands_separator: $("currency-thousands").value,
+      decimal_separator: $("currency-decimal-separator").value,
+    } };
+  }
+  function fillCurrencyFormat(currency = {}) {
+    const format = CurrencyFormat.settings(currency);
+    $("currency-symbol").value = format.symbol;
+    $("currency-symbol-position").value = format.symbol_position;
+    $("currency-thousands").value = format.thousands_separator;
+    $("currency-decimal-separator").value = format.decimal_separator;
+    $("currency-error").hidden = true;
+    updateCurrencyFormatPreview();
+  }
+  function updateCurrencyFormatPreview() {
+    const currency = currencyFormSettings();
+    const invalid = CurrencyFormat.validate(currency.format_json, currency.decimal_places);
+    $("currency-format-preview").textContent = invalid || CurrencyFormat.format(1234567.89, currency);
   }
   function canBootstrapSetup() {
     return boot?.can_bootstrap_setup === true;
@@ -1965,6 +2280,10 @@
     });
   }
   function show(view) {
+    if (view !== "journals" && view !== "reports") {
+      trialBalanceReturn = null;
+      $("return-trial-balance").hidden = true;
+    }
     document
       .querySelectorAll(".view")
       .forEach((v) => (v.hidden = v.id !== `view-${view}`));
@@ -1975,6 +2294,9 @@
     $("page-title").textContent =
       document.querySelector(`[data-view="${view}"]`)?.textContent ||
       $("page-title").textContent;
+    syncTransactionDescription(view === "journals"
+      ? state.transactionTypes.find((type) => type.transaction_type_id === selectedTransactionTypeId)
+      : null);
     if (state.orgId) syncContextUrl();
   }
   async function openView(view) {
@@ -2073,7 +2395,89 @@
     ];
     return `<div class="menu-entry-group"><button type="button" class="${toggleClasses.join(" ")}"${toggleId ? ` id="${toggleId}"` : ""} data-menu-kind="${kind}" data-menu-group="${id}" aria-label="${menuAttribute(label)}" title="${menuAttribute(label)}" aria-expanded="${isExpanded ? "true" : "false"}" aria-controls="${targetId}">${iconMarkup || fixedMenuIconMarkup(icon, "menu-entry-icon")}<span class="menu-entry-label">${label}</span></button><div id="${targetId}" class="menu-entry-children" ${isExpanded ? "" : "hidden"}>${items.join("")}</div></div>`;
   }
+  let favouriteKeys = new Set();
+  let favouritePending = new Set();
+  function favouriteKey(button) {
+    for (const name of ["view", "ledgerFamily", "accountingMaster", "transactionType", "resourceRole", "reportView", "menuAction"]) {
+      if (button.dataset[name]) return JSON.stringify(name === "accountingMaster"
+        ? [name, button.dataset[name], button.dataset.accountingTypeId || ""]
+        : [name, button.dataset[name]]);
+    }
+    return "";
+  }
+  function decorateFavourite(button) {
+    const key = favouriteKey(button);
+    if (!key) return;
+    let row = button.parentElement;
+    if (!row.classList.contains("menu-favourite-row")) {
+      row = document.createElement("div");
+      row.className = "menu-favourite-row";
+      button.before(row);
+      row.append(button);
+    }
+    let star = row.querySelector(".menu-favourite-star");
+    if (!star) {
+      star = document.createElement("button");
+      star.type = "button";
+      star.className = "menu-favourite-star";
+      row.append(star);
+    }
+    const saved = favouriteKeys.has(key);
+    const label = button.getAttribute("aria-label") || button.textContent.trim();
+    star.innerHTML = fixedMenuIconMarkup("favourite", "menu-entry-icon");
+    star.classList.toggle("is-favourite", saved);
+    star.setAttribute("aria-pressed", String(saved));
+    star.setAttribute("aria-label", `${saved ? "Remove" : "Add"} ${label} ${saved ? "from" : "to"} favourites`);
+    star.title = star.getAttribute("aria-label");
+    star.disabled = favouritePending.has(key);
+    star.onclick = async () => {
+      if (favouritePending.has(key)) return;
+      const orgId = state.orgId;
+      favouritePending.add(key);
+      refreshFavourites();
+      try {
+        await api("navigation/favourites", { method: "POST", body: JSON.stringify({ organisation_id: orgId, item_key: key, is_favourite: !saved }) });
+        if (state.orgId !== orgId) return;
+        if (saved) favouriteKeys.delete(key); else favouriteKeys.add(key);
+      } catch (error) {
+        alert(error.message);
+      } finally {
+        if (state.orgId === orgId) {
+          favouritePending.delete(key);
+          refreshFavourites();
+        }
+      }
+    };
+  }
+  function refreshFavourites() {
+    const menu = $("favourites-menu");
+    const catalog = new Map();
+    for (const kind of ["technical", "module", "role", "setup"]) {
+      $(`${kind}-menu`).querySelectorAll(".menu-entry--item").forEach(button => {
+        const key = favouriteKey(button);
+        if (key && !catalog.has(key)) catalog.set(key, button);
+        decorateFavourite(button);
+      });
+    }
+    const items = [...catalog].filter(([key]) => favouriteKeys.has(key))
+      .sort((a, b) => a[1].textContent.trim().localeCompare(b[1].textContent.trim()));
+    menu.hidden = !items.length;
+    const expanded = menu.querySelector("[data-menu-group]")?.getAttribute("aria-expanded");
+    menu.innerHTML = menuGroupMarkup("favourites", "favourites", "Favourites", items.map(([, original]) => {
+      const clone = original.cloneNode(true);
+      clone.removeAttribute("id");
+      clone.classList.remove("menu-entry--depth-1", "menu-entry--depth-3", "menu-entry--link");
+      clone.classList.add("menu-entry--depth-2");
+      return clone.outerHTML;
+    }), { icon: "favourite", expanded: expanded === null || expanded === undefined ? null : expanded === "true" });
+    bindMenu(menu, "favourites");
+    menu.querySelectorAll(".menu-entry--item").forEach(decorateFavourite);
+    highlightDynamicMenu();
+  }
   function bindMenu(menu, kind) {
+    menu.querySelectorAll('[data-defined-report]').forEach(button=>{
+      button.onclick=async()=>{try{await openView('customreports');await reportBuilder.runner(button.dataset.definedReport);}catch(error){alert(error.message);}};
+    });
     menu
       .querySelectorAll("[data-view]")
       .forEach(
@@ -2142,6 +2546,7 @@
               alert(error.message),
             )),
       );
+    menu.querySelectorAll('[data-menu-action="init-template-examples"]').forEach(button => {button.onclick=()=>initialiseTemplateOrganisationExamples().catch(error=>alert(error.message));});
     menu
       .querySelectorAll(":scope > .menu-entry-group > [data-menu-group]")
       .forEach((heading) => {
@@ -2330,12 +2735,13 @@
             },
           )
         : "",
-      hasMaster || hasTransactions
+      hasMaster || hasTransactions || permissions.some(p => p.resource_kind === "report")
         ? menuGroupMarkup(
             "technical",
             "reports",
             "Reports",
             [
+              ...definedReportMenuItems(),
               menuItemMarkup({
                 label: "Financial Statement",
                 attributes: 'data-report-view="financial_statement"',
@@ -2348,6 +2754,7 @@
                 icon: "report",
                 depth: 2,
               }),
+              menuItemMarkup({ label: "Trial Balance", attributes: 'data-report-view="trial_balance"', icon: "report", depth: 2 }),
             ],
             {
               icon: "report",
@@ -2373,6 +2780,7 @@
           buildDynamicMenu();
         });
       });
+    refreshFavourites();
     highlightDynamicMenu();
   }
   function resourceMenuItem(label, attributes, kind) {
@@ -2410,6 +2818,14 @@
   }
   function canViewResourceAssignments() {
     return canViewResourceDirectory();
+  }
+  function definedReportMenuItems({moduleIds=null,role=null,depth=2}={}) {
+    const permissions=state.navigation.permissions||[];
+    return state.reportDefinitions.filter(report=>report.is_active!==false &&
+      (!moduleIds||(report.module_ids||[]).some(id=>moduleIds.has(id))) &&
+      (role ? permissions.some(p=>p.role_id===role.role_id&&p.resource_kind==='report'&&(p.resource_code===report.report_id||p.resource_code==='*')) :
+        state.navigation.is_administrator||permissions.some(p=>p.resource_kind==='report'&&(p.resource_code===report.report_id||p.resource_code==='*'))))
+      .map(report=>menuItemMarkup({label:report.report_name,attributes:`data-defined-report="${report.report_id}"`,icon:'report',depth}));
   }
   function resourcesForModules(moduleIds, { role = null } = {}) {
     const linked = (row) =>
@@ -2500,6 +2916,7 @@
           ),
         ),
     ];
+    items.push(...definedReportMenuItems(role ? {role} : {moduleIds}));
     if (canViewResourceAssignments(role))
       items.push(
         ...state.resourceRoles
@@ -2633,6 +3050,8 @@
           label: "Accounting Model",
           icon: "accountingDimension",
           items: [
+            ["Schema UI Tester", 'data-view="schemauitester"', "accountingObject"],
+            ["Report definitions", 'data-view="reportdefinitions"', "report"],
             ["Modules", 'data-view="modules"', "module"],
             ["GL Account Types", 'data-view="glaccounttypes"', "glAccount"],
             [
@@ -2699,6 +3118,7 @@
           action: true,
           id: "init-template-menu",
         }),
+        menuItemMarkup({label:"Initialise Template Org Example Data",attributes:'data-menu-action="init-template-examples"',icon:"recovery",depth:2,action:true}),
       );
     if (allowed)
       recoveryItems.push(
@@ -2739,6 +3159,7 @@
     bindMenu($("setup-menu"), "setup");
   }
   function buildAlternativeMenus() {
+    const permissions = state.navigation.permissions || [];
     const hasMaster =
       state.navigation.is_administrator ||
       (state.navigation.permissions || []).some((permission) =>
@@ -2765,6 +3186,7 @@
         : "");
     const commonWithResources =
       common +
+      '' +
       (canViewResourceDirectory()
         ? menuItemMarkup({
             label: "Resources",
@@ -2808,6 +3230,7 @@
     const setupAvailable =
       allowed || canInitialiseTemplate || canBootstrapSetup();
     buildSetupMenu();
+    refreshFavourites();
     document.querySelector('[data-menu-mode="setup"]').hidden = !setupAvailable;
     if (!setupAvailable) $("setup-menu").hidden = true;
     if (loadedSlices.menu && !setupAvailable) {
@@ -2933,6 +3356,7 @@
       ensureDivisions(),
       ensureAccountTypes(),
       ensureLegalEntities(),
+      ensureCurrencies(),
     ]);
     selectedAccountScopeCode = familyCode;
     selectedAccountingObjectTypeId = "";
@@ -2956,6 +3380,7 @@
   }
   async function openTransactionType(typeId) {
     await Promise.all([
+      ensureCurrencies(),
       ensureTransactionSetup(),
       ensureDivisions(),
       ensureFiscal(),
@@ -2998,6 +3423,7 @@
     const titles = {
       financial_statement: "Financial Statement",
       ledger: "Ledger Balances",
+      trial_balance: "Trial Balance",
     };
     $("page-title").textContent = titles[report] || "Reports";
     $("report-title").textContent = titles[report] || "Reports";
@@ -3011,8 +3437,15 @@
       "report-compare-period-to-label",
     ].forEach((id) => ($(id).hidden = !financial));
     $("report-division-label").hidden = true;
+    trialBalanceReturn = null;
+    $("return-trial-balance").hidden = true;
+    $("trial-balance-controls").hidden = report !== "trial_balance";
+    $("trial-balance-status").hidden = report !== "trial_balance";
+    $("trial-balance-detail").hidden = true;
+    $("report-year-label").hidden = false;
     fillReportFormatSelect();
     fillReportPeriodSelects();
+    if (report === "trial_balance") syncTrialBalanceRangeControls();
     renderReport().catch((e) => alert(e.message));
     highlightDynamicMenu();
   }
@@ -3106,6 +3539,12 @@
     )
       $("account-form-family").value = "gl";
     $("account-form-family").disabled = true;
+  }
+  function defaultOwnerDivision(selectId) {
+    const options = [...($(selectId)?.options || [])];
+    return options.some((option) => option.value === state.divisionId)
+      ? state.divisionId
+      : options.find((option) => option.value && !option.disabled)?.value || "";
   }
   function fillDivisionSelects() {
     const label = (d) =>
@@ -3284,6 +3723,16 @@
   function syncJournalLineSubledgerOptions(row) {
     const subledger = row.querySelector(".line-sub");
     if (!subledger) return;
+    const definition = journalDefinitionFor(row.querySelector(".line-definition")?.value);
+    const unused = definition?.subledger_requirement === "not_used";
+    subledger.dataset.locked = unused ? "true" : "false";
+    subledger.disabled = unused;
+    subledger.required = definition?.subledger_requirement === "mandatory";
+    if (unused) {
+      option(subledger, [], "account_id", "account_name", "Not used");
+      subledger.value = "";
+      return;
+    }
     const value = subledger.value;
     const typeId = subledgerTypeForJournalLine(row);
     const accounts = state.accounts.filter(
@@ -3322,8 +3771,27 @@
       ),
     );
   }
+  function defaultSubledgerNameFromLegalEntity() {
+    if ($("account-id").value || $("account-form-family").value === "gl") return;
+    const entity = state.legalEntities.find((row) => row.legal_entity_id === $("account-legal-entity").value);
+    const name = $("account-name");
+    if (name.value && name.value !== name.dataset.legalEntityDefault) return;
+    name.value = entity?.known_name || entity?.legal_name || "";
+    name.dataset.legalEntityDefault = name.value;
+  }
   function setRequiredMarker(label, required) {
     if (!label) return;
+    const recordField = label.closest(".erp-field-rows, #account-form, #accounting-object-form, #accounting-dimension-form, #report-definition-form") && !label.closest(".schema-grid");
+    if ((recordField || label.closest(".code-numbering-fields, #account-identification-panel, #account-detail-fields, .accounting-record-general, .accounting-record-editor .account-schema-fields, .schema-design-preview, #resource-form, #module-form, #transaction-type-form") || label.matches("#gl-account-type-form > .setup-type-panel > label")) && !label.classList.contains("check")) {
+      let caption = label.querySelector(":scope > .account-field-caption, :scope > .tx-field-label");
+      if (!caption) {
+        caption = document.createElement("span");
+        caption.className = "account-field-caption";
+        [...label.childNodes].filter((node) => node.nodeType === Node.TEXT_NODE || node.nodeType === 1 && node.classList.contains("required-marker")).forEach((node) => caption.append(node));
+        label.prepend(caption);
+      }
+      label = caption;
+    }
     let marker = label.querySelector(":scope > .required-marker");
     if (required && !marker) {
       marker = document.createElement("span");
@@ -3393,11 +3861,19 @@
       list: "legal-entity-document-list",
       file: "legal-entity-document-file",
     },
+    accountingObject: {
+      kind: "accounting_object",
+      id: () => $("accounting-object-id").value,
+      list: "accounting-object-document-list",
+      file: "accounting-object-document-file",
+      upload: "upload-accounting-object-document",
+    },
   };
   async function loadEntityDocuments(targetKey) {
     const target = documentTargets[targetKey];
     const list = $(target.list);
     const entityId = target.id();
+    if (target.upload) $(target.upload).disabled = !entityId;
     if (!entityId) {
       list.innerHTML =
         '<p class="empty">Save the record before uploading documents.</p>';
@@ -3649,7 +4125,11 @@
     return Object.entries(properties).filter(
       ([, field]) =>
         field && typeof field === "object" && !Array.isArray(field),
-    );
+    ).sort(([a, left], [b, right]) => {
+      const leftOrder = Number.isInteger(left.sortOrder) && left.sortOrder >= 0 ? left.sortOrder : Infinity;
+      const rightOrder = Number.isInteger(right.sortOrder) && right.sortOrder >= 0 ? right.sortOrder : Infinity;
+      return (leftOrder - rightOrder) || (a < b ? -1 : a > b ? 1 : 0);
+    });
   }
   function schemaTabs(schema, fields) {
     const fieldNames = fields.map(([name]) => name);
@@ -3696,7 +4176,7 @@
       field.width ||
       field["x-width"] ||
       field["x-ui-width"] ||
-      "medium";
+      null;
     if (["short", "medium", "wide", "full"].includes(width)) return width;
     if (detailFieldType(field) === "short_text") return "short";
     if (["long_text", "textarea"].includes(detailFieldType(field)))
@@ -3704,14 +4184,59 @@
     return "medium";
   }
   function detailInputType(field) {
-    if (field.format === "date") return "date";
-    if (field.format === "date-time") return "datetime-local";
+    if (field.type === "date" || field.format === "date") return "date";
+    if (field.type === "date_time" || field.format === "date-time") return "datetime-local";
+    if (field.type === "email" || field.format === "email") return "email";
+    if (field.type === "url" || field.format === "uri") return "url";
     if (
       detailFieldType(field) === "number" ||
       detailFieldType(field) === "integer"
     )
       return "number";
     return "text";
+  }
+  function applyDetailAttributes(input, field, required) {
+    input.required = required;
+    if (field.placeholder) input.placeholder = field.placeholder;
+    if (Number.isInteger(field.maxLength)) input.maxLength = field.maxLength;
+    if (Number.isInteger(field.minLength)) input.minLength = field.minLength;
+    if (field.pattern) input.pattern = field.pattern;
+    if (field.minimum !== undefined) input.min = String(field.minimum);
+    if (field.maximum !== undefined) input.max = String(field.maximum);
+    if (input.tagName === "TEXTAREA") {
+      input.rows = field.rows || 4;
+      input.classList.add("schema-textarea");
+    }
+    const type = detailFieldType(field);
+    if (type === "integer") input.step = "1";
+    else if (type === "number") input.step = field.step || "any";
+    if (type === "currency" || type === "decimal") {
+      input.inputMode = "decimal";
+      const scale = field.scale ?? 2;
+      const precision = field.precision ?? 14;
+      input.pattern = `-?\\d{1,${precision - scale}}${scale ? `(\\.\\d{1,${scale}})?` : ""}`;
+      const validate = () => {
+        input.setCustomValidity("");
+        if (!input.value) return;
+        const value = input.value.trim();
+        if (!new RegExp(`^(?:${input.pattern})$`).test(value)) {
+          input.setCustomValidity(`Enter up to ${precision - scale} digits before the decimal and ${scale} decimal places.`);
+        } else if (field.minimum !== undefined && Number(value) < field.minimum || field.maximum !== undefined && Number(value) > field.maximum) {
+          input.setCustomValidity("Amount is outside the allowed range.");
+        }
+      };
+      input.addEventListener("input", validate);
+      if (type === "currency") input.addEventListener("blur", () => {
+        validate();
+        if (input.value && input.validity.valid) input.value = decimalDetailValue(input.value, scale);
+      });
+      validate();
+    }
+  }
+  function decimalDetailValue(value, scale) {
+    const [whole, fraction = ""] = String(value).trim().split(".");
+    const normalized = whole.replace(/^(-?)0+(?=\d)/, "$1");
+    return scale ? `${normalized}.${fraction.padEnd(scale, "0")}` : normalized;
   }
   function detailEnumOptions(field) {
     if (Array.isArray(field.options))
@@ -3736,12 +4261,18 @@
       }));
     return [];
   }
-  function renderDetailInput(name, field, value, required) {
+  function renderDetailInput(name, field, value, required, context = {}) {
+    if (detailFieldType(field) === "grid") return renderDetailGrid(name, field, value, context);
     const label = document.createElement("label");
     label.className = `detail-field detail-field--${detailFieldWidth(field)}`;
     label.textContent = field.title || pretty(name);
-    if (field.description) label.title = field.description;
+    if (field.type === "currency" && field.currencyCode) label.textContent += ` (${field.currencyCode})`;
+    if (field.helpText || field.description) label.title = field.helpText || field.description;
     const enumOptions = detailEnumOptions(field);
+    if (detailFieldType(field) === "reference") {
+      label.append(renderDetailReference(name, field, value, required, context));
+      return label;
+    }
     if (enumOptions.length) {
       const select = document.createElement("select");
       select.dataset.detailField = name;
@@ -3758,6 +4289,7 @@
         select.append(option);
       });
       select.value = value ?? "";
+      applyDetailAttributes(select, field, required);
       label.append(select);
       return label;
     }
@@ -3781,13 +4313,132 @@
         : document.createElement("input");
     input.dataset.detailField = name;
     if (input.tagName === "INPUT") input.type = detailInputType(field);
-    if (fieldType === "integer") input.step = "1";
     input.value =
       fieldType === "object" || fieldType === "array"
         ? JSON.stringify(value ?? (fieldType === "array" ? [] : {}), null, 2)
         : (value ?? "");
+    if (fieldType === "currency" && /^-?\d+(?:\.\d+)?$/.test(String(input.value))) {
+      const scale = field.scale ?? 2;
+      if ((String(input.value).split(".")[1] || "").length <= scale) input.value = decimalDetailValue(input.value, scale);
+    }
+    applyDetailAttributes(input, field, required);
+    if (field.helpText) {
+      const hint = document.createElement("small");
+      hint.className = "detail-field-help";
+      hint.textContent = field.helpText;
+      hint.id = `detail-help-${name}`;
+      input.setAttribute("aria-describedby", hint.id);
+      label.append(input, hint);
+      return label;
+    }
     label.append(input);
     return label;
+  }
+  function renderDetailReference(name, field, value, required, context = {}) {
+    const wrapper = document.createElement("span");
+    wrapper.className = "schema-reference-control";
+    const select = document.createElement("select");
+    select.dataset.detailField = name;
+    select.required = required;
+    select.setAttribute("aria-label", field.title || pretty(name));
+    let chosen = value || "", request = 0;
+    const draw = (records) => {
+      const previous = select.value || chosen;
+      select.innerHTML = "";
+      const blank = document.createElement("option");
+      blank.value = ""; blank.textContent = required ? "Select object" : "None"; select.append(blank);
+      if (previous && !records.some(row => row.id === previous)) {
+        const existing = document.createElement("option");
+        existing.value = previous; existing.textContent = "Saved reference (unavailable)"; select.append(existing);
+      }
+      records.forEach(row => {
+        const option = document.createElement("option");
+        option.value = row.id; option.textContent = `${row.code} — ${row.name}${row.object_class ? ` (${pretty(row.object_class)})` : ""}`; select.append(option);
+      });
+      select.value = previous;
+    };
+    draw([]);
+    const message = document.createElement("small");
+    message.className = "schema-reference-message";
+    const load = async () => {
+      if (!state.orgId || !field.target) return;
+      const sequence = ++request;
+      const params = new URLSearchParams({ organisation_id: state.orgId, target: JSON.stringify(field.target), object_class: field.target.class || "", types: (field.target.types || []).join(","), selected_id: select.value || chosen });
+      if (field.referenceSource) {
+        const rule = field.referenceSource;
+        const input = [...(context.container?.querySelectorAll(`[data-detail-field="${CSS.escape(rule.field)}"]`) || [])].find(input => !input.closest("[data-detail-grid]"));
+        const sourceId = input ? input.value : context.data?.[rule.field] || "";
+        params.set("source_class", context.schema?.properties?.[rule.field]?.target?.class || "");
+        params.set("source_id", sourceId);
+        params.set("source_grid", rule.grid);
+        params.set("source_column", rule.column);
+        if (!sourceId) { draw([]); message.textContent = `Select ${context.schema?.properties?.[rule.field]?.title || rule.field} first`; return; }
+      }
+      try {
+        const result = await api(`schema-records/references?${params}`);
+        if (sequence !== request) return;
+        draw(result.records || []); message.textContent = field.helpText || "";
+      } catch (error) { if (sequence === request) message.textContent = error.message; }
+    };
+    select.addEventListener("change", () => { chosen = select.value; });
+    wrapper.append(select, message);
+    if (field.referenceSource && context.container) context.container.referenceLoads.push({ field: field.referenceSource.field, load });
+    queueMicrotask(load);
+    return wrapper;
+  }
+  function renderDetailGrid(name, field, value, context = {}) {
+    const section = document.createElement("section");
+    section.className = "schema-grid detail-field--full";
+    section.dataset.detailGrid = name;
+    const columns = schemaFields(field.rowSchema);
+    if (columns.some(([, column]) => column.type === "grid")) {
+      section.textContent = "Nested grids are not supported.";
+      return section;
+    }
+    const head = document.createElement("div"); head.className = "schema-grid-heading";
+    const heading = document.createElement("h3"); heading.textContent = field.title || pretty(name);
+    const add = document.createElement("button"); add.type = "button"; add.className = "secondary"; add.textContent = "+ Add row";
+    head.append(heading, add);
+    const description = document.createElement("p"); description.className = "schema-grid-help";
+    description.textContent = field.helpText || (field.periodControl ? `Periods grouped by ${(field.periodControl.groupBy || []).map(key => field.rowSchema.properties[key]?.title || key).join(", ") || "the whole grid"}. Blank end date means indefinitely.` : "");
+    description.hidden = !description.textContent;
+    const scroll = document.createElement("div"); scroll.className = "schema-grid-scroll";
+    const table = document.createElement("table"); table.className = "schema-grid-table";
+    table.setAttribute("aria-label", heading.textContent);
+    const thead = document.createElement("thead"), header = document.createElement("tr");
+    columns.forEach(([key, column]) => {
+      const th = document.createElement("th"); th.scope = "col";
+      th.textContent = (column.title || pretty(key)) + (column.currencyCode ? ` (${column.currencyCode})` : "") + ((field.rowSchema.required || []).includes(key) ? " *" : "");
+      header.append(th);
+    });
+    const actions = document.createElement("th"); actions.scope = "col"; actions.textContent = "Actions"; header.append(actions);thead.append(header);
+    const tbody = document.createElement("tbody");
+    const empty = document.createElement("p"); empty.className = "schema-grid-help"; empty.textContent = "No rows yet.";
+    const changed = () => { empty.hidden = !!tbody.children.length; section.dispatchEvent(new Event("change", { bubbles: true })); };
+    const appendRow = (record = {}, notify = true) => {
+      const row = document.createElement("tr"); row.className = "schema-grid-row";
+      columns.forEach(([key, column]) => {
+        const cell = document.createElement("td"); cell.className = `schema-grid-cell schema-grid-cell--${detailFieldWidth(column)}`;
+        const label = renderDetailInput(key, column, valueForDetailField(record, column, key), (field.rowSchema.required || []).includes(key), context);
+        label.querySelectorAll("[data-detail-field]").forEach(input => input.setAttribute("aria-label", column.title || pretty(key)));
+        cell.append(label); row.append(cell);
+      });
+      const cell = document.createElement("td");
+      const remove = document.createElement("button"); remove.type = "button"; remove.className = "secondary"; remove.textContent = "Remove";
+      remove.setAttribute("aria-label", `Remove row from ${heading.textContent}`);
+      remove.addEventListener("click", () => { row.remove(); changed(); });cell.append(remove); row.append(cell);tbody.append(row);
+      empty.hidden = true;
+      if (notify) changed();
+    };
+    add.addEventListener("click", () => appendRow());
+    (Array.isArray(value) ? value : []).forEach(row => appendRow(row, false));
+    table.append(thead, tbody);scroll.append(table);section.append(head, description, scroll, empty);
+    section.collectGridRows = () => [...tbody.children].map(row => {
+      const data = {};
+      row.querySelectorAll("[data-detail-field]").forEach(input => { data[input.dataset.detailField] = collectDetailValue(input, field.rowSchema.properties[input.dataset.detailField]); });
+      return data;
+    });
+    return section;
   }
   function showAccountDetailTab(container, id) {
     container
@@ -3805,23 +4456,59 @@
       });
   }
   function showAccountFixedTab(id) {
-    document
-      .querySelectorAll("[data-account-fixed-tab]")
-      .forEach((button) =>
-        button.classList.toggle(
-          "active",
-          button.dataset.accountFixedTab === id,
-        ),
-      );
-    document.querySelectorAll("[data-account-fixed-panel]").forEach((panel) => {
+    showAccountEditorTab(id);
+  }
+  function showAccountingEditorTab(prefix, id) {
+    const form = $(`${prefix}-form`);
+    form.querySelectorAll(".account-editor-tabs button").forEach((button) => {
+      const selected = (button.dataset.recordTab || `schema:${button.dataset.accountDetailTab}`) === id;
+      button.classList.toggle("active", selected);
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-selected", String(selected));
+    });
+    form.querySelectorAll("[data-record-panel]").forEach((panel) => { panel.hidden = panel.dataset.recordPanel !== id; });
+    const schema = $(`${prefix}-detail-fields`);
+    schema.hidden = !id.startsWith("schema:");
+    if (!schema.hidden) showAccountDetailTab(schema, id.slice(7));
+    if (id === "resources") loadResourceAssignmentEditor(prefix).catch((error) => alert(error.message));
+    if (id === "documents" && prefix === "accounting-object") loadEntityDocuments("accountingObject").catch((error) => alert(error.message));
+    if (id === "versions") loadObjectVersions(prefix).catch(error => alert(error.message));
+  }
+  function showAccountEditorTab(id) {
+    const form = $("account-form");
+    const schemaId = id.startsWith("schema:") ? id.slice(7) : null;
+    form.querySelectorAll(".account-editor-tabs button").forEach((button) => {
+      const selected = (button.dataset.accountFixedTab || `schema:${button.dataset.accountDetailTab}`) === id;
+      button.classList.toggle("active", selected);
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-selected", String(selected));
+    });
+    form.querySelectorAll("[data-account-fixed-panel]").forEach((panel) => {
       panel.hidden = panel.dataset.accountFixedPanel !== id;
     });
+    $("account-detail-fields").hidden = !schemaId;
+    if (schemaId) showAccountDetailTab($("account-detail-fields"), schemaId);
+    if (id === "resources") loadResourceAssignmentEditor("account").catch((error) => alert(error.message));
+    if (id === "versions") loadObjectVersions("account").catch(error => alert(error.message));
   }
   function renderSchemaDetailFields(containerId, schema, detail = {}) {
     const container = $(containerId);
     if (!container) return;
     const fields = schemaFields(schema);
+    const editorPrefix = containerId.replace(/-detail-fields$/, "");
+    const accountTabs = ["account", "accounting-object", "accounting-dimension"].includes(editorPrefix) ? $(`${editorPrefix}-form`).querySelector(".account-editor-tabs") : null;
+    const selectTab = (id) => editorPrefix === "account" ? showAccountEditorTab(`schema:${id}`) : showAccountingEditorTab(editorPrefix, `schema:${id}`);
+    const resourceTab = accountTabs?.querySelector('[data-account-fixed-tab="resources"], [data-record-tab="resources"]');
+    accountTabs?.querySelectorAll("[data-account-detail-tab]").forEach((button) => button.remove());
     container.innerHTML = "";
+    container.referenceLoads = [];
+    if (!container.referenceChangeInstalled) {
+      container.addEventListener("change", event => {
+        (container.referenceLoads || []).filter(item => !event.target.closest("[data-detail-grid]") && item.field === event.target.dataset.detailField).forEach(item => item.load());
+      });
+      container.referenceChangeInstalled = true;
+    }
+    const context = { container, schema, data: detail };
     if (!fields.length) {
       const label = document.createElement("label");
       label.className = "full";
@@ -3831,7 +4518,17 @@
       textarea.value = JSON.stringify(detail || {}, null, 2);
       label.append(textarea);
       container.append(label);
+      if (accountTabs) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "account-detail-tab";
+        button.dataset.accountDetailTab = "additional";
+        button.textContent = "Additional details";
+        button.addEventListener("click", () => selectTab("additional"));
+        accountTabs.insertBefore(button, resourceTab);
+      }
       syncRequiredMarkers(container);
+      if (accountTabs) editorPrefix === "account" ? showAccountEditorTab("identification") : showAccountingEditorTab(editorPrefix, "general");
       return;
     }
     const required = new Set(
@@ -3845,17 +4542,18 @@
     const tabBar = document.createElement("div");
     tabBar.className = "account-detail-tabs";
     tabBar.setAttribute("role", "tablist");
-    if (tabs.length > 1) {
+    if (tabs.length > 1 || accountTabs) {
       tabs.forEach((tab, index) => {
         const button = document.createElement("button");
         button.type = "button";
         button.className = `account-detail-tab${index ? "" : " active"}`;
         button.dataset.accountDetailTab = tab.id;
-        button.textContent = tab.label;
+        button.textContent = accountTabs && tab.label.toLowerCase() === "general" ? "Type details" : tab.label;
         button.addEventListener("click", () =>
-          showAccountDetailTab(container, tab.id),
+          accountTabs ? selectTab(tab.id) : showAccountDetailTab(container, tab.id),
         );
-        tabBar.append(button);
+        if (accountTabs) accountTabs.insertBefore(button, resourceTab);
+        else tabBar.append(button);
       });
     }
     const byName = Object.fromEntries(fields);
@@ -3871,17 +4569,20 @@
             byName[name],
             valueForDetailField(detail, byName[name], name),
             required.has(name),
+            context,
           ),
         ),
       );
       fieldPane.append(panel);
     });
-    if (tabs.length > 1) detailLayout.append(tabBar);
+    if (tabs.length > 1 && !accountTabs) detailLayout.append(tabBar);
     detailLayout.append(fieldPane);
     container.append(detailLayout);
     syncRequiredMarkers(container);
+    if (accountTabs) editorPrefix === "account" ? showAccountEditorTab("identification") : showAccountingEditorTab(editorPrefix, "general");
   }
   function renderAccountDetailFields(detail = {}) {
+    updateAccountCodeNumbering();
     renderSchemaDetailFields(
       "account-detail-fields",
       selectedAccountFamilySchema(),
@@ -3901,23 +4602,26 @@
     const properties = schema?.properties || {};
     const detail = {};
     container?.querySelectorAll("[data-detail-field]").forEach((input) => {
+      if (input.closest?.("[data-detail-grid]")) return;
       const name = input.dataset.detailField;
       const field = properties[name] || {};
-      const fieldType = detailFieldType(field);
-      if (input.type === "checkbox") detail[name] = input.checked;
-      else if (fieldType === "number")
-        detail[name] = input.value === "" ? null : Number(input.value);
-      else if (fieldType === "integer")
-        detail[name] = input.value === "" ? null : parseInt(input.value, 10);
-      else if (fieldType === "object" || fieldType === "array") {
-        try {
-          detail[name] = JSON.parse(input.value || null);
-        } catch {
-          throw new Error(`${field.title || pretty(name)} must be valid JSON`);
-        }
-      } else detail[name] = input.value;
+      detail[name] = collectDetailValue(input, field);
+    });
+    container?.querySelectorAll("[data-detail-grid]").forEach(grid => {
+      if (grid.collectGridRows) detail[grid.dataset.detailGrid] = grid.collectGridRows();
     });
     return detail;
+  }
+  function collectDetailValue(input, field) {
+    const type = detailFieldType(field);
+    if (input.type === "checkbox") return input.checked;
+    if (type === "currency" || type === "decimal") return input.value === "" ? null : decimalDetailValue(input.value, field.scale ?? 2);
+    if (type === "number" || type === "integer") return input.value === "" ? null : Number(input.value);
+    if (type === "object" || type === "array") {
+      try { return JSON.parse(input.value || null); }
+      catch { throw new Error(`${field.title || pretty(input.dataset.detailField)} must be valid JSON`); }
+    }
+    return input.value;
   }
   function collectAccountDetail() {
     return collectSchemaDetail(
@@ -3925,15 +4629,145 @@
       selectedAccountFamilySchema(),
     );
   }
+  function installObjectVersionTabs() {
+    for (const prefix of ["account", "accounting-object", "accounting-dimension"]) {
+      const form = $(`${prefix}-form`);
+      const tabs = form?.querySelector(".account-editor-tabs");
+      if (!tabs) continue;
+      const button = document.createElement("button"); button.type = "button"; button.className = "account-detail-tab"; button.textContent = "Versions";
+      if (prefix === "account") button.dataset.accountFixedTab = "versions";
+      else button.dataset.recordTab = "versions";
+      button.addEventListener("click", () => prefix === "account" ? showAccountEditorTab("versions") : showAccountingEditorTab(prefix, "versions"));
+      tabs.append(button);
+      const panel = document.createElement("section"); panel.id = `${prefix}-versions`;panel.className = "object-version-panel";panel.hidden = true;
+      if (prefix === "account") panel.dataset.accountFixedPanel = "versions";
+      else panel.dataset.recordPanel = "versions";
+      form.insertBefore(panel, form.querySelector(".account-editor-actions"));
+    }
+  }
+  function objectVersionContext(prefix) {
+    if (prefix === "account") {
+      const family = $("account-form-family").value;
+      return { kind: family === "gl" ? null : "subledger_account", id: $("account-id").value };
+    }
+    return { kind: prefix === "accounting-object" ? "accounting_object" : "accounting_dimension", id: $(`${prefix}-id`).value };
+  }
+  async function loadObjectVersions(prefix) {
+    const panel = $(`${prefix}-versions`), context = objectVersionContext(prefix);
+    panel.textContent = context.kind ? "Save the record to start its version history." : "Version history is available for custom-schema objects.";
+    if (!context.kind || !context.id) return;
+    const requestKey = `${state.orgId}:${context.kind}:${context.id}`;
+    panel.dataset.versionRequest = requestKey;
+    const params = new URLSearchParams({ organisation_id: state.orgId, object_kind: context.kind, object_id: context.id });
+    const result = await api(`schema-records/versions?${params}`);
+    if (panel.dataset.versionRequest !== requestKey || objectVersionContext(prefix).id !== context.id) return;
+    panel.textContent = "";
+    const description = document.createElement("p");description.textContent = "Each saved version contains the complete record, its custom fields, grid rows and schema."; panel.append(description);
+    if (!result.versions.length) { description.textContent = "No versions yet. The next Save will preserve the existing record and the updated record."; return; }
+    const table = document.createElement("table");table.className = "object-version-table";
+    const head = document.createElement("tr");["Version", "Captured", "By", ""].forEach(text => {const cell=document.createElement("th");cell.textContent=text;head.append(cell);});table.append(head);
+    const snapshot = document.createElement("section");snapshot.className = "object-version-snapshot";
+    result.versions.forEach(version => {
+      const row = document.createElement("tr");
+      [`v${version.version_number}${version.is_baseline ? " (initial baseline)" : ""}`, new Date(version.saved_at).toLocaleString(), version.saved_by_email].forEach(text => {const cell=document.createElement("td");cell.textContent=text;row.append(cell);});
+      const cell=document.createElement("td"),button=document.createElement("button");button.type="button";button.className="secondary";button.textContent="View snapshot";
+      button.addEventListener("click", async () => {
+        const sequence = String((Number(snapshot.dataset.request) || 0) + 1);snapshot.dataset.request=sequence;
+        try {
+          const response = await api(`schema-records/versions?${params}&version_number=${version.version_number}`);
+          if (snapshot.dataset.request!==sequence || panel.dataset.versionRequest!==requestKey || objectVersionContext(prefix).id!==context.id) return;
+          const saved = response.versions[0];
+          if (!saved) throw new Error("Version is no longer accessible.");
+          snapshot.textContent="";
+          const title=document.createElement("h3");title.textContent=`Version ${version.version_number} · read-only snapshot`;snapshot.append(title);
+          const record=document.createElement("details");const summary=document.createElement("summary");summary.textContent="Standard fields and resource assignments";
+          const json=document.createElement("pre");json.textContent=JSON.stringify({ ...saved.record_json, additional_data: undefined, resource_assignments: saved.resource_assignments_json },null,2);record.append(summary,json);snapshot.append(record);
+          const fields=document.createElement("div");fields.id=`${prefix}-version-detail-fields`;snapshot.append(fields);
+          renderSchemaDetailFields(fields.id,saved.schema_json,saved.record_json.additional_data || {});
+          fields.querySelectorAll("input,select,textarea,button").forEach(input=>{input.disabled=true;});
+          const schema=document.createElement("details"),caption=document.createElement("summary"),definition=document.createElement("pre");caption.textContent="Schema at this version";definition.textContent=JSON.stringify(saved.schema_json,null,2);schema.append(caption,definition);snapshot.append(schema);
+        } catch(error) {alert(error.message);}
+      });cell.append(button);row.append(cell);table.append(row);
+    });
+    const scroll = document.createElement("div");scroll.className = "schema-grid-scroll";scroll.append(table);
+    panel.append(scroll,snapshot);
+  }
+  // Shared, runtime-only sizing. Right-anchored editors grow towards the left.
+  function installResizableObjectEditors() {
+    ["account-form", "accounting-object-form", "accounting-dimension-form", "report-definition-form", "exchange-rate-form"].forEach((id) => {
+      const form = $(id);
+      if (!form) return;
+      const actions = form.querySelector(".account-editor-actions") || form.querySelector(".actions");
+      if (!actions) return;
+      const handle = document.createElement("button");
+      handle.type = "button";
+      handle.className = "object-editor-resize";
+      handle.textContent = "↙";
+      handle.setAttribute("aria-label", "Resize editor");
+      handle.title = "Drag to resize; arrow keys adjust width and height";
+      actions.prepend(handle);
+      let drag = null;
+      let resized = false;
+      const reset = () => {
+        drag = null;
+        resized = false;
+        ["width", "height", "max-height", "left"].forEach((name) => form.style.removeProperty(name));
+      };
+      const size = (width, height) => {
+        const rect = form.getBoundingClientRect();
+        const view = form.closest(".view");
+        const bounds = view ? view.getBoundingClientRect() : { left: 0, bottom: innerHeight };
+        const maxWidth = Math.max(1, rect.right - Math.max(0, bounds.left) - 12);
+        const maxHeight = Math.max(1, innerHeight - rect.top - 12);
+        form.style.left = "auto";
+        form.style.width = `${Math.min(maxWidth, Math.max(Math.min(420, maxWidth), width))}px`;
+        form.style.maxHeight = `${maxHeight}px`;
+        form.style.height = `${Math.min(maxHeight, Math.max(Math.min(280, maxHeight), height))}px`;
+        resized = true;
+      };
+      handle.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        const rect = form.getBoundingClientRect();
+        drag = { x: event.clientX, y: event.clientY, width: rect.width, height: rect.height };
+        handle.setPointerCapture(event.pointerId);
+      });
+      handle.addEventListener("pointermove", (event) => {
+        if (drag) size(drag.width + drag.x - event.clientX, drag.height + event.clientY - drag.y);
+      });
+      const endDrag = () => { drag = null; };
+      handle.addEventListener("pointerup", endDrag);
+      handle.addEventListener("pointercancel", endDrag);
+      handle.addEventListener("lostpointercapture", endDrag);
+      handle.addEventListener("keydown", (event) => {
+        if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+        event.preventDefault();
+        const rect = form.getBoundingClientRect();
+        const step = event.shiftKey ? 50 : 20;
+        size(rect.width + (event.key === "ArrowLeft" ? step : event.key === "ArrowRight" ? -step : 0),
+          rect.height + (event.key === "ArrowDown" ? step : event.key === "ArrowUp" ? -step : 0));
+      });
+      new MutationObserver(reset).observe(form, { attributes: true, attributeFilter: ["hidden"] });
+      window.addEventListener("resize", () => {
+        if (resized && !form.hidden) {
+          const rect = form.getBoundingClientRect();
+          size(rect.width, rect.height);
+        }
+      });
+    });
+  }
   function openAccountEditor(account = {}) {
     const family = selectedAccountScopeCode || account.scope_code || "gl";
     $("account-form").hidden = false;
     $("account-form").reset();
+    $("account-form").querySelector("h2").textContent = `${account.account_id ? "Edit" : "New"} ${labelForFamily(family).toLowerCase()}`;
     showAccountFixedTab("identification");
     $("account-id").value = account.account_id || "";
     $("account-form-family").value = family;
     $("account-form-family").disabled = true;
-    $("account-division").value = account.owner_division_id || "";
+    $("account-division").value = account.account_id
+      ? account.owner_division_id || ""
+      : defaultOwnerDivision("account-division");
     $("account-code").value = account.account_code || "";
     $("account-name").value = account.account_name || "";
     $("account-legal-entity").value = account.legal_entity_id || "";
@@ -3966,6 +4800,7 @@
       "fiscal-period-panel",
       "country-form",
       "currency-form",
+      "exchange-rate-form",
       "tax-type-form",
       "gl-account-type-form",
       "ledger-family-form",
@@ -3980,6 +4815,8 @@
       "accounting-dimension-type-form",
       "legal-entity-form",
       "journal-form",
+      "resource-form",
+      "module-form",
     ].forEach((id) => {
       const panel = $(id);
       if (!panel || panel.querySelector(":scope > .panel-close")) return;
@@ -3992,6 +4829,7 @@
         panel.hidden = true;
       });
       panel.prepend(button);
+      panel.querySelector("[data-panel-cancel]")?.addEventListener("click", () => button.click());
     });
   }
   function renderDashboard() {
@@ -4273,55 +5111,56 @@
       },
     );
   }
-  function renderFiscal() {
-    const target = $("fiscal-year-list");
-    const term = searchTerm("fiscal-search");
-    const matchingPeriodYearIds = new Set(
-      state.periods
-        .filter((period) => rowMatches(period, term))
-        .map((period) => period.fiscal_year_id),
-    );
-    const years = state.years.filter(
-      (year) =>
-        rowMatches(year, term) ||
-        matchingPeriodYearIds.has(year.fiscal_year_id),
-    );
-    if (!years.length) {
-      target.innerHTML =
-        '<p class="empty">No fiscal years match the search.</p>';
-      return;
-    }
-    const el = document.createElement("table");
-    el.className = "fiscal-table";
-    el.innerHTML =
-      "<thead><tr><th></th><th>Fiscal Year</th><th>Start</th><th>End</th><th>Status</th></tr></thead>";
-    const body = document.createElement("tbody");
-    years.forEach((year) => {
-      const row = document.createElement("tr");
-      row.className = "click-row fiscal-year-row";
-      const expanded = expandedFiscalYears.has(year.fiscal_year_id);
-      row.innerHTML = `<td><button type="button" class="mini-toggle" aria-label="${expanded ? "Collapse" : "Expand"} ${year.fiscal_year_code}">${expanded ? "v" : ">"}</button></td><td>${year.fiscal_year_code}</td><td>${dateOnly(year.start_date)}</td><td>${dateOnly(year.end_date)}</td><td>${pretty(year.status)}</td>`;
-      row.querySelector("button").addEventListener("click", (event) => {
-        event.stopPropagation();
-        if (expanded) expandedFiscalYears.delete(year.fiscal_year_id);
-        else expandedFiscalYears.add(year.fiscal_year_id);
-        renderFiscal();
-      });
-      row.addEventListener("click", () => selectFiscalYear(year));
-      body.append(row);
-      if (expanded) {
-        const periodRow = document.createElement("tr");
-        const cell = document.createElement("td");
-        cell.colSpan = 5;
-        cell.className = "period-cell";
-        renderPeriodGrid(cell, year);
-        periodRow.append(cell);
-        body.append(periodRow);
+  function fiscalRecordActions(kind, record) {
+    const actions = document.createElement("div"); actions.className = "fiscal-row-actions";
+    const edit = document.createElement("button"); edit.type = "button"; edit.className = "secondary"; edit.textContent = "Edit";
+    edit.setAttribute("aria-label", `Edit ${kind === "year" ? record.fiscal_year_code : record.period_code}`);
+    edit.addEventListener("click", event => { event.stopPropagation(); kind === "year" ? selectFiscalYear(record) : selectFiscalPeriod(record); });
+    const remove = document.createElement("button"); remove.type = "button"; remove.className = "secondary danger"; remove.textContent = "Delete";
+    remove.setAttribute("aria-label", `Delete ${kind === "year" ? record.fiscal_year_code : record.period_code}`);
+    remove.addEventListener("click", async event => { event.stopPropagation(); remove.disabled = true; try { await deleteFiscalRecord(kind, record); } finally { remove.disabled = false; } });
+    actions.append(edit, remove); return actions;
+  }
+  async function deleteFiscalRecord(kind, record) {
+    const code = kind === "year" ? record.fiscal_year_code : record.period_code;
+    const suffix = kind === "year" ? " and all its periods" : "";
+    if (!window.confirm(`Delete ${code}${suffix}? This cannot be undone. Records referenced by transactions cannot be deleted.`)) return;
+    const orgId = state.orgId;
+    try {
+      await api(`fiscal/delete-${kind}`, { method: "POST", body: JSON.stringify({ organisation_id: orgId, [`fiscal_${kind}_id`]: record[`fiscal_${kind}_id`] }) });
+      if (state.orgId !== orgId) return;
+      if (kind === "year") expandedFiscalYears.delete(record.fiscal_year_id);
+      if (kind === "year" && $("fiscal-year-id").value === record.fiscal_year_id) { $("fiscal-editor-panel").hidden = true; $("fiscal-year-id").value = ""; }
+      if ((kind === "period" && $("fiscal-period-id").value === record.fiscal_period_id) || (kind === "year" && $("period-year-id").value === record.fiscal_year_id)) {
+        $("fiscal-period-panel").hidden = true; $("fiscal-period-id").value = ""; $("period-year-id").value = "";
       }
+      await ensureFiscal(true);
+      if (state.orgId !== orgId) return;
+      renderFiscal(); invalidateDashboard();
+    } catch (error) { if (state.orgId === orgId) alert(error.message); }
+  }
+  function renderFiscal() {
+    const target = $("fiscal-year-list"), term = searchTerm("fiscal-search");
+    const matchingPeriodYearIds = new Set(state.periods.filter(period => rowMatches(period, term)).map(period => period.fiscal_year_id));
+    const years = state.years.filter(year => rowMatches(year, term) || matchingPeriodYearIds.has(year.fiscal_year_id));
+    const isExpanded = year => expandedFiscalYears.has(year.fiscal_year_id);
+    table(target, [
+      ["Periods", year => {
+        const button = document.createElement("button"); button.type = "button"; button.className = "secondary fiscal-period-toggle";
+        const expanded = isExpanded(year), count = state.periods.filter(p => p.fiscal_year_id === year.fiscal_year_id).length;
+        button.textContent = `${expanded ? "▾" : "▸"} ${count} ${count === 1 ? "period" : "periods"}`; button.setAttribute("aria-expanded", String(expanded));
+        button.setAttribute("aria-label", `${expanded ? "Collapse" : "Expand"} periods for ${year.fiscal_year_code}`);
+        button.addEventListener("click", event => { event.stopPropagation(); expanded ? expandedFiscalYears.delete(year.fiscal_year_id) : expandedFiscalYears.add(year.fiscal_year_id); renderFiscal(); }); return button;
+      }],
+      ["Fiscal year", year => year.fiscal_year_code], ["Start date", year => dateOnly(year.start_date)],
+      ["End date", year => dateOnly(year.end_date)], ["Status", year => pretty(year.status)], ["Actions", year => fiscalRecordActions("year", year)]
+    ], years, selectFiscalYear);
+    const rows = [...target.querySelectorAll("tbody > tr")];
+    years.forEach((year, index) => {
+      if (!isExpanded(year)) return;
+      const row = document.createElement("tr"), cell = document.createElement("td"); cell.colSpan = 6; cell.className = "period-cell";
+      renderPeriodGrid(cell, year); row.append(cell); rows[index].after(row);
     });
-    el.append(body);
-    target.innerHTML = "";
-    target.append(el);
   }
   function renderCountries() {
     const rows = (state.countries || []).filter((row) =>
@@ -4363,6 +5202,7 @@
         ["Code", (r) => r.currency_code],
         ["Name", (r) => r.currency_name],
         ["Decimals", (r) => r.decimal_places],
+        ["Format", (r) => CurrencyFormat.format(1234.56, r)],
         ["Seeded", (r) => (r.is_seeded ? "Yes" : "No")],
       ],
       rows,
@@ -4371,6 +5211,7 @@
         $("currency-code").value = r.currency_code;
         $("currency-name").value = r.currency_name;
         $("currency-decimals").value = r.decimal_places;
+        fillCurrencyFormat(r);
       },
     );
   }
@@ -4524,7 +5365,9 @@
   function openGlAccountType(type = {}) {
     $("gl-account-type-form").hidden = false;
     $("gl-account-type-form").reset();
+    $("gl-account-type-form").querySelector("h2").textContent = type.gl_account_type_id ? "Edit GL account type" : "New GL account type";
     showSetupTypeTab("gl-account-type", "definition");
+    loadCodeNumberingFields("gl-account-type", type);
     $("gl-account-type-id").value = type.gl_account_type_id || "";
     $("gl-account-type-code").value = type.type_code || "";
     $("gl-account-type-code").readOnly = !!type.gl_account_type_id;
@@ -4629,6 +5472,7 @@
   function openResourceEditor(resource = {}) {
     $("resource-form").hidden = false;
     $("resource-form").reset();
+    $("resource-form").querySelector("h2").textContent = resource.resource_id ? "Edit resource" : "New resource";
     $("resource-id").value = resource.resource_id || "";
     $("resource-code").value = resource.resource_code || "";
     $("resource-name").value = resource.display_name || "";
@@ -4640,6 +5484,7 @@
   function openModule(row = {}) {
     $("module-form").hidden = false;
     $("module-form").reset();
+    $("module-form").querySelector("h2").textContent = row.module_id ? "Edit module" : "New module";
     $("module-id").value = row.module_id || "";
     $("module-code").value = row.module_code || "";
     $("module-code").readOnly = !!row.module_id;
@@ -4651,6 +5496,7 @@
     renderModuleIconPreview();
   }
   function selectLedgerFamily(type) {
+    loadCodeNumberingFields("ledger-family", type);
     $("ledger-family-form").hidden = false;
     showSetupTypeTab("ledger-family", "definition");
     $("ledger-family-id").value = type.subledger_account_type_id || "";
@@ -4666,11 +5512,9 @@
       null,
       2,
     );
-    $("ledger-family-ui-schema").value = JSON.stringify(
-      type.ui_schema_json || { sections: [] },
-      null,
-      2,
-    );
+    // Preserve the legacy value for API compatibility; Schema JSON drives the UI.
+    $("ledger-family-form").dataset.legacyUiSchema = JSON.stringify(type.ui_schema_json || {});
+    renderSchemaDesignPreview("ledger-family");
     $("ledger-family-active").checked = !!type.is_active;
     fillModuleSelect("ledger-family-modules", type.module_ids);
     renderResourceRoleMappingRows(
@@ -4840,41 +5684,14 @@
     openFinancialFormatEditor({ statement_type: "income", is_active: true });
   }
   function renderPeriodGrid(target, year) {
-    const periods = state.periods
-      .filter((p) => p.fiscal_year_id === year.fiscal_year_id)
-      .sort((a, b) => a.period_number - b.period_number);
-    const toolbar = document.createElement("div");
-    toolbar.className = "period-toolbar";
-    const add = document.createElement("button");
-    add.type = "button";
-    add.className = "add-record-button";
-    add.textContent = "+";
-    add.setAttribute("aria-label", `Add period to ${year.fiscal_year_code}`);
-    add.addEventListener("click", () => openNewFiscalPeriod(year));
-    toolbar.append(add);
-    target.innerHTML = "";
-    target.append(toolbar);
-    if (!periods.length) {
-      const empty = document.createElement("p");
-      empty.className = "empty";
-      empty.textContent = "No fiscal periods defined for this year.";
-      target.append(empty);
-      return;
-    }
-    const tableEl = document.createElement("table");
-    tableEl.className = "period-grid";
-    tableEl.innerHTML =
-      "<thead><tr><th>Number</th><th>Code</th><th>Start</th><th>End</th><th>Status</th></tr></thead>";
-    const body = document.createElement("tbody");
-    periods.forEach((period) => {
-      const row = document.createElement("tr");
-      row.className = "click-row";
-      row.innerHTML = `<td>${period.period_number}</td><td>${period.period_code}</td><td>${dateOnly(period.start_date)}</td><td>${dateOnly(period.end_date)}</td><td>${pretty(period.status)}</td>`;
-      row.addEventListener("click", () => selectFiscalPeriod(period));
-      body.append(row);
-    });
-    tableEl.append(body);
-    target.append(tableEl);
+    const periods = state.periods.filter(p => p.fiscal_year_id === year.fiscal_year_id).sort((a,b) => a.period_number-b.period_number);
+    const toolbar = document.createElement("div"); toolbar.className = "period-toolbar";
+    const heading = document.createElement("strong"); heading.textContent = `${year.fiscal_year_code} · Periods`;
+    const add = document.createElement("button"); add.type = "button"; add.className = "secondary"; add.textContent = "+ Add period";
+    add.setAttribute("aria-label", `Add period to ${year.fiscal_year_code}`); add.addEventListener("click", () => openNewFiscalPeriod(year));
+    toolbar.append(heading, add); const grid = document.createElement("div");
+    target.replaceChildren(toolbar, grid);
+    table(grid, [["Number", p => p.period_number], ["Code", p => p.period_code], ["Start date", p => dateOnly(p.start_date)], ["End date", p => dateOnly(p.end_date)], ["Status", p => pretty(p.status)], ["Actions", p => fiscalRecordActions("period", p)]], periods, selectFiscalPeriod);
   }
   function nextPeriodNumber(yearId) {
     const numbers = state.periods
@@ -4895,6 +5712,9 @@
   }
   function selectFiscalYear(year) {
     showFiscalEditor();
+    $("fiscal-form").querySelector("h2").textContent = "Edit fiscal year";
+    $("fiscal-periods").closest("label").hidden = true;
+    $("fiscal-periods").checked = false;
     $("fiscal-year-id").value = year.fiscal_year_id;
     $("fiscal-code").value = year.fiscal_year_code;
     $("fiscal-start").value = dateOnly(year.start_date);
@@ -4914,6 +5734,8 @@
     $("period-start").value = dateOnly(period.start_date);
     $("period-end").value = dateOnly(period.end_date);
     $("period-status").value = period.status || "open";
+    $("fiscal-period-form").querySelector("h2").textContent = "Edit fiscal period";
+    $("period-year-context").textContent = year ? `${year.fiscal_year_code} · ${dateOnly(year.start_date)} to ${dateOnly(year.end_date)}` : "";
     showFiscalPeriodEditor();
   }
   function resetFiscalYearForm() {
@@ -4922,6 +5744,8 @@
     $("fiscal-year-id").value = "";
     $("fiscal-status").value = "open";
     $("fiscal-periods").checked = true;
+    $("fiscal-periods").closest("label").hidden = false;
+    $("fiscal-form").querySelector("h2").textContent = "New fiscal year";
     hideFiscalPeriodEditor();
   }
   function resetFiscalPeriodForm() {
@@ -4929,6 +5753,7 @@
     $("fiscal-period-form").reset();
     $("fiscal-period-id").value = "";
     $("period-status").value = "open";
+    $("fiscal-period-form").querySelector("h2").textContent = "New fiscal period";
     if (!$("period-year-id").value && $("fiscal-year-id").value)
       $("period-year-id").value = $("fiscal-year-id").value;
   }
@@ -4938,6 +5763,41 @@
     resetFiscalPeriodForm();
     $("period-year-id").value = year.fiscal_year_id;
     $("period-number").value = nextPeriodNumber(year.fiscal_year_id);
+    $("period-year-context").textContent = `${year.fiscal_year_code} · ${dateOnly(year.start_date)} to ${dateOnly(year.end_date)}`;
+  }
+  async function saveFiscalRecord(kind, event) {
+    event.preventDefault();
+    const orgId = state.orgId, form = event.currentTarget, submit = form.querySelector('[type="submit"]');
+    const yearId = kind === "year" ? $("fiscal-year-id").value : $("period-year-id").value || $("fiscal-year-id").value;
+    if (kind === "period" && !yearId) return alert("Select or save a fiscal year first");
+    const periodId = $("fiscal-period-id").value;
+    const data = kind === "year" ? {
+      fiscal_year_id: yearId, fiscal_year_code: $("fiscal-code").value, start_date: $("fiscal-start").value,
+      end_date: $("fiscal-end").value, status: $("fiscal-status").value, create_periods: !yearId && $("fiscal-periods").checked
+    } : {
+      fiscal_period_id: periodId, fiscal_year_id: yearId, period_number: $("period-number").value,
+      period_code: state.periods.find(period => period.fiscal_period_id === periodId)?.period_code,
+      start_date: $("period-start").value, end_date: $("period-end").value, status: $("period-status").value
+    };
+    submit.disabled = true;
+    try {
+      const result = await api(`fiscal/save-${kind}`, { method: "POST", body: JSON.stringify({ organisation_id: orgId, ...data }) });
+      if (state.orgId !== orgId) return;
+      const savedYearId = result.fiscal_year?.fiscal_year_id || yearId;
+      if (savedYearId) expandedFiscalYears.add(savedYearId);
+      $(kind === "year" ? "fiscal-editor-panel" : "fiscal-period-panel").hidden = true;
+      await ensureFiscal(true);
+      if (state.orgId !== orgId) return;
+      renderFiscal(); invalidateDashboard();
+    } catch (error) { if (state.orgId === orgId) alert(error.message); }
+    finally { submit.disabled = false; }
+  }
+  function installFiscalEditors() {
+    $("add-fiscal-year").addEventListener("click", resetFiscalYearForm);
+    $("new-fiscal-year").addEventListener("click", resetFiscalYearForm);
+    $("new-fiscal-period").addEventListener("click", resetFiscalPeriodForm);
+    $("fiscal-form").addEventListener("submit", event => saveFiscalRecord("year", event));
+    $("fiscal-period-form").addEventListener("submit", event => saveFiscalRecord("period", event));
   }
   function renderAccounts() {
     const family = selectedAccountScopeCode || "gl";
@@ -5276,6 +6136,7 @@
         : "accounting-dimension-type";
     $(`${prefix}-form`).hidden = false;
     showSetupTypeTab(prefix, "definition");
+    loadCodeNumberingFields(prefix, row);
     $(`${prefix}-id`).value =
       row.accounting_object_type_id || row.accounting_dimension_type_id || "";
     $(`${prefix}-code`).value = row.type_code || "";
@@ -5289,11 +6150,8 @@
       null,
       2,
     );
-    $(`${prefix}-ui-schema`).value = JSON.stringify(
-      row.ui_schema_json || { sections: [] },
-      null,
-      2,
-    );
+    $(`${prefix}-form`).dataset.legacyUiSchema = JSON.stringify(row.ui_schema_json || {});
+    renderSchemaDesignPreview(prefix);
     $(`${prefix}-active`).checked = row.is_active !== false;
     if ($(`${prefix}-workflow-path`))
       $(`${prefix}-workflow-path`).value =
@@ -5448,6 +6306,7 @@
     );
   }
   function renderAccountingMasterDetailFields(kind, detail = {}) {
+    updateAccountingCodeNumbering(kind);
     const config = accountingMasterConfig(kind);
     renderSchemaDetailFields(
       `${config.prefix}-detail-fields`,
@@ -5713,6 +6572,7 @@
   function openAccountingMasterRecord(kind, row = {}) {
     const config = accountingMasterConfig(kind);
     const id = row[config.recordId] || "";
+    $(`${config.prefix}-form`).querySelector("h2").textContent = `${id ? "Edit" : "New"} accounting ${config.isObject ? "object" : "dimension"}`;
     config.setSelected(id || null);
     resourceAssignmentEditors.delete(config.prefix);
     showResourceEditorTab(config.prefix, "details");
@@ -5721,7 +6581,7 @@
     $(`${config.prefix}-type`).value =
       row[config.typeId] || $(`${config.prefix}-type-select`).value || "";
     $(`${config.prefix}-division`).value =
-      row.owner_division_id || state.divisions[0]?.division_id || "";
+      id ? row.owner_division_id || "" : defaultOwnerDivision(`${config.prefix}-division`);
     if (config.isObject) {
       accountingObjectParentOptions = [];
       if (row.parent_accounting_object_id) {
@@ -5751,6 +6611,10 @@
       dateOnly(row.valid_from) || today();
     $(`${config.prefix}-valid-to`).value = dateOnly(row.valid_to);
     renderAccountingMasterDetailFields(kind, row.additional_data || {});
+    if (config.isObject) {
+      $("accounting-object-document-file").value = "";
+      loadEntityDocuments("accountingObject").catch((error) => alert(error.message));
+    }
     const type = state[config.typesKey].find(
       (type) => type[config.typeId] === row[config.typeId],
     );
@@ -5841,6 +6705,10 @@
     highlightDynamicMenu();
   }
   function renderJournals() {
+    if (!$("view-journals").hidden)
+      syncTransactionDescription(state.transactionTypes.find((type) =>
+        type.transaction_type_id === ($("journal-form").hidden ? selectedTransactionTypeId : $("journal-type").value),
+      ));
     const rows = selectedTransactionTypeId
       ? state.journals.filter(
           (journal) =>
@@ -5857,38 +6725,302 @@
         ["Number", (r) => r.journal_number || "(draft)"],
         ["Description", (r) => r.description],
         ["Status", (r) => pretty(r.workflow_status)],
-        ["Debits", (r) => r.debit_total],
-        ["Credits", (r) => r.credit_total],
+        ["Debits", (r) => formatOrgMoney(r.debit_total)],
+        ["Credits", (r) => formatOrgMoney(r.credit_total)],
       ],
       rows,
       async (r) => {
         const d = await api(
           `journals/detail?journal_id=${encodeURIComponent(r.journal_id)}`,
         );
-        selectedJournal = r.journal_id;
-        $("journal-form").hidden = false;
-        $("journal-id").value = r.journal_id;
-        $("journal-type").value = r.transaction_type_id || "";
-        $("journal-period").value = r.fiscal_period_id;
-        $("journal-division").value = r.source_division_id;
-        $("journal-date").value = dateOnly(r.journal_date);
-        $("journal-description").value = r.description;
-        $("journal-supplier").value = r.supplier_subledger_account_id || "";
-        $("journal-vat-recipient").value =
-          r.vat_recipient_legal_entity_id || "";
-        $("journal-supplier-invoice-number").value =
-          r.supplier_invoice_number || "";
-        $("journal-supplier-invoice-date").value = dateOnly(
-          r.supplier_invoice_date,
-        );
-        renderJournalLines(d.lines);
-        setJournalEditable(r.workflow_status === "draft");
-        loadEntityDocuments("journal").catch((e) => alert(e.message));
+        $("return-trial-balance").hidden = true;
+        trialBalanceReturn = null;
+        await displayJournalDetail(d);
       },
     );
   }
+  function syncTrialBalanceRangeControls() {
+    const dates = $("trial-range-mode").value === "dates";
+    $("report-year-label").hidden = dates;
+    $("report-period-from-label").hidden = dates;
+    $("report-period-to-label").hidden = dates;
+    $("trial-date-from-label").hidden = !dates;
+    $("trial-date-to-label").hidden = !dates;
+    const first = state.periods.find((period) => period.fiscal_period_id === $("report-period-from").value);
+    const last = state.periods.find((period) => period.fiscal_period_id === $("report-period-to").value);
+    if (!$("trial-date-from").value) $("trial-date-from").value = dateOnly(first?.start_date) || today();
+    if (!$("trial-date-to").value) $("trial-date-to").value = dateOnly(last?.end_date) || today();
+  }
+  function trialBalanceParams() {
+    const params = new URLSearchParams({ organisation_id: state.orgId, range_mode: $("trial-range-mode").value, include_child_divisions: state.includeChildren ? "1" : "0" });
+    if (state.divisionId) params.set("division_id", state.divisionId);
+    if (params.get("range_mode") === "dates") {
+      params.set("date_from", $("trial-date-from").value);
+      params.set("date_to", $("trial-date-to").value);
+    } else {
+      params.set("period_from_id", $("report-period-from").value);
+      params.set("period_to_id", $("report-period-to").value);
+    }
+    return params;
+  }
+  async function renderTrialBalance() {
+    const sequence = ++trialReportSequence;
+    ++trialDetailSequence;
+    trialBalanceState = null;
+    $("trial-balance-detail").hidden = true;
+    $("trial-export").disabled = true;
+    $("report-result").textContent = "Loading trial balance...";
+    const params = trialBalanceParams();
+    try {
+      const result = await api(`reports/trial-balance?${params}`);
+      if (sequence !== trialReportSequence || selectedReport !== "trial_balance" || $("view-reports").hidden || params.get("organisation_id") !== state.orgId) return;
+      // Resolve period selection to fixed dates for consistent account drill-down.
+      params.set("range_mode", "dates");
+      params.set("date_from", result.date_from);
+      params.set("date_to", result.date_to);
+      trialBalanceState = { result, params, detail: null };
+      const selectedType = $("trial-account-type").value;
+      const types = [...new Map(result.rows.map((row) => [row.account_type_code, { code: row.account_type_code, name: row.account_type_name || pretty(row.account_type_code) }])).values()].filter((type) => type.code);
+      option($("trial-account-type"), types, "code", (type) => type.name, "All account types");
+      $("trial-account-type").value = selectedType;
+      $("trial-export").disabled = false;
+      renderTrialBalanceRows();
+    } catch (error) {
+      if (sequence !== trialReportSequence) return;
+      $("report-result").textContent = error.message;
+      $("trial-balance-status").textContent = "Trial balance could not be loaded.";
+    }
+  }
+  function filteredTrialBalanceRows() {
+    if (!trialBalanceState) return [];
+    const term = searchTerm("trial-account-search");
+    const type = $("trial-account-type").value;
+    return trialBalanceState.result.rows.filter((row) =>
+      (!term || `${row.account_code} ${row.account_name}`.toLowerCase().includes(term)) &&
+      (!type || row.account_type_code === type) &&
+      (!$("trial-hide-empty").checked || ["opening_balance", "period_debit", "period_credit"].some((field) => TrialBalanceMath.minorUnits(row[field]) !== 0n)));
+  }
+  function trialAmountButton(row, field, section) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "trial-amount-link";
+    button.textContent = formatOrgMoney(row[field]);
+    button.title = `View ${section === "opening" ? "opening balance history" : "period transactions"} for ${row.account_code}`;
+    button.addEventListener("click", () => openTrialBalanceAccount(row, section).catch((error) => alert(error.message)));
+    return button;
+  }
+  const trialBalanceColumns = [
+    ["Account", (row) => `${row.account_code} - ${row.account_name}`],
+    ["Type", (row) => row.account_type_name || row.account_type_code],
+    ...["opening_debit", "opening_credit", "period_debit", "period_credit", "closing_debit", "closing_credit"].map((field) => [
+      { opening_debit: "Opening DR", opening_credit: "Opening CR", period_debit: "Period DR", period_credit: "Period CR", closing_debit: "Closing DR", closing_credit: "Closing CR" }[field],
+      (row) => trialAmountButton(row, field, field.startsWith("opening") ? "opening" : "movement"),
+    ]),
+  ];
+  function renderTrialBalanceRows() {
+    if (!trialBalanceState) return;
+    const { result } = trialBalanceState;
+    const rows = filteredTrialBalanceRows();
+    const detailTarget = $("trial-balance-detail");
+    detailTarget.hidden = true;
+    $("report-result").parentElement.append(detailTarget);
+    table($("report-result"), trialBalanceColumns, rows, (row) => toggleTrialBalanceAccount(row).catch((error) => alert(error.message)));
+    [...$("report-result").querySelectorAll("tbody > tr")].forEach((tr, index) => {
+      tr.classList.add("trial-gl-row");
+      tr.dataset.trialAccount = rows[index].gl_account_id;
+      tr.setAttribute("aria-expanded", "false");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "trial-account-toggle";
+      button.textContent = `${rows[index].account_code} - ${rows[index].account_name}`;
+      button.setAttribute("aria-expanded", "false");
+      button.addEventListener("click", (event) => { event.stopPropagation(); toggleTrialBalanceAccount(rows[index]).catch((error) => alert(error.message)); });
+      tr.firstElementChild.replaceChildren(button);
+    });
+    // Amount buttons have a different drill-down target from the account row.
+    $("report-result").querySelectorAll(".trial-amount-link").forEach((button) => button.addEventListener("click", (event) => event.stopPropagation()));
+    const totals = TrialBalanceMath.totals(rows);
+    const footer = document.createElement("tfoot");
+    const tr = document.createElement("tr");
+    ["Displayed totals", "", ...["opening_debit", "opening_credit", "period_debit", "period_credit", "closing_debit", "closing_credit"].map((field) => formatOrgMoney(totals[field]))].forEach((value) => { const td = document.createElement("td"); td.textContent = value; tr.append(td); });
+    footer.append(tr);
+    $("report-result").querySelector("table")?.append(footer);
+    const filtered = searchTerm("trial-account-search") || $("trial-account-type").value;
+    const status = result.restricted
+      ? "Restricted trial balance: your permissions exclude postings. This does not certify the organisation's balances."
+      : result.totals.balanced ? "Balanced within the selected organisation/division scope." : "Out of balance within the selected organisation/division scope.";
+    $("trial-balance-status").textContent = `${result.date_from} to ${result.date_to}. ${status} Opening difference: ${formatOrgMoney(result.totals.opening_difference)}; period difference: ${formatOrgMoney(result.totals.period_difference)}; closing difference: ${formatOrgMoney(result.totals.closing_difference)}.${filtered ? " Account filters show a subtotal; the balance check uses all accounts in scope." : ""} Approved postings include reversed originals and their offsetting entries. Opening balances include all earlier years.`;
+    $("trial-balance-status").className = result.restricted || !result.totals.balanced ? "report-warning" : "report-balanced";
+    renderTrialBalanceDetail();
+  }
+  async function toggleTrialBalanceAccount(account) {
+    if (trialBalanceState?.detail?.account.gl_account_id === account.gl_account_id) {
+      ++trialDetailSequence;
+      trialBalanceState.detail = null;
+      renderTrialBalanceDetail();
+    } else await openTrialBalanceAccount(account, "movement");
+  }
+  async function openTrialBalanceAccount(account, section = "movement", offset = 0) {
+    if (!trialBalanceState) return;
+    const snapshot = trialBalanceState;
+    const sequence = ++trialDetailSequence;
+    const params = new URLSearchParams(snapshot.params);
+    params.set("account_id", account.gl_account_id);
+    params.set("section", section);
+    params.set("offset", offset);
+    const detail = await api(`reports/trial-balance?${params}`);
+    if (sequence !== trialDetailSequence || snapshot !== trialBalanceState || selectedReport !== "trial_balance" || $("view-reports").hidden) return;
+    snapshot.detail = { result: detail, account, section, offset };
+    renderTrialBalanceDetail();
+  }
+  function renderTrialBalanceDetail() {
+    const detailState = trialBalanceState?.detail;
+    const target = $("trial-balance-detail");
+    target.hidden = true;
+    $("report-result").parentElement.append(target);
+    $("report-result").querySelectorAll(".trial-detail-row").forEach((row) => row.remove());
+    const parentRows = [...$("report-result").querySelectorAll(".trial-gl-row")];
+    parentRows.forEach((row) => {
+      row.classList.remove("trial-gl-expanded");
+      row.setAttribute("aria-expanded", "false");
+      row.querySelector(".trial-account-toggle")?.setAttribute("aria-expanded", "false");
+    });
+    if (!detailState) return;
+    const { result, account, section, offset } = detailState;
+    const parent = parentRows.find((row) => row.dataset.trialAccount === account.gl_account_id);
+    if (!parent) return;
+    const child = document.createElement("tr");
+    child.className = "trial-detail-row";
+    const cell = document.createElement("td");
+    cell.colSpan = trialBalanceColumns.length;
+    cell.append(target);
+    child.append(cell);
+    parent.insertAdjacentElement("afterend", child);
+    parent.classList.add("trial-gl-expanded");
+    parent.setAttribute("aria-expanded", "true");
+    parent.querySelector(".trial-account-toggle")?.setAttribute("aria-expanded", "true");
+    target.hidden = false;
+    target.replaceChildren();
+    const heading = document.createElement("h3");
+    heading.textContent = `${account.account_code} - ${account.account_name}: ${section === "opening" ? "opening balance history" : "period transactions"}`;
+    target.append(heading);
+    const actions = document.createElement("div");
+    actions.className = "actions";
+    const action = (label, callback, disabled = false) => { const button = document.createElement("button"); button.type = "button"; button.className = "secondary"; button.textContent = label; button.disabled = disabled; button.addEventListener("click", callback); actions.append(button); };
+    action("Opening history", () => openTrialBalanceAccount(account, "opening").catch((error) => alert(error.message)));
+    action("Period transactions", () => openTrialBalanceAccount(account, "movement").catch((error) => alert(error.message)));
+    action("Previous", () => openTrialBalanceAccount(account, section, Math.max(0, offset - 100)).catch((error) => alert(error.message)), offset === 0);
+    action("Next", () => openTrialBalanceAccount(account, section, offset + 100).catch((error) => alert(error.message)), offset + result.rows.length >= result.total_count);
+    action("Export all detail CSV", () => exportTrialBalanceDetail().catch((error) => alert(error.message)));
+    action("Close detail", () => { ++trialDetailSequence; trialBalanceState.detail = null; renderTrialBalanceDetail(); });
+    target.append(actions);
+    const description = document.createElement("p");
+    description.textContent = `Opening balance: ${formatOrgMoney(result.opening_balance)}. Showing ${result.rows.length ? offset + 1 : 0}-${offset + result.rows.length} of ${result.total_count} lines. Click a line to open its full transaction.`;
+    target.append(description);
+    const grid = document.createElement("div");
+    target.append(grid);
+    table(grid, [
+      ["Date", (row) => dateOnly(row.journal_date)], ["Transaction", (row) => row.journal_number || "(unnumbered)"],
+      ["Type", (row) => row.type_name || row.type_code], ["Description", (row) => row.description || row.journal_description],
+      ["Division", (row) => row.division_name], ["Status", (row) => row.reversing_journal_id ? "Reversal" : pretty(row.workflow_status)],
+      ["Debit", (row) => formatOrgMoney(row.debit_amount)], ["Credit", (row) => formatOrgMoney(row.credit_amount)],
+      ["Running balance", (row) => formatOrgMoney(row.running_balance)],
+    ], result.rows, (row) => openTrialBalanceTransaction(row).catch((error) => alert(error.message)));
+    if (!result.rows.length) { const empty = document.createElement("p"); empty.textContent = "No transactions in this section."; target.append(empty); }
+  }
+  async function displayJournalDetail(detail) {
+    const row = detail.journal;
+    selectedJournal = row.journal_id;
+    $("journal-form").hidden = false;
+    showSetupTypeTab("journal", "transaction");
+    $("journal-id").value = row.journal_id;
+    $("journal-type").value = row.transaction_type_id || "";
+    $("journal-period").value = row.fiscal_period_id;
+    $("journal-division").value = row.source_division_id;
+    $("journal-date").value = dateOnly(row.journal_date);
+    $("journal-description").value = row.description;
+    renderJournalLines(detail.lines);
+    setJournalEditable(row.workflow_status === "draft");
+    loadEntityDocuments("journal").catch((error) => alert(error.message));
+  }
+  async function openTrialBalanceTransaction(row) {
+    const snapshot = trialBalanceState;
+    if (!snapshot) return;
+    const controls = Object.fromEntries(["report-year", "report-period-from", "report-period-to", "trial-range-mode", "trial-date-from", "trial-date-to", "trial-account-search", "trial-account-type"].map((id) => [id, $(id).value]));
+    controls.hideEmpty = $("trial-hide-empty").checked;
+    const detail = await api(`journals/detail?journal_id=${encodeURIComponent(row.journal_id)}&organisation_id=${state.orgId}`);
+    if (snapshot !== trialBalanceState || snapshot.params.get("organisation_id") !== state.orgId || selectedReport !== "trial_balance" || $("view-reports").hidden) return;
+    await openTransactionType(detail.journal.transaction_type_id);
+    await displayJournalDetail(detail);
+    trialBalanceReturn = { snapshot, controls };
+    $("return-trial-balance").hidden = false;
+  }
+  function returnToTrialBalance() {
+    if (!trialBalanceReturn || trialBalanceReturn.snapshot.params.get("organisation_id") !== state.orgId) return;
+    const { snapshot, controls } = trialBalanceReturn;
+    trialBalanceState = snapshot;
+    $("report-year").value = controls["report-year"];
+    fillReportPeriodSelects();
+    Object.entries(controls).filter(([id]) => id !== "hideEmpty").forEach(([id, value]) => { $(id).value = value; });
+    $("trial-hide-empty").checked = controls.hideEmpty;
+    trialBalanceReturn = null;
+    $("return-trial-balance").hidden = true;
+    selectedReport = "trial_balance";
+    selectedTransactionTypeId = "";
+    show("reports");
+    $("page-title").textContent = $("report-title").textContent = "Trial Balance";
+    syncTrialBalanceRangeControls();
+    renderTrialBalanceRows();
+    renderTrialBalanceDetail();
+    highlightDynamicMenu();
+  }
+  function downloadReportCsv(filename, columns, rows) {
+    const cell = (value) => {
+      let text = String(value ?? "");
+      if ((/^\s*[=+@\-]/.test(text) || /^[\t\r\n]/.test(text)) && !/^-?\d+(?:\.\d+)?$/.test(text)) text = `'${text}`;
+      return `"${text.replaceAll('"', '""')}"`;
+    };
+    const content = [columns.map(([label]) => cell(label)).join(","), ...rows.map((row) => columns.map(([, value]) => cell(value(row))).join(","))].join("\r\n");
+    const url = URL.createObjectURL(new Blob(["\ufeff", content], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a"); link.href = url; link.download = filename; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function exportTrialBalance() {
+    if (!trialBalanceState) return;
+    const rows = filteredTrialBalanceRows();
+    const totals = TrialBalanceMath.totals(rows);
+    downloadReportCsv(`trial-balance-${trialBalanceState.result.date_from}-${trialBalanceState.result.date_to}.csv`, [
+      ["Scope", () => trialBalanceState.result.restricted ? "Restricted" : "Selected organisation/division"],
+      ["Account", (row) => row.account_code], ["Name", (row) => row.account_name], ["Currency", () => organisationCurrency().currency_code],
+      ...["opening_debit", "opening_credit", "period_debit", "period_credit", "closing_debit", "closing_credit"].map((field) => [pretty(field), (row) => row[field]]),
+    ], [...rows, { account_code: "TOTAL", account_name: "Displayed totals", ...totals }]);
+  }
+  async function exportTrialBalanceDetail() {
+    const snapshot = trialBalanceState;
+    const detail = snapshot?.detail;
+    if (!detail) return;
+    const rows = [];
+    const params = new URLSearchParams(snapshot.params);
+    params.set("account_id", detail.account.gl_account_id);
+    params.set("section", detail.section);
+    for (let offset = 0;; offset += 100) {
+      params.set("offset", offset);
+      const page = await api(`reports/trial-balance?${params}`);
+      if (snapshot !== trialBalanceState || snapshot.params.get("organisation_id") !== state.orgId) return;
+      rows.push(...page.rows);
+      if (rows.length >= page.total_count || !page.rows.length) break;
+    }
+    downloadReportCsv(`trial-balance-${detail.account.account_code}-${detail.section}.csv`, [
+      ["Scope", () => snapshot.result.restricted ? "Restricted" : "Selected organisation/division"],
+      ["Account", () => detail.account.account_code], ["Date", (row) => dateOnly(row.journal_date)], ["Transaction", (row) => row.journal_number],
+      ["Type", (row) => row.type_name], ["Description", (row) => row.description || row.journal_description], ["Division", (row) => row.division_name],
+      ["Currency", () => organisationCurrency().currency_code], ["Debit", (row) => row.debit_amount], ["Credit", (row) => row.credit_amount], ["Running balance", (row) => row.running_balance],
+    ], rows);
+  }
   async function renderReport() {
     if ($("view-reports").hidden) return;
+    await ensureCurrencies();
+    if (selectedReport === "trial_balance") return renderTrialBalance();
     const yearId = $("report-year").value || state.years[0]?.fiscal_year_id;
     if (!yearId) {
       $("report-result").innerHTML =
@@ -5938,9 +7070,9 @@
         [
           ["Account", (row) => `${row.account_code} - ${row.account_name}`],
           ["Type", (row) => row.account_type_name || row.account_type_code],
-          ["Debits", (row) => Number(row.debit_total || 0).toFixed(2)],
-          ["Credits", (row) => Number(row.credit_total || 0).toFixed(2)],
-          ["Balance", (row) => Number(row.balance || 0).toFixed(2)],
+          ["Debits", (row) => formatOrgMoney(row.debit_total || 0)],
+          ["Credits", (row) => formatOrgMoney(row.credit_total || 0)],
+          ["Balance", (row) => formatOrgMoney(row.balance || 0)],
         ],
         r.rows || [],
       );
@@ -5963,15 +7095,15 @@
       const tr = document.createElement("tr");
       tr.className = `statement-line statement-line-${row.line_type}`;
       const amount =
-        row.amount === null ? "" : Number(row.amount || 0).toFixed(2);
+        row.amount === null ? "" : formatOrgMoney(row.amount || 0);
       const compare =
         row.comparative_amount === null || row.comparative_amount === undefined
           ? ""
-          : Number(row.comparative_amount || 0).toFixed(2);
+          : formatOrgMoney(row.comparative_amount || 0);
       const variance =
         row.variance === null || row.variance === undefined
           ? ""
-          : Number(row.variance || 0).toFixed(2);
+          : formatOrgMoney(row.variance || 0);
       const variancePercent =
         row.variance_percent === null || row.variance_percent === undefined
           ? ""
@@ -5990,10 +7122,6 @@
       "journal-division",
       "journal-date",
       "journal-description",
-      "journal-supplier",
-      "journal-vat-recipient",
-      "journal-supplier-invoice-number",
-      "journal-supplier-invoice-date",
       "add-journal-line",
       "journal-save",
     ].forEach((id) => {
@@ -6041,13 +7169,14 @@
       debit_amount: "",
       credit_amount: "",
     }));
-    while (lines.length < 2) lines.push({});
+    if (!typeId) while (lines.length < 2) lines.push({});
     return lines;
   }
   function renderJournalLines(lines = [{}, {}]) {
     $("journal-lines").innerHTML =
       '<div class="journal-line-grid"><div class="journal-line journal-line-head"><span>Line definition</span><span>Division</span><span>GL Account</span><span>Subledger</span><span>Description</span><span>DR/CR</span><span>Amount</span><span>Actions</span></div></div>';
     lines.forEach((line) => addJournalLine(line));
+    syncJournalCaptureRules();
     recalculateBalancingLines();
   }
   function recalculateBalancingLines() {
@@ -6068,17 +7197,17 @@
       rows
         .filter((row) => row !== target)
         .forEach((row) => {
-          const amount = Number(row.querySelector(".line-amount").value) || 0;
+          const amount = parseOrgMoney(row.querySelector(".line-amount").value) || 0;
           if (row.querySelector(".line-drcr").value === "debit")
             debits += amount;
           else credits += amount;
         });
-      target.querySelector(".line-amount").value = Math.max(
+      target.querySelector(".line-amount").value = formatOrgMoney(Math.max(
         0,
         definition.debit_credit === "debit"
           ? credits - debits
           : debits - credits,
-      ).toFixed(2);
+      ));
     });
   }
   const classificationValueCache = new Map();
@@ -6121,6 +7250,37 @@
       (item) => item.transaction_line_definition_id === id,
     );
   }
+  function syncTransactionDescription(type) {
+    const subtitle = $("page-subtitle");
+    if (!subtitle) return;
+    subtitle.textContent = type?.type_description || "";
+    subtitle.hidden = !subtitle.textContent.trim();
+  }
+  function syncJournalCaptureRules() {
+    const typeId = $("journal-type").value;
+    const type = state.transactionTypes.find((item) => item.transaction_type_id === typeId);
+    syncTransactionDescription(type);
+    const definitions = state.lineDefinitions.filter((item) => item.transaction_type_id === typeId);
+    const rows = [...document.querySelectorAll(".journal-line:not(.journal-line-head)")];
+    const used = new Set(rows.map((row) => row.querySelector(".line-definition").value));
+    const available = definitions.filter((line) => line.occurrence === "repeatable" || !used.has(line.transaction_line_definition_id));
+    if ($("add-journal-line")) $("add-journal-line").hidden = !!type && !type.allow_additional_lines && !available.length;
+    rows.forEach((row) => {
+      const select = row.querySelector(".line-definition");
+      const selected = select.value;
+      const definition = journalDefinitionFor(selected);
+      option(select, definitions.filter((line) => line.transaction_line_definition_id === selected ||
+        line.occurrence === "repeatable" || !used.has(line.transaction_line_definition_id)),
+        "transaction_line_definition_id", (line) => line.line_description || line.line_code,
+        type?.allow_additional_lines ? "Additional line" : "Select line definition");
+      select.value = selected;
+      select.required = !!type && !type.allow_additional_lines;
+      const locked = ["required", "generated"].includes(definition?.occurrence);
+      select.dataset.locked = locked ? "true" : "false";
+      select.disabled = locked;
+      row.querySelector("button").hidden = locked;
+    });
+  }
   function renderJournalClassifications(row, definition, line = {}) {
     const target = row.querySelector(".journal-line-classifications");
     target.innerHTML = "";
@@ -6138,6 +7298,7 @@
         wrapper.innerHTML = `<span>${requirement.type_name}${requirement.requirement === "mandatory" ? " *" : ""} <small>${pretty(requirement.value_behaviour)}</small></span><select data-classification-kind="${kind}" data-type-id="${requirement[typeIdField]}"></select>`;
         target.append(wrapper);
         const select = wrapper.querySelector("select");
+        select.required = requirement.requirement === "mandatory";
         fillClassificationSelect(
           select,
           kind,
@@ -6183,27 +7344,30 @@
     row.querySelector(".line-drcr").disabled = !!definition;
     row.querySelector(".line-amount").dataset.locked =
       definition?.amount_source === "balancing" ? "true" : "false";
-    row.querySelector(".line-amount").dataset.locked =
-      definition?.amount_source === "balancing" ? "true" : "false";
     row.querySelector(".line-amount").disabled =
       definition?.amount_source === "balancing";
     row.querySelector(".line-description").value =
       line.description || definition?.line_description || "";
     syncJournalLineSubledgerOptions(row);
     row.querySelector(".line-sub").value =
-      line.subledger_account_id ||
-      (definition?.subledger_type_code === "vendor"
-        ? $("journal-supplier")?.value
-        : "") ||
-      "";
+      definition?.subledger_requirement === "not_used" ? "" : line.subledger_account_id || "";
     renderJournalClassifications(row, definition, line);
   }
   function addJournalLine(line = {}) {
+    const type = state.transactionTypes.find((item) => item.transaction_type_id === $("journal-type").value);
+    if (!line.transaction_line_definition_id && !line.journal_line_id && !line.gl_account_id && type && !type.allow_additional_lines) {
+      const used = new Set([...document.querySelectorAll(".journal-line:not(.journal-line-head)")]
+        .map((row) => row.querySelector(".line-definition").value));
+      const available = state.lineDefinitions.find((item) => item.transaction_type_id === type.transaction_type_id &&
+        (item.occurrence === "repeatable" || !used.has(item.transaction_line_definition_id)));
+      if (!available) return;
+      line = { ...line, transaction_line_definition_id: available.transaction_line_definition_id };
+    }
     const row = document.createElement("div");
     row.className = "journal-line";
     row.dataset.subledgerType = line.subledger_account_type_id || "";
     row.innerHTML =
-      '<select class="line-definition"></select><select class="line-division"></select><select class="line-gl"></select><select class="line-sub"></select><input class="line-description" placeholder="Description"><select class="line-drcr"><option value="debit">DR</option><option value="credit">CR</option></select><input class="line-amount" type="number" min="0" step="0.01" placeholder="Amount"><button type="button" class="secondary">Remove</button><div class="journal-line-classifications"></div>';
+      '<select class="line-definition"></select><select class="line-division"></select><select class="line-gl"></select><select class="line-sub"></select><input class="line-description" placeholder="Description"><select class="line-drcr"><option value="debit">DR</option><option value="credit">CR</option></select><input class="line-amount" type="text" inputmode="decimal" placeholder="Amount"><button type="button" class="secondary">Remove</button><div class="journal-line-classifications"></div>';
     let grid = $("journal-lines").querySelector(".journal-line-grid");
     if (!grid) {
       $("journal-lines").innerHTML =
@@ -6243,6 +7407,7 @@
         journalDefinitionFor(row.querySelector(".line-definition").value),
         {},
       );
+      syncJournalCaptureRules();
       recalculateBalancingLines();
     });
     row
@@ -6250,16 +7415,27 @@
       .addEventListener("change", () => syncJournalLineSubledgerOptions(row));
     const debit = Number(line.debit_amount) || 0;
     const credit = Number(line.credit_amount) || 0;
-    row.querySelector(".line-drcr").value =
+    const definition = journalDefinitionFor(line.transaction_line_definition_id);
+    row.querySelector(".line-drcr").value = definition?.debit_credit || (
       debit > 0
         ? "debit"
         : credit > 0
           ? "credit"
-          : line.debit_credit || "debit";
-    row.querySelector(".line-amount").value = debit || credit || "";
-    const definition = journalDefinitionFor(
-      line.transaction_line_definition_id,
-    );
+          : line.debit_credit || "debit");
+    const amountInput = row.querySelector(".line-amount");
+    amountInput.value = debit || credit ? formatOrgMoney(debit ? line.debit_amount : line.credit_amount) : "";
+    amountInput.placeholder = formatOrgMoney(0);
+    amountInput.addEventListener("focus", () => {
+      const amount = parseOrgMoney(amountInput.value);
+      if (amountInput.value && Number.isFinite(amount)) amountInput.value = CurrencyFormat.format(amount, organisationCurrency(), false);
+    });
+    amountInput.addEventListener("blur", () => {
+      const amount = parseOrgMoney(amountInput.value);
+      amountInput.setCustomValidity(Number.isFinite(amount) && amount >= 0 ? "" : "Enter a valid non-negative currency amount");
+      if (amountInput.value && Number.isFinite(amount) && amount >= 0) amountInput.value = formatOrgMoney(amount);
+      recalculateBalancingLines();
+    });
+    amountInput.addEventListener("input", () => amountInput.setCustomValidity(""));
     row.querySelector(".line-amount").disabled =
       definition?.amount_source === "balancing";
     row
@@ -6270,8 +7446,10 @@
       .addEventListener("change", recalculateBalancingLines);
     row.querySelector("button").addEventListener("click", () => {
       row.remove();
+      syncJournalCaptureRules();
       recalculateBalancingLines();
     });
+    syncJournalCaptureRules();
   }
   function renderTransactionGroups() {
     const term = searchTerm("transactiongroup-search");
@@ -6520,6 +7698,7 @@
     }));
   }
   function resourceLabel(permission) {
+    if (permission.resource_kind === "report") return permission.report_name || permission.resource_code;
     if (permission.resource_kind === "gl_account") return "GL Accounts";
     if (permission.resource_kind === "legal_entity") return "Legal Entities";
     if (permission.resource_kind === "subledger_account")
@@ -6590,6 +7769,7 @@
                 p.role_id === r.role_id && p.resource_kind === "transaction",
             ).length,
         ],
+        ["Report permissions", r => state.rolePermissions.filter(p => p.role_id === r.role_id && p.resource_kind === "report").length],
         ["Active", (r) => (r.is_active ? "Yes" : "No")],
       ],
       roles,
@@ -6619,6 +7799,7 @@
     $("transaction-group-active").checked = true;
   }
   async function selectTransactionType(type) {
+    $("transaction-type-error").hidden = true;
     setTransactionTypeEditorOpen(true);
     $("transaction-group-form").hidden = true;
     showSetupTypeTab("transaction-type", "definition");
@@ -6642,7 +7823,14 @@
     updateTransactionTypeEditorTitle(type.type_name);
     toggleTransactionLineEditor();
   }
+  function nextTransactionTypeCopyCode(base, types) {
+    const codes = new Set(types.map((type) => type.type_code.toLowerCase()));
+    let code = `${base}-copy`;
+    for (let suffix = 2; codes.has(code); suffix++) code = `${base}-copy-${suffix}`;
+    return code;
+  }
   async function openNewTransactionType() {
+    $("transaction-type-error").hidden = true;
     setTransactionTypeEditorOpen(true);
     $("transaction-group-form").hidden = true;
     showSetupTypeTab("transaction-type", "definition");
@@ -6892,7 +8080,9 @@
       );
     row
       .querySelector(".transaction-line-summary")
-      .addEventListener("click", () => setExpandedTransactionTypeLine(row));
+      .addEventListener("click", () =>
+        setExpandedTransactionTypeLine(row.classList.contains("is-expanded") ? null : row),
+      );
     row
       .querySelectorAll(
         ".tx-line-code,.tx-line-description,.tx-line-drcr,.tx-line-gl",
@@ -6927,6 +8117,7 @@
     renderMasterPermissionTree(
       state.rolePermissions.filter((p) => p.role_id === role.role_id),
     );
+    renderMasterPermissionTree(state.rolePermissions.filter(p => p.role_id === role.role_id), "reports");
     renderPermissionLines(
       "transaction",
       state.rolePermissions.filter(
@@ -6946,6 +8137,7 @@
     fillModuleSelect("role-modules");
     syncRoleModuleRequirement();
     renderMasterPermissionTree([]);
+    renderMasterPermissionTree([], "reports");
     renderPermissionLines("transaction", []);
     renderRoleUserLines([]);
     showRoleTab("users");
@@ -6954,7 +8146,7 @@
     $("role-modules").required = !$("role-admin").checked;
   }
   function showRoleTab(tab) {
-    ["users", "modules", "master", "transaction"].forEach((name) => {
+    ["users", "modules", "master", "transaction", "reports"].forEach((name) => {
       $(`role-tab-${name}`).hidden = name !== tab;
       document
         .querySelectorAll("[data-role-tab]")
@@ -6963,8 +8155,10 @@
         );
     });
   }
-  function renderMasterPermissionTree(lines = []) {
-    const target = $("master-permission-lines");
+  function renderMasterPermissionTree(lines = [], kind = "master") {
+    const transaction = kind === "transaction";
+    const reports = kind === "reports";
+    const target = $(reports ? "report-permission-lines" : transaction ? "transaction-permission-lines" : "master-permission-lines");
     if (!target) return;
     target.innerHTML = "";
     target.className = "master-permission-tree";
@@ -6975,9 +8169,11 @@
       "accounting_object",
       "accounting_dimension",
       "resource",
+      ...(reports ? ["report"] : []),
+      ...(transaction ? ["transaction"] : []),
     ]);
     const permissions = lines.filter((line) =>
-      masterKinds.has(line.resource_kind),
+      reports ? line.resource_kind === "report" : masterKinds.has(line.resource_kind),
     );
     const findPermission = (kind, resourceCode, divisionId) =>
       permissions.find(
@@ -6986,8 +8182,8 @@
           (line.resource_code === resourceCode || line.resource_code === "*") &&
           (line.division_id || "") === (divisionId || ""),
       );
-    const makeLeaf = (kind, resourceCode, label, divisionId) => {
-      const existing = findPermission(kind, resourceCode, divisionId);
+    const makeLeaf = (kind, resourceCode, label, divisionId, permission) => {
+      const existing = transaction ? permission : findPermission(kind, resourceCode, divisionId);
       const leaf = document.createElement("label");
       leaf.className = "master-permission-leaf";
       leaf.dataset.resourceKind = kind;
@@ -6997,8 +8193,38 @@
         '<input type="checkbox" class="master-permission-check"><span></span><select class="master-permission-access" aria-label="Access level"><option value="view">View</option><option value="manage">Manage</option></select>';
       leaf.querySelector("span").textContent = label;
       leaf.querySelector("input").checked = !!existing;
+      if (transaction) {
+        const select = leaf.querySelector("select");
+        select.setAttribute("aria-label", `Workflow access for ${label}`);
+        const options = workflowPermissionOptionsFor("transaction", resourceCode);
+        if (existing?.workflow_status && !options.some((option) => option.value === existing.workflow_status))
+          options.push({ value: existing.workflow_status, label: pretty(existing.workflow_status) });
+        select.replaceChildren(...options.map(({ value, label }) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = label;
+          return option;
+        }));
+        select.value = existing?.workflow_status || "*";
+        return leaf;
+      }
       leaf.querySelector("select").value =
         existing?.workflow_status === "view" ? "view" : "manage";
+      if (kind === "report") {
+        const access = leaf.querySelector("select");
+        access.replaceChildren(new Option("Run and export", "view"));
+        access.value = "view";
+        const inherit = document.createElement("input");
+        inherit.type = "checkbox";
+        inherit.className = "report-permission-children";
+        inherit.checked = existing?.applies_to_children !== false;
+        const caption = document.createElement("span");
+        caption.textContent = "Include child divisions";
+        inherit.setAttribute("aria-label", `Include child divisions for ${label}`);
+        leaf.querySelector(".master-permission-check").setAttribute("aria-label", `Run and export ${label}`);
+        leaf.classList.add("report-permission-leaf");
+        leaf.append(inherit, caption);
+      }
       if (kind === "resource" && divisionId) {
         leaf.querySelector("select").innerHTML =
           '<option value="view">View assignments</option>';
@@ -7018,8 +8244,7 @@
       ];
       group.checked =
         leaves.length > 0 && leaves.every((input) => input.checked);
-      group.indeterminate =
-        leaves.some((input) => input.checked) && !group.checked;
+      group.indeterminate = false;
     };
     const syncAllGroups = () =>
       [...target.querySelectorAll(".master-permission-node")]
@@ -7028,11 +8253,21 @@
     const makeGroup = (label, level = 1) => {
       const node = document.createElement("div");
       node.className = `master-permission-node master-permission-level-${level}`;
-      const heading = document.createElement("label");
+      const heading = document.createElement("div");
       heading.className = "master-permission-heading";
       heading.innerHTML =
-        '<input type="checkbox" class="master-permission-group-check"><span></span>';
-      heading.querySelector("span").textContent = label;
+        '<button type="button" class="master-permission-toggle" aria-expanded="false"><span aria-hidden="true">▸</span></button><label><input type="checkbox" class="master-permission-group-check"><span></span></label>';
+      heading.querySelector("label span").textContent = label;
+      const toggle = heading.querySelector("button");
+      toggle.setAttribute("aria-label", `Expand ${label}`);
+      toggle.addEventListener("click", () => {
+        const children = node.querySelector(":scope > .master-permission-children");
+        if (!children) return;
+        children.hidden = !children.hidden;
+        toggle.setAttribute("aria-expanded", String(!children.hidden));
+        toggle.setAttribute("aria-label", `${children.hidden ? "Expand" : "Collapse"} ${label}`);
+        toggle.querySelector("span").textContent = children.hidden ? "▸" : "▾";
+      });
       node.append(heading);
       heading.querySelector("input").addEventListener("change", (event) => {
         node
@@ -7063,9 +8298,40 @@
       group.append(children);
       parent.append(group);
     };
+    const addTransactionTypes = (parent, divisionId) => {
+      const addType = (container, code, label) => {
+        const existing = permissions.filter((line) =>
+          line.resource_kind === "transaction" &&
+          [code, "*"].includes(line.resource_code || line.transaction_type_id) &&
+          (line.division_id || "") === (divisionId || ""));
+        const workflows = [...new Map(existing.map((permission) =>
+          [permission.workflow_status || "*", permission])).values()];
+        (workflows.length ? workflows : [undefined]).forEach((permission) =>
+          container.append(makeLeaf("transaction", code, label, divisionId, permission)));
+      };
+      const groups = new Map();
+      state.transactionTypes.forEach((type) => {
+        const code = type.transaction_type_id;
+        if (type.is_active === false && !permissions.some((line) =>
+          line.resource_kind === "transaction" &&
+          [code, "*"].includes(line.resource_code || line.transaction_type_id))) return;
+        const key = type.transaction_group_id || type.group_name || "Other transactions";
+        if (!groups.has(key)) {
+          const name = state.transactionGroups.find((group) => group.transaction_group_id === key)?.group_name || type.group_name || "Other transactions";
+          const group = makeGroup(name, 2);
+          const children = document.createElement("div");
+          children.className = "master-permission-children";
+          group.append(children);
+          parent.append(group);
+          groups.set(key, children);
+        }
+        addType(groups.get(key), code, `${type.type_code} - ${type.type_name}`);
+      });
+    };
     const organisation = makeGroup("Organisation", 0);
     const organisationChildren = document.createElement("div");
     organisationChildren.className = "master-permission-children";
+    if (!transaction && !reports) {
     organisationChildren.append(
       makeLeaf("gl_account", "*", "GL Accounts", null),
     );
@@ -7075,6 +8341,7 @@
     organisationChildren.append(
       makeLeaf("resource", "*", "Resources", null),
     );
+    }
     organisation.append(organisationChildren);
     target.append(organisation);
     const appendDivision = (division, parent) => {
@@ -7084,6 +8351,16 @@
       );
       const children = document.createElement("div");
       children.className = "master-permission-children";
+      if (transaction) addTransactionTypes(children, division.division_id);
+      else {
+      if (reports) {
+      const reportGroup = makeGroup("Reports", 2);
+      const reportChildren = document.createElement("div");
+      reportChildren.className = "master-permission-children";
+      state.reportDefinitions.forEach(report => reportChildren.append(makeLeaf("report", report.report_id, `${report.report_code} - ${report.report_name}${report.is_active ? "" : " (inactive)"}`, division.division_id)));
+      reportGroup.append(reportChildren);
+      children.append(reportGroup);
+      } else {
       addTypeGroup(
         children,
         "Sub-Ledgers",
@@ -7108,6 +8385,8 @@
         "accounting_dimension_type_id",
         division.division_id,
       );
+      }
+      }
       state.divisions
         .filter(
           (candidate) => candidate.parent_division_id === division.division_id,
@@ -7119,6 +8398,12 @@
     state.divisions
       .filter((division) => !division.parent_division_id)
       .forEach((division) => appendDivision(division, organisationChildren));
+    target.querySelectorAll(".master-permission-children").forEach((children, index) => {
+      children.hidden = true;
+      children.id = `${kind}-permission-children-${index}`;
+      children.parentElement.querySelector(":scope > .master-permission-heading button")
+        .setAttribute("aria-controls", children.id);
+    });
     target
       .querySelectorAll(".master-permission-check")
       .forEach((input) => input.addEventListener("change", syncAllGroups));
@@ -7135,6 +8420,7 @@
         division_id: leaf.dataset.divisionId || null,
         resource_kind: leaf.dataset.resourceKind,
         resource_code: leaf.dataset.resourceCode,
+        applies_to_children: leaf.querySelector(".report-permission-children")?.checked ?? true,
         workflow_status:
           leaf.dataset.resourceKind === "resource"
             ? leaf.querySelector(".master-permission-access").value
@@ -7251,6 +8537,10 @@
     return [...groups.values()];
   }
   function renderPermissionLines(kind, lines = []) {
+    if (kind === "transaction") {
+      renderMasterPermissionTree(lines, "transaction");
+      return;
+    }
     const target = $(
       kind === "master"
         ? "master-permission-lines"
@@ -7363,6 +8653,14 @@
     row.querySelector("button").addEventListener("click", () => row.remove());
   }
   function resetOrgLoadedState() {
+    exchangeRateEditor.reset();
+    reportBuilder.reset();
+    state.reportDefinitions = [];
+    ++trialReportSequence;
+    ++trialDetailSequence;
+    trialBalanceState = null;
+    trialBalanceReturn = null;
+    $("return-trial-balance").hidden = true;
     loadedSlices = {
       menu: false,
       dashboard: false,
@@ -7381,6 +8679,8 @@
       permissions: false,
       resources: false,
     };
+    favouriteKeys = new Set();
+    favouritePending = new Set();
     state.navigation = {
       roles: [],
       modules: [],
@@ -7448,12 +8748,17 @@
   }
   async function loadMenuData(force = false) {
     if (!state.orgId || (loadedSlices.menu && !force)) return;
-    const [menu, objectTypes, dimensionTypes, navigation] = await Promise.all([
+    const orgId = state.orgId;
+    const [menu, objectTypes, dimensionTypes, navigation, favourites] = await Promise.all([
       api(`setup/menu?organisation_id=${state.orgId}`),
       api(`accounting-objects/types?organisation_id=${state.orgId}`),
       api(`accounting-dimensions/types?organisation_id=${state.orgId}`),
       api(`navigation/menu?organisation_id=${state.orgId}`),
+      api(`navigation/favourites?organisation_id=${orgId}`),
     ]);
+    if (state.orgId !== orgId) return;
+    favouriteKeys = new Set(favourites.favourites || []);
+    favouritePending = new Set();
     state.subledgerAccountTypes = menu.subledger_account_types || [];
     state.modules = menu.modules || [];
     state.transactionGroups = menu.transaction_groups || [];
@@ -7495,7 +8800,9 @@
   }
   async function ensureFiscal(force = false) {
     if (!state.orgId || (loadedSlices.fiscal && !force)) return;
-    const fiscal = await api(`fiscal/list?organisation_id=${state.orgId}`);
+    const orgId = state.orgId;
+    const fiscal = await api(`fiscal/list?organisation_id=${orgId}`);
+    if (state.orgId !== orgId) return;
     state.years = fiscal.fiscal_years || [];
     state.periods = fiscal.fiscal_periods || [];
     loadedSlices.fiscal = true;
@@ -7512,9 +8819,11 @@
   }
   async function ensureCurrencies(force = false) {
     if (!state.orgId || (loadedSlices.currencies && !force)) return;
+    const orgId = state.orgId;
     const currencies = await api(
-      `currencies/list?organisation_id=${state.orgId}`,
+      `currencies/list?organisation_id=${orgId}`,
     );
+    if (orgId !== state.orgId) return;
     state.currencies = currencies.currencies || [];
     loadedSlices.currencies = true;
     fillSelects();
@@ -7581,6 +8890,7 @@
     state.lineDefinitions = tx.line_definitions || [];
     loadedSlices.transactions = true;
     loadedSlices.menu = true;
+    await ensureReportDefinitions();
     buildDynamicMenu();
     fillSelects();
     patchDynamicSelects();
@@ -7588,6 +8898,7 @@
   async function ensurePermissions(force = false) {
     if (!state.orgId || (loadedSlices.permissions && !force)) return;
     await Promise.all([ensureDivisions(), loadMenuData()]);
+    await ensureReportDefinitions();
     const permissions = await api(
       `permissions/list?organisation_id=${state.orgId}`,
     );
@@ -7605,7 +8916,11 @@
   }
   async function ensureViewData(view) {
     if (!state.orgId) return;
-    if (view === "modules") {
+    if (view === "reportdefinitions") {
+      await reportBuilder.setup();
+    } else if (view === "customreports") {
+      await reportBuilder.runner();
+    } else if (view === "modules") {
       await loadMenuData();
       renderModules();
     } else if (view === "divisions") {
@@ -7620,6 +8935,7 @@
     } else if (view === "currencies") {
       await ensureCurrencies();
       renderCurrencies();
+      await exchangeRateEditor.load(true);
     } else if (view === "taxtypes") {
       await ensureTaxTypes();
       renderTaxTypes();
@@ -7646,6 +8962,7 @@
     } else if (view === "financialformats") {
       await Promise.all([
         ensureFinancialFormats(),
+        ensureCurrencies(),
         loadAccountsForFamily("gl"),
       ]);
       renderFinancialFormats();
@@ -7684,7 +9001,7 @@
   async function loadOrgData() {
     resetOrgLoadedState();
     if (!state.orgId) return;
-    await Promise.all([loadMenuData(true), ensureDivisions(true)]);
+    await Promise.all([loadMenuData(true), ensureDivisions(true), ensureCurrencies(true)]);
     resolveDivisionContext();
     fillDivisionSelects();
     buildAlternativeMenus();
@@ -7773,6 +9090,7 @@
     renderRoles();
   }
   function resetScreenState() {
+    exchangeRateEditor.reset();
     selectedMasterRecord = null;
     selectedJournal = null;
     selectedLegalEntity = null;
@@ -7901,6 +9219,15 @@
   $("report-division").addEventListener("change", () =>
     renderReport().catch((e) => alert(e.message)),
   );
+  $("trial-range-mode").addEventListener("change", () => {
+    syncTrialBalanceRangeControls();
+    renderReport().catch((error) => alert(error.message));
+  });
+  ["trial-date-from", "trial-date-to"].forEach((id) => $(id).addEventListener("change", () => renderReport().catch((error) => alert(error.message))));
+  $("trial-account-search").addEventListener("input", renderTrialBalanceRows);
+  ["trial-account-type", "trial-hide-empty"].forEach((id) => $(id).addEventListener("change", renderTrialBalanceRows));
+  $("trial-export").addEventListener("click", exportTrialBalance);
+  $("return-trial-balance").addEventListener("click", returnToTrialBalance);
   $("alert-close").addEventListener("click", () => alert(""));
   $("refresh").addEventListener("click", () =>
     load().catch((e) => alert(e.message)),
@@ -7908,13 +9235,13 @@
   async function initialiseTemplateOrganisation() {
     if (
       !window.confirm(
-        "Create or reset the TEMPLATE organisation with seeded defaults? Existing TEMPLATE data will be deleted and recreated.",
+        "Create TEMPLATE ORG or reset its seeded definitions to match the template JSON? Existing example records will be preserved.",
       )
     )
       return;
     const r = await api("setup/init-template", {
       method: "POST",
-      body: JSON.stringify({}),
+      body: JSON.stringify({confirmed:true}),
     });
     state.orgId = r.organisation?.organisation_id || state.orgId;
     storeCurrentOrg();
@@ -7924,7 +9251,13 @@
     show("organisations");
     $("init-template-result").hidden = false;
     $("init-template-result").textContent =
-      "Template organisation initialised. Security Administrator access has been assigned to your user.";
+      "TEMPLATE ORG definitions reset from JSON. Security Administrator access has been assigned to your user.";
+  }
+  async function initialiseTemplateOrganisationExamples() {
+    if (!window.confirm("Add JSON example data to TEMPLATE ORG? Existing records will be preserved.")) return;
+    const result = await api("setup/init-template-examples", {method:"POST",body:JSON.stringify({confirmed:true})});
+    state.orgId=result.organisation.organisation_id; storeCurrentOrg(); await load();
+    alert("TEMPLATE ORG example data initialised: " + result.examples.inserted + " records added.");
   }
   async function initialiseSchema() {
     if (!window.confirm("Initialise or repair the ERP database schema now?"))
@@ -8181,6 +9514,7 @@
       accounting_types: $("copy-accounting-types").checked,
       resource_roles: $("copy-resource-roles").checked,
       permissions: $("copy-permissions").checked,
+      reports: $("copy-reports").checked,
     };
     try {
       const r = await api("organisations/copy-organisation-setup", {
@@ -8300,54 +9634,8 @@
     renderDivisions();
     invalidateDashboard();
   });
-  $("add-fiscal-year").addEventListener("click", resetFiscalYearForm);
-  $("new-fiscal-year").addEventListener("click", resetFiscalYearForm);
-  $("new-fiscal-period").addEventListener("click", resetFiscalPeriodForm);
-  $("fiscal-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const r = await api("fiscal/save-year", {
-      method: "POST",
-      body: JSON.stringify({
-        fiscal_year_id: $("fiscal-year-id").value,
-        organisation_id: state.orgId,
-        fiscal_year_code: $("fiscal-code").value,
-        start_date: $("fiscal-start").value,
-        end_date: $("fiscal-end").value,
-        status: $("fiscal-status").value,
-        create_periods: $("fiscal-periods").checked,
-      }),
-    });
-    if (r.fiscal_year?.fiscal_year_id) {
-      expandedFiscalYears.add(r.fiscal_year.fiscal_year_id);
-      $("period-year-id").value = r.fiscal_year.fiscal_year_id;
-    }
-    $("fiscal-editor-panel").hidden = true;
-    await ensureFiscal(true);
-    renderFiscal();
-    invalidateDashboard();
-  });
-  $("fiscal-period-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const yearId = $("period-year-id").value || $("fiscal-year-id").value;
-    if (!yearId) return alert("Select or save a fiscal year first");
-    await api("fiscal/save-period", {
-      method: "POST",
-      body: JSON.stringify({
-        fiscal_period_id: $("fiscal-period-id").value,
-        organisation_id: state.orgId,
-        fiscal_year_id: yearId,
-        period_number: $("period-number").value,
-        start_date: $("period-start").value,
-        end_date: $("period-end").value,
-        status: $("period-status").value,
-      }),
-    });
-    expandedFiscalYears.add(yearId);
-    $("fiscal-period-panel").hidden = true;
-    await ensureFiscal(true);
-    renderFiscal();
-    invalidateDashboard();
-  });
+  installFiscalEditors();
+  $("account-type").addEventListener("change", updateAccountCodeNumbering);
   $("account-form-family").addEventListener("change", () => {
     let detail = {};
     try {
@@ -8513,7 +9801,7 @@
       state[config.typesKey][0]?.[config.typeId] ||
       "";
     $(`${config.prefix}-division`).value =
-      state.divisions[0]?.division_id || "";
+      defaultOwnerDivision(`${config.prefix}-division`);
     if (config.isObject) {
       accountingObjectParentOptions = [];
       renderAccountingObjectParentOptions();
@@ -8525,6 +9813,10 @@
     $(`${config.prefix}-valid-from`).value = today();
     $(`${config.prefix}-valid-to`).value = "";
     renderAccountingMasterDetailFields(kind, {});
+    if (config.isObject) {
+      $("accounting-object-document-file").value = "";
+      loadEntityDocuments("accountingObject").catch((error) => alert(error.message));
+    }
     renderWorkflowHeader(`${config.prefix}-workflow-header`, null);
     renderWorkflowProgress(`${config.prefix}-workflow-progress`, null, null);
     renderWorkflowHistory(`${config.prefix}-workflow-history`, null);
@@ -8591,6 +9883,7 @@
       }
       config.setSelected(saved.record?.[config.recordId] || config.selected());
       $(`${config.prefix}-id`).value = config.selected() || "";
+      if (config.isObject) await loadEntityDocuments("accountingObject");
       $(`${config.prefix}-type-select`).value = body[config.typeId];
       await loadAccountingMasterRecords(kind);
       alert(
@@ -8678,6 +9971,7 @@
   function openNewJournal() {
     $("journal-form").hidden = false;
     $("journal-form").reset();
+    showSetupTypeTab("journal", "transaction");
     $("journal-id").value = "";
     selectedJournal = null;
     $("journal-type").value = selectedTransactionTypeId || "";
@@ -8688,11 +9982,27 @@
     loadEntityDocuments("journal").catch((e) => alert(e.message));
   }
   $("add-journal").addEventListener("click", openNewJournal);
+  const journalTabs = [...document.querySelectorAll('[data-setup-type-tab="journal"]')];
+  journalTabs.forEach((button, index) => {
+    button.addEventListener("click", () => showSetupTypeTab("journal", button.dataset.tab));
+    button.addEventListener("keydown", (event) => {
+      const next = event.key === "ArrowRight" ? (index + 1) % journalTabs.length
+        : event.key === "ArrowLeft" ? (index + journalTabs.length - 1) % journalTabs.length
+          : event.key === "Home" ? 0 : event.key === "End" ? journalTabs.length - 1 : null;
+      if (next === null) return;
+      event.preventDefault();
+      showSetupTypeTab("journal", journalTabs[next].dataset.tab);
+      journalTabs[next].focus();
+    });
+  });
+  $("journal-form").addEventListener("invalid", (event) => {
+    const panel = event.target.closest('[data-setup-type-panel="journal"]');
+    if (panel) showSetupTypeTab("journal", panel.dataset.panel);
+  }, true);
   $("new-journal").addEventListener("click", openNewJournal);
   $("journal-date").addEventListener("change", syncJournalPeriodToDate);
   $("journal-type").addEventListener("change", () => {
-    if (!$("journal-id").value)
-      renderJournalLines(defaultJournalLinesForType($("journal-type").value));
+    renderJournalLines(defaultJournalLinesForType($("journal-type").value));
   });
   $("intake-journal-document").addEventListener("click", () =>
     openDocumentIntake("journal"),
@@ -8726,7 +10036,8 @@
         ...document.querySelectorAll(".journal-line:not(.journal-line-head)"),
       ].map((row) => {
         const side = row.querySelector(".line-drcr").value;
-        const amount = row.querySelector(".line-amount").value;
+        const amount = parseOrgMoney(row.querySelector(".line-amount").value);
+        if (!Number.isFinite(amount) || amount < 0) throw new Error("Enter a valid non-negative amount using the organisation currency format");
         return {
           transaction_line_definition_id:
             row.querySelector(".line-definition").value,
@@ -8774,10 +10085,6 @@
           transaction_type_id: transactionTypeId,
           fiscal_period_id: fiscalPeriodId,
           source_division_id: sourceDivisionId,
-          supplier_subledger_account_id: $("journal-supplier").value,
-          vat_recipient_legal_entity_id: $("journal-vat-recipient").value,
-          supplier_invoice_number: $("journal-supplier-invoice-number").value,
-          supplier_invoice_date: $("journal-supplier-invoice-date").value,
           journal_date: $("journal-date").value,
           description: $("journal-description").value,
           currency_code: currentOrg()?.base_currency_code || "ZAR",
@@ -8847,25 +10154,34 @@
       }
     }),
   );
+  $("account-legal-entity").addEventListener("change", defaultSubledgerNameFromLegalEntity);
+  $("currency-form").addEventListener("input", updateCurrencyFormatPreview);
+  $("currency-form").addEventListener("change", updateCurrencyFormatPreview);
   $("currency-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    await api("currencies/save", {
-      method: "POST",
-      body: JSON.stringify({
-        organisation_id: state.orgId,
-        currency_code: $("currency-code").value,
-        currency_name: $("currency-name").value,
-        decimal_places: $("currency-decimals").value,
-      }),
-    });
-    $("currency-form").hidden = true;
-    await ensureCurrencies(true);
-    renderCurrencies();
+    const errorBox = $("currency-error");
+    errorBox.hidden = true;
+    try {
+      const currency = currencyFormSettings();
+      const invalid = CurrencyFormat.validate(currency.format_json, currency.decimal_places);
+      if (invalid) throw new Error(invalid);
+      await api("currencies/save", {
+        method: "POST",
+        body: JSON.stringify({ organisation_id: state.orgId, currency_name: $("currency-name").value, ...currency }),
+      });
+      $("currency-form").hidden = true;
+      await ensureCurrencies(true);
+      renderCurrencies();
+    } catch (error) {
+      errorBox.textContent = error.message;
+      errorBox.hidden = false;
+    }
   });
   function openNewCurrency() {
     $("currency-form").hidden = false;
     $("currency-form").reset();
     $("currency-decimals").value = 2;
+    fillCurrencyFormat();
   }
   function openNewCountry() {
     $("country-form").hidden = false;
@@ -8876,13 +10192,15 @@
     $("ledger-family-form").hidden = false;
     showSetupTypeTab("ledger-family", "definition");
     $("ledger-family-form").reset();
+    loadCodeNumberingFields("ledger-family", {});
     $("ledger-family-id").value = "";
     $("ledger-family-code").readOnly = false;
     $("ledger-family-workflow-path").value =
       state.workflowPaths[0]?.workflow_path_id || "";
     $("ledger-family-legal-entity").checked = false;
     $("ledger-family-schema").value = "{}";
-    $("ledger-family-ui-schema").value = '{"sections":[]}';
+    $("ledger-family-form").dataset.legacyUiSchema = "{}";
+    renderSchemaDesignPreview("ledger-family");
     $("ledger-family-active").checked = true;
     fillModuleSelect("ledger-family-modules");
     renderResourceRoleMappingRows("ledger-family", []);
@@ -8976,6 +10294,9 @@
   );
   $("new-resource").addEventListener("click", () =>
     openResourceEditor({ is_active: true }),
+  );
+  $("cancel-resource").addEventListener("click", () =>
+    $("resource-form").querySelector(".panel-close").click(),
   );
   $("manage-role-resources").addEventListener("click", () => {
     show("resources");
@@ -9086,6 +10407,7 @@
   $("gl-account-type-search").addEventListener("input", renderGlAccountTypes);
   $("gl-account-type-form").addEventListener("submit", async (e) => {
     e.preventDefault();
+    try {
     await api("gl-account-types/save", {
       method: "POST",
       body: JSON.stringify({
@@ -9095,9 +10417,14 @@
         type_name: $("gl-account-type-name").value,
         is_required: $("gl-account-type-required").checked,
         is_active: $("gl-account-type-active").checked,
+        code_numbering: collectCodeNumberingFields("gl-account-type"),
         resource_role_mappings: collectResourceRoleMappings("gl-account-type"),
       }),
     });
+    } catch (error) {
+      alert(error.message);
+      return;
+    }
     $("gl-account-type-form").hidden = true;
     loadedSlices.accountTypes = false;
     await Promise.all([loadMenuData(true), ensureAccountTypes(true)]);
@@ -9124,8 +10451,9 @@
           resource_role_mappings: collectResourceRoleMappings("ledger-family"),
           requires_legal_entity: $("ledger-family-legal-entity").checked,
           schema_json: $("ledger-family-schema").value,
-          ui_schema_json: $("ledger-family-ui-schema").value,
+          ui_schema_json: $("ledger-family-form").dataset.legacyUiSchema || "{}",
           is_active: $("ledger-family-active").checked,
+        code_numbering: collectCodeNumberingFields("ledger-family"),
         }),
       });
       $("ledger-family-form").hidden = true;
@@ -9148,6 +10476,7 @@
   );
   $("accounting-object-type-form").addEventListener("submit", async (e) => {
     e.preventDefault();
+    try {
     await api("accounting-objects/save-type", {
       method: "POST",
       body: JSON.stringify({
@@ -9162,10 +10491,15 @@
           "accounting-object-type",
         ),
         schema_json: $("accounting-object-type-schema").value,
-        ui_schema_json: $("accounting-object-type-ui-schema").value,
+        ui_schema_json: $("accounting-object-type-form").dataset.legacyUiSchema || "{}",
         is_active: $("accounting-object-type-active").checked,
+        code_numbering: collectCodeNumberingFields("accounting-object-type"),
       }),
     });
+    } catch (error) {
+      alert(error.message);
+      return;
+    }
     $("accounting-object-type-form").hidden = true;
     await loadMenuData(true);
     renderAccountingSetupTypes("object");
@@ -9181,6 +10515,7 @@
   );
   $("accounting-dimension-type-form").addEventListener("submit", async (e) => {
     e.preventDefault();
+    try {
     await api("accounting-dimensions/save-type", {
       method: "POST",
       body: JSON.stringify({
@@ -9195,10 +10530,15 @@
           "accounting-dimension-type",
         ),
         schema_json: $("accounting-dimension-type-schema").value,
-        ui_schema_json: $("accounting-dimension-type-ui-schema").value,
+        ui_schema_json: $("accounting-dimension-type-form").dataset.legacyUiSchema || "{}",
         is_active: $("accounting-dimension-type-active").checked,
+        code_numbering: collectCodeNumberingFields("accounting-dimension-type"),
       }),
     });
+    } catch (error) {
+      alert(error.message);
+      return;
+    }
     $("accounting-dimension-type-form").hidden = true;
     await loadMenuData(true);
     renderAccountingSetupTypes("dimension");
@@ -9271,6 +10611,16 @@
   $("new-transaction-type").addEventListener("click", () =>
     openNewTransactionType().catch((e) => alert(e.message)),
   );
+  $("copy-transaction-type").addEventListener("click", () => {
+    const base = $("transaction-type-code").value.trim().toLowerCase().replace(/\s+/g, "_");
+    if (!base) return alert("Select or enter a transaction type to copy");
+    $("transaction-type-id").value = "";
+    $("transaction-type-code").value = nextTransactionTypeCopyCode(base, state.transactionTypes);
+    $("transaction-type-error").hidden = true;
+    showSetupTypeTab("transaction-type", "definition");
+    updateTransactionTypeEditorTitle(`${$("transaction-type-name").value} (copy)`);
+    $("transaction-type-code").focus();
+  });
   $("add-transaction-line").addEventListener("click", () =>
     addTransactionTypeLine(),
   );
@@ -9280,6 +10630,27 @@
   );
   $("transaction-type-form").addEventListener("submit", async (e) => {
     e.preventDefault();
+    const form = e.currentTarget;
+    const errorBox = $("transaction-type-error");
+    errorBox.hidden = true;
+    const invalid = [...form.elements].find((control) => control.willValidate && !control.validity.valid);
+    if (invalid) {
+      const panel = invalid.closest("[data-setup-type-panel]");
+      if (panel) showSetupTypeTab("transaction-type", panel.dataset.panel);
+      const row = invalid.closest(".transaction-type-line");
+      if (row) {
+        showSetupTypeTab("transaction-type", "lines");
+        setExpandedTransactionTypeLine(row);
+      }
+      errorBox.textContent = invalid.classList.contains("tx-line-gl")
+        ? `Line ${[...form.querySelectorAll(".transaction-type-line")].indexOf(row) + 1} requires a GL account`
+        : invalid.validationMessage;
+      errorBox.hidden = false;
+      invalid.focus();
+      invalid.reportValidity();
+      return;
+    }
+    try {
     const financial = $("transaction-type-financial").checked;
     const moduleIds = selectedModuleIds("transaction-type-modules");
     if (!moduleIds.length) {
@@ -9352,13 +10723,16 @@
     setTransactionTypeEditorOpen(false);
     await ensureTransactionSetup(true);
     renderTransactionTypes();
+    } catch (error) {
+      errorBox.textContent = error.message;
+      errorBox.hidden = false;
+      errorBox.scrollIntoView({ block: "nearest" });
+    }
   });
   $("add-role").addEventListener("click", openNewRole);
   $("new-role").addEventListener("click", openNewRole);
   $("add-master-permission").hidden = true;
-  $("add-transaction-permission").addEventListener("click", () =>
-    addPermissionLine("transaction"),
-  );
+  $("add-transaction-permission").hidden = true;
   $("add-role-user").addEventListener("click", () => addRoleUserLine());
   $("role-admin").addEventListener("change", syncRoleModuleRequirement);
   document
@@ -9371,14 +10745,17 @@
   $("role-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const master_permissions = collectMasterPermissions();
+    const report_permissions = [...$("report-permission-lines").querySelectorAll(".master-permission-leaf")]
+      .filter(row => row.querySelector(".master-permission-check").checked)
+      .map(row => ({resource_kind:"report",resource_code:row.dataset.resourceCode,division_id:row.dataset.divisionId,workflow_status:"view",applies_to_children:row.querySelector(".report-permission-children").checked}));
     const transaction_permissions = [
       ...$("transaction-permission-lines").querySelectorAll(
-        ".permission-line:not(.permission-line-head)",
+        ".master-permission-leaf",
       ),
-    ].map((row) => ({
-      division_id: row.querySelector(".permission-division").value,
-      transaction_type_id: row.querySelector(".permission-resource").value,
-      workflow_status: row.querySelector(".permission-workflow").value,
+    ].filter((row) => row.querySelector(".master-permission-check").checked).map((row) => ({
+      division_id: row.dataset.divisionId || null,
+      transaction_type_id: row.dataset.resourceCode,
+      workflow_status: row.querySelector(".master-permission-access").value,
     }));
     const role_users = [
       ...$("role-user-lines").querySelectorAll(
@@ -9406,6 +10783,7 @@
         is_active: $("role-active").checked,
         module_ids: moduleIds,
         master_permissions,
+        report_permissions,
         transaction_permissions,
         role_users,
       }),
@@ -9417,6 +10795,7 @@
     renderRoles();
   });
   function patchDynamicSelects() {
+    const selectedType = $("journal-type").value;
     option(
       $("journal-type"),
       state.transactionTypes,
@@ -9424,28 +10803,7 @@
       (t) => `${t.group_name}: ${t.type_name}`,
       "Manual / none",
     );
-    option(
-      $("journal-supplier"),
-      state.accounts.filter(
-        (account) =>
-          account.account_kind === "subledger" &&
-          state.subledgerAccountTypes.find(
-            (type) =>
-              type.subledger_account_type_id ===
-              account.subledger_account_type_id,
-          )?.type_code === "vendor",
-      ),
-      "account_id",
-      (account) => `${account.account_code} - ${account.account_name}`,
-      "Select supplier",
-    );
-    option(
-      $("journal-vat-recipient"),
-      state.legalEntities,
-      "legal_entity_id",
-      (entity) => `${entity.known_name} - ${entity.legal_name}`,
-      "Select VAT recipient",
-    );
+    $("journal-type").value = selectedType;
     const selectedPeriod = $("journal-period")?.value || "";
     option(
       $("journal-period"),
@@ -9461,32 +10819,11 @@
     originalRenderAll();
     patchDynamicSelects();
   };
-  function installJournalClassificationHeader() {
-    const target = $("journal-form")?.querySelector(".journal-header-right");
-    if (!target || $("journal-supplier")) return;
-    const fields = document.createElement("div");
-    fields.className = "journal-supplier-fields";
-    fields.innerHTML =
-      '<label><span>Supplier</span><select id="journal-supplier"></select></label><label><span>VAT recipient</span><select id="journal-vat-recipient"></select></label><label><span>Supplier invoice number</span><input id="journal-supplier-invoice-number"></label><label><span>Supplier invoice date</span><input id="journal-supplier-invoice-date" type="date"></label>';
-    target.append(fields);
-  }
   function renameLineDefinitionControls() {
     const editor = $("transaction-line-editor");
     if (editor) editor.querySelector("h2").textContent = "Line Definitions";
   }
-  installJournalClassificationHeader();
   renameLineDefinitionControls();
-  $("journal-supplier").addEventListener("change", () =>
-    document
-      .querySelectorAll(".journal-line:not(.journal-line-head)")
-      .forEach((row) => {
-        const definition = journalDefinitionFor(
-          row.querySelector(".line-definition")?.value,
-        );
-        if (definition?.subledger_type_code === "vendor")
-          row.querySelector(".line-sub").value = $("journal-supplier").value;
-      }),
-  );
   installModuleField("ledger-family-form", "ledger-family-modules");
   installModuleField(
     "accounting-object-type-form",
@@ -9501,7 +10838,11 @@
   installModuleIconEditor();
   installWorkflowUi();
   installSetupTypeEditors();
+  installSchemaDesignEditors();
+  installSchemaUiTester();
   installResourceAssignmentTabs();
+  installObjectVersionTabs();
+  installResizableObjectEditors();
   installTransactionTypeEditorUi();
   installOrganisationTabs();
   $("role-admin").closest("label").lastChild.textContent =

@@ -1,0 +1,167 @@
+/* African Safaris: existing tenant theme contract, light ivory surfaces and burnt orange. */
+:root{
+  --theme-brand:#b34b20;
+  --theme-brand-dark:#783016;
+  --theme-accent:#d99140;
+  --theme-header-tint:rgba(179,75,32,.12);
+  --theme-page:#faf6ee;
+  --theme-panel:#fffdf8;
+  --theme-panel-soft:#f4ecdf;
+  --theme-ink:#30291f;
+  --theme-muted:#6b5a47;
+  --theme-line:#ddcdb7;
+  --theme-glow:rgba(179,75,32,.14);
+  --theme-success:#426238;
+  --theme-danger:#ab2923;
+  --theme-shadow:0 16px 42px rgba(91,62,31,.12);
+  --theme-page-overlay:linear-gradient(180deg,rgba(250,246,238,.64),rgba(250,246,238,.88));
+  --theme-page-opacity:1;
+  --theme-header-photo:url("/themes/assets/african-safaris-background.png");
+  --theme-header-position:center 56%;
+  --theme-header-image:linear-gradient(135deg,#faf6ee,#e9c49b);
+  --theme-body-background:linear-gradient(rgba(250,246,238,.90),rgba(250,246,238,.90)),var(--theme-header-photo),var(--theme-page);
+  --theme-body-background-size:cover;
+  --theme-shell-background:var(--theme-page);
+  --theme-header-background:linear-gradient(90deg,rgba(255,255,255,.98) 0%,rgba(255,255,255,.94) 58%,var(--theme-header-tint) 100%);
+  --theme-header-overlay:linear-gradient(90deg,rgba(255,253,248,.98),rgba(255,253,248,.84) 45%,rgba(255,253,248,.25));
+  --theme-header-shadow:none;
+  --theme-panel-background:rgba(255,253,248,.96);
+  --theme-panel-color:var(--theme-ink);
+  --theme-tabs-background:#f5ecdf;
+  --theme-input-background:#ffffff;
+  --theme-link-color:var(--theme-brand-dark);
+  --theme-button-background:var(--theme-brand);
+  --theme-button-border:var(--theme-brand);
+  --theme-button-color:#ffffff;
+  --theme-button-hover-background:var(--theme-brand-dark);
+  --theme-button-hover-border:var(--theme-brand-dark);
+  --theme-button-hover-color:#ffffff;
+  --theme-secondary-background:#ffffff;
+  --theme-secondary-border:#c9b69e;
+  --theme-secondary-hover-background:#f6e2cf;
+  --theme-secondary-hover-color:var(--theme-brand-dark);
+  --theme-secondary-hover-border:#b34b20;
+  --theme-toolbar-color:var(--theme-brand-dark);
+  --theme-app-active-background:linear-gradient(135deg,#b34b20,#8c3719);
+  --theme-app-active-color:#ffffff;
+  --theme-app-active-border:#783016;
+  --theme-app-active-shadow:0 4px 14px rgba(179,75,32,.22);
+  --theme-brand-mark-background:var(--theme-brand-dark);
+  --theme-brand-mark-color:#ffffff;
+  --theme-brand-mark-shadow:0 8px 24px rgba(120,48,22,.18);
+  --theme-toast-success:var(--theme-success);
+  --theme-backdrop-background:rgba(0,0,0,.42);
+  --theme-table-background:transparent;
+  --theme-table-color:var(--theme-ink);
+  --theme-th-background:color-mix(in srgb,var(--theme-brand) 8%,transparent);
+  --theme-td-border:color-mix(in srgb,var(--theme-brand) 17%,transparent);
+  --theme-grid-background:#f6efe5;
+  --theme-grid-border:#ddcdb7;
+  --theme-grid-color:var(--theme-muted);
+  --theme-grid-hover-background:#f6e2cf;
+  --theme-grid-hover-border:#b34b20;
+  --theme-grid-hover-color:var(--theme-ink);
+  --theme-application-home-hover-background:#f6e2cf;
+  --theme-application-home-hover-backdrop:blur(10px);
+  --theme-home-heading-color:var(--theme-ink);
+}
+body{
+  --ink:var(--theme-ink);
+  --muted:var(--theme-muted);
+  --line:var(--theme-line);
+  --panel:var(--theme-panel);
+  --page:var(--theme-page);
+  --brand:var(--theme-brand);
+  --brand-dark:var(--theme-brand-dark);
+  --accent:var(--theme-accent);
+  --success:var(--theme-success);
+  --danger:var(--theme-danger);
+  --shadow:var(--theme-shadow);
+  color:var(--theme-ink);
+  background:var(--theme-body-background);
+  background-size:var(--theme-body-background-size);
+}
+.landing-shell{background:var(--theme-shell-background)}
+.landing-header{
+  border-color:var(--theme-line);
+  background:var(--theme-header-background) !important;
+  box-shadow:var(--theme-header-shadow);
+}
+.landing-header::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  background-image:var(--theme-header-overlay),var(--theme-header-photo,var(--theme-header-image));
+  background-repeat:no-repeat;
+  background-position:var(--theme-header-position,right center);
+  background-size:cover;
+  opacity:.95;
+}
+.application-home-item:hover{
+  background:var(--theme-application-home-hover-background);
+  backdrop-filter:var(--theme-application-home-hover-backdrop);
+}
+.landing-home .content-heading .eyebrow,.landing-home .content-heading h1{color:var(--theme-home-heading-color)}
+.auth-card,.management-panel,.table-panel,.proof-grid div,.tenant-grid-panel,.tenant-list-panel,.tenant-detail-panel,.dialog-card,.profile-menu,.empty-state,.application-home-item,.tenant-setup-grid,.tenant-user-grid,.tenant-application-grid,.tenant-application-users,.application-frame{
+  background:var(--theme-panel-background);
+  border-color:var(--theme-line);
+  color:var(--theme-panel-color);
+  box-shadow:var(--theme-shadow);
+}
+.tabs,.tenant-tabs,.tenant-grid-tabs,.tenant-new-grid,.tenant-grid-expanded,.result,.assignment-item{
+  background:var(--theme-tabs-background);
+  border-color:var(--theme-line);
+}
+input,select,.application-select{
+  background:var(--theme-input-background);
+  border-color:var(--theme-line);
+  color:var(--theme-ink);
+}
+label,.lead,.microcopy,.profile-copy small,.proof-grid span,.application-home-copy small,.session-user,td,.tenant-grid-head,.tenant-child-head,th{color:var(--theme-muted)}
+a,.eyebrow,.link-button,.secondary-action,.secondary-form-action,.icon-action,.home-action,.grid-expand,.tenant-tab,.tenant-grid-tab,.tab-button{color:var(--theme-link-color)}
+button,.primary-action,.square-action,.add-grid-button{
+  background:var(--theme-button-background);
+  border-color:var(--theme-button-border);
+  color:var(--theme-button-color);
+  box-shadow:var(--theme-shadow);
+}
+button:hover,.primary-action:hover,.square-action:hover,.add-grid-button:hover{
+  background:var(--theme-button-hover-background);
+  border-color:var(--theme-button-hover-border);
+  color:var(--theme-button-hover-color);
+}
+.secondary-action,.secondary-form-action,.icon-action,.home-action,.logo-button,.profile-button,.tab-button,.tenant-tab,.tenant-grid-tab,.grid-expand,.profile-menu button{
+  background:var(--theme-secondary-background);
+  border-color:var(--theme-secondary-border);
+}
+.logo-button,.logo-button:hover,.logo-button:focus-visible{border-color:transparent}
+.application-icon-button,.application-launcher-panel .home-action{color:var(--theme-toolbar-color)}
+.secondary-action:hover,.secondary-form-action:hover,.icon-action:hover,.home-action:hover,.logo-button:hover,.profile-button:hover,.tab-button:hover,.tab-button.active,.tenant-tab:hover,.tenant-tab.active,.tenant-grid-tab:hover,.tenant-grid-tab.active,.grid-expand:hover,.application-home-item:hover,.tenant-list-item:hover,.tenant-list-item.active,.profile-menu button:hover{
+  background:var(--theme-secondary-hover-background);
+  color:var(--theme-secondary-hover-color);
+  border-color:var(--theme-secondary-hover-border);
+}
+.brand-mark,.avatar:not(.has-photo){
+  background:var(--theme-brand-mark-background);
+  color:var(--theme-brand-mark-color);
+  box-shadow:var(--theme-brand-mark-shadow);
+}
+.toast.success{background:var(--theme-toast-success)}
+.dialog-card::backdrop{background:var(--theme-backdrop-background)}
+table,.tenant-list-item{background:var(--theme-table-background);color:var(--theme-table-color)}
+th,.tenant-grid-head,.tenant-child-head{background:var(--theme-th-background)}
+td,.tenant-child-row,.tenant-grid-row,.tenant-grid-expanded,.tenant-app-user-row{border-color:var(--theme-td-border)}
+.grid-expand{
+  background:var(--theme-grid-background);
+  border-color:var(--theme-grid-border);
+  color:var(--theme-grid-color);
+}
+.grid-expand:hover{
+  background:var(--theme-grid-hover-background);
+  border-color:var(--theme-grid-hover-border);
+  color:var(--theme-grid-hover-color);
+}
+
+input::placeholder{color:var(--theme-muted)}
+textarea{background:var(--theme-input-background);border-color:var(--theme-line);color:var(--theme-ink)}

@@ -1,5 +1,8 @@
 "use strict";
+const { numberedRecordStatement, saveNumberedTransaction } = require("../_shared/erp/code-numbering");
 const { randomUUID } = require("crypto");
+const { validateSchemaReferences } = require("../_shared/erp/schema-references");
+const { objectSaveStatements } = require("../_shared/erp/object-versions");
 const {
   authTenant,
   clean,
@@ -23,7 +26,7 @@ module.exports = async (ctx) => {
   const divisionId = ctx.body.owner_division_id;
   const code = clean(ctx.body.dimension_code);
   const name = clean(ctx.body.dimension_name);
-  if (!orgId || !typeId || !divisionId || !code || !name)
+  if (!orgId || !typeId || !divisionId || !name)
     return ctx.send(400, {
       error: "Organisation, type, division, code and name are required",
     });
@@ -55,6 +58,7 @@ module.exports = async (ctx) => {
     return ctx.send(400, { error: "Additional data must be valid JSON" });
   }
   const errors = validateSchema(type.rows[0].schema_json, data);
+  if (!errors.length) errors.push(...await validateSchemaReferences(ctx, access, orgId, type.rows[0].schema_json, data));
   if (errors.length)
     return ctx.send(400, { error: "Additional data is invalid", errors });
   if (submittedId) {
@@ -101,9 +105,9 @@ module.exports = async (ctx) => {
        WHERE tenant_id=$1 AND organisation_id=$2 AND accounting_dimension_id=$11`
     : `INSERT INTO erp_accounting_dimension(accounting_dimension_id,tenant_id,organisation_id,owner_division_id,accounting_dimension_type_id,dimension_code,dimension_name,workflow_status,valid_from,valid_to,additional_data,created_by_email,updated_by_email)
        VALUES($11,$1,$2,$3,$4,$5,$6,'draft',COALESCE($7::date,CURRENT_DATE),$8::date,$9::jsonb,$10,$10)`;
-  const statements = [{ text, values }];
+  const statements = [numberedRecordStatement({ text, values }, { kind: "accounting_dimension", typeParameter: 4, codeParameter: 5, idParameter: 11, submittedId })];
   if (resourcePlan.replace) statements.push(...resourcePlan.statements);
-  await ctx.broker("core_erp", "transaction", { statements });
+  await saveNumberedTransaction(ctx, objectSaveStatements({ statements, submittedId, access, organisationId: orgId, kind: "accounting_dimension", id, schema: type.rows[0].schema_json, data }));
   const r = await ctx.broker("core_erp", "query", {
     text: `SELECT * FROM erp_accounting_dimension WHERE tenant_id=$1 AND organisation_id=$2 AND accounting_dimension_id=$3`,
     values: [access.tenantId, orgId, id],

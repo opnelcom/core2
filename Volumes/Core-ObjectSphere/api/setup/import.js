@@ -2,7 +2,6 @@
 const crypto=require('crypto');
 const {ensureSchema,authTenant}=require('../_shared/items');
 
-const adminRoles=['owner','tenant_administrator'];
 const dataKeys=[
   'object_types',
   'attributes',
@@ -14,12 +13,6 @@ const dataKeys=[
   'event_types',
   'events'
 ];
-
-function requireImportAccess(access){
-  if(access.status)return access;
-  if(!adminRoles.includes(access.role))return {status:403,body:{error:'Tenant administrator access required'}};
-  return null;
-}
 
 function rows(data,key){
   return Array.isArray(data?.[key])?data[key]:[];
@@ -128,10 +121,9 @@ function insertStatement(key,table,columns,castSql,records){
 
 module.exports=async ctx=>{
   if(ctx.req.method!=='POST')return ctx.send(405,{error:'POST required'});
-  await ensureSchema(ctx);
   const access=await authTenant(ctx);
-  const denied=requireImportAccess(access);
-  if(denied)return ctx.send(denied.status,denied.body);
+  if(access.status)return ctx.send(access.status,access.body);
+  await ensureSchema(ctx);
 
   const payload=ctx.body.export||ctx.body;
   if(payload?.format!=='objectsphere-tenant-export'||payload.version!==1){
@@ -144,7 +136,9 @@ module.exports=async ctx=>{
 
   const statements=[];
   if(mode==='replace'){
+    await ctx.broker('core_objectsphere','query',{text:require('../_shared/catalogue').schema,values:[]});
     statements.push(
+      {text:`DELETE FROM objectsphere_catalogue_import WHERE tenant_id=$1`,values:[access.tenantId]},
       {text:`DELETE FROM objectsphere_attribute_value_history WHERE tenant_id=$1`,values:[access.tenantId]},
       {text:`DELETE FROM objectsphere_event WHERE tenant_id=$1`,values:[access.tenantId]},
       {text:`DELETE FROM objectsphere_item_attachment WHERE tenant_id=$1`,values:[access.tenantId]},

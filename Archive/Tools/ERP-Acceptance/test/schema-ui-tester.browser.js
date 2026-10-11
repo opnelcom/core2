@@ -1,0 +1,36 @@
+"use strict";
+const {chromium}=require("playwright"),fs=require("node:fs"),path=require("node:path"),assert=require("node:assert/strict");
+const root=path.resolve(__dirname,"../../.."),erp=path.join(root,"Volumes/Core-ERP");
+const source=fs.readFileSync(path.join(erp,"public/app.js"),"utf8"),css=fs.readFileSync(path.join(erp,"public/style.css"),"utf8"),html=fs.readFileSync(path.join(erp,"public/index.html"),"utf8");
+const extract=(from,to)=>source.slice(source.indexOf(`  function ${from}(`),source.indexOf(`  function ${to}(`));
+const functions=extract("schemaFields","valueForDetailField")+extract("valueForDetailField","showAccountFixedTab")+extract("renderSchemaDetailFields","renderAccountDetailFields")+extract("installSchemaUiTester","renderSchemaDesignPreview");
+const fixture=html.slice(html.indexOf('        <section id="view-schemauitester"'),html.indexOf('        <section id="view-modules"')).replace('class="view" hidden','class="view"');
+(async()=>{const browser=await chromium.launch({headless:true,...(process.env.ERP_BROWSER_EXECUTABLE?{executablePath:process.env.ERP_BROWSER_EXECUTABLE}:{})});try{
+ const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];page.on("pageerror",e=>errors.push(e.message));
+ await page.setContent(`<style>${css}</style>${fixture}`);
+ await page.evaluate(functions=>{
+  window.$=id=>document.getElementById(id);window.pretty=name=>name;window.syncRequiredMarkers=()=>{};window.state={orgId:"org"};window.requests=[];
+  window.api=async(url,options)=>{window.requests.push({url,method:options?.method||"GET"});if(options?.method&&options.method!=="GET")throw Error("Tester attempted a write");return {records:[{id:"00000000-0000-0000-0000-000000000001",code:"VALUER",name:"Example valuer"}]};};
+  window.localStorage={setItem:()=>{throw Error("Tester attempted persistence");}};
+  (0,eval)(functions);installSchemaUiTester();
+ },functions);
+ const editor=page.locator('#schema-ui-tester-json'),render=page.getByRole('button',{name:'Render preview',exact:true}),preview=page.locator('#schema-ui-tester-fields'),status=page.locator('#schema-ui-tester-status');
+ await editor.fill(JSON.stringify({type:"object",properties:{notes:{type:"long_text",title:"Notes",rows:1,sortOrder:20},name:{type:"text",title:"Name",sortOrder:10},items:{type:"grid",title:"Items",sortOrder:30,rowSchema:{type:"object",properties:{quantity:{type:"integer",title:"Quantity",sortOrder:10},valuer:{type:"reference",title:"Valuer",target:{class:"resource"},sortOrder:20}},required:["quantity"]}}},tabs:[{label:"Details",fields:["name","notes"]},{label:"Items",fields:["items"]}]}));
+ await render.click();assert.ok((await status.textContent()).includes("Preview rendered"));
+ await preview.locator('[data-detail-field="name"]').fill('Runtime only');
+ assert.ok((await preview.locator('textarea').boundingBox()).height<60);
+ await preview.getByRole('button',{name:'Items',exact:true}).click();await preview.getByRole('button',{name:'+ Add row',exact:true}).click();
+ await preview.locator('[data-detail-field="quantity"]').fill('3');
+ await page.waitForFunction(()=>document.querySelector('[data-detail-field="valuer"]').options.length===2);
+ assert.equal(await preview.locator('input[type="search"]').count(),0);
+ assert.equal(await page.locator('button[type="submit"]').count(),0);
+ assert.ok(await page.evaluate(()=>window.requests.every(r=>r.method==='GET')));
+ await render.click();assert.equal(await preview.locator('[data-detail-field="name"]').inputValue(),'');assert.equal(await preview.locator('tbody tr').count(),0);
+ await editor.fill('{broken');await render.click();assert.ok((await status.textContent()).includes('Cannot render'));assert.equal(await preview.locator('*').count(),0);
+ await editor.fill('[]');await render.click();assert.ok((await status.textContent()).includes('JSON object'));
+ await editor.fill('{"type":"object","properties":[]}');await render.click();assert.ok((await status.textContent()).includes('properties must be an object'));
+ await editor.fill('{"type":"object","properties":{}}');await render.click();assert.equal(await status.textContent(),'No custom fields defined.');
+ await page.getByRole('button',{name:'Clear',exact:true}).click();assert.equal(await editor.inputValue(),'');assert.equal(await status.textContent(),'');
+ await page.setViewportSize({width:390,height:750});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ assert.deepEqual(errors,[]);console.log('Schema UI tester browser checks passed: interactive shared rendering, tabs, grids, reference GETs only, no Save/storage, rerender reset, invalid JSON, Clear and mobile layout.');
+ }finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});

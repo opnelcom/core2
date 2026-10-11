@@ -1,5 +1,6 @@
 {
     "name":  "core-tasks",
+    "saasURL": "http://core-saas:3000",
     "port":  3000,
     "logToFile":  true,
     "fileLogMode":  "all",
@@ -9,10 +10,6 @@
     "dbBrokerProfiles":  [
                              {
                                  "name":  "core_tasks",
-                                 "key":  "replace-with-a-long-random-internal-key"
-                             },
-                             {
-                                 "name":  "core_saas",
                                  "key":  "replace-with-a-long-random-internal-key"
                              }
                          ],

@@ -1,5 +1,8 @@
 "use strict";
+const { numberedRecordStatement, saveNumberedTransaction } = require("../_shared/erp/code-numbering");
 const { randomUUID } = require("crypto");
+const { validateSchemaReferences } = require("../_shared/erp/schema-references");
+const { objectSaveStatements } = require("../_shared/erp/object-versions");
 const {
   authTenant,
   clean,
@@ -25,7 +28,7 @@ module.exports = async (ctx) => {
   const parentId = nullable(ctx.body.parent_accounting_object_id);
   const code = clean(ctx.body.object_code);
   const name = clean(ctx.body.object_name);
-  if (!orgId || !typeId || !divisionId || !code || !name)
+  if (!orgId || !typeId || !divisionId || !name)
     return ctx.send(400, {
       error: "Organisation, type, division, code and name are required",
     });
@@ -93,6 +96,7 @@ module.exports = async (ctx) => {
     return ctx.send(400, { error: "Additional data must be valid JSON" });
   }
   const errors = validateSchema(type.rows[0].schema_json, data);
+  if (!errors.length) errors.push(...await validateSchemaReferences(ctx, access, orgId, type.rows[0].schema_json, data));
   if (errors.length)
     return ctx.send(400, { error: "Additional data is invalid", errors });
   if (submittedId) {
@@ -144,13 +148,13 @@ module.exports = async (ctx) => {
   const text = submittedId
     ? `UPDATE erp_accounting_object
        SET owner_division_id=$3,accounting_object_type_id=$4,parent_accounting_object_id=$5,object_code=$6,object_name=$7,valid_from=COALESCE($8::date,CURRENT_DATE),valid_to=$9::date,additional_data=$10::jsonb,updated_by_email=$11,updated_at=now()
-       WHERE tenant_id=$1 AND organisation_id=$2 AND accounting_object_id=$13
+       WHERE tenant_id=$1 AND organisation_id=$2 AND accounting_object_id=$12
        `
     : `INSERT INTO erp_accounting_object(accounting_object_id,tenant_id,organisation_id,owner_division_id,accounting_object_type_id,parent_accounting_object_id,object_code,object_name,workflow_status,valid_from,valid_to,additional_data,created_by_email,updated_by_email)
        VALUES($13,$1,$2,$3,$4,$5,$6,$7,$12,COALESCE($8::date,CURRENT_DATE),$9::date,$10::jsonb,$11,$11)`;
-  const statements = [{ text, values }];
+  const statements = [numberedRecordStatement({ text, values: submittedId ? [...values.slice(0, 11), id] : values }, { kind: "accounting_object", typeParameter: 4, codeParameter: 6, idParameter: submittedId ? 12 : 13, submittedId })];
   if (resourcePlan.replace) statements.push(...resourcePlan.statements);
-  await ctx.broker("core_erp", "transaction", { statements });
+  await saveNumberedTransaction(ctx, objectSaveStatements({ statements, submittedId, access, organisationId: orgId, kind: "accounting_object", id, schema: type.rows[0].schema_json, data }));
   const r = await ctx.broker("core_erp", "query", {
     text: `SELECT * FROM erp_accounting_object WHERE tenant_id=$1 AND organisation_id=$2 AND accounting_object_id=$3`,
     values: [access.tenantId, orgId, id],

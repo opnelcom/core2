@@ -6,6 +6,18 @@
     "maxBodyBytes":  209715200,
     "dbProfiles":  [
                        {
+                           "name": "core_dbmanager",
+                           "profileKey": "replace-with-a-long-random-internal-key",
+                           "host": "core-db-dbmanager",
+                           "port": 5432,
+                           "database": "core-dbmanager",
+                           "user": "dbmanager_user",
+                           "password": "your-strong-password",
+                           "poolMax": 4,
+                           "poolIdleTimeoutMillis": 10000,
+                           "connectionTimeoutMillis": 5000
+                       },
+                       {
                            "name":  "core_saas",
                            "profileKey":  "replace-with-a-long-random-internal-key",
                            "host":  "core-db-saas",

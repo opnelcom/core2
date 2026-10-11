@@ -1,20 +1,11 @@
 'use strict';
 const {ensureSchema,authTenant}=require('../_shared/items');
 
-const adminRoles=['owner','tenant_administrator'];
-
-function requireExportAccess(access){
-  if(access.status)return access;
-  if(!adminRoles.includes(access.role))return {status:403,body:{error:'Tenant administrator access required'}};
-  return null;
-}
-
 module.exports=async ctx=>{
   if(ctx.req.method!=='GET'&&ctx.req.method!=='POST')return ctx.send(405,{error:'GET or POST required'});
-  await ensureSchema(ctx);
   const access=await authTenant(ctx);
-  const denied=requireExportAccess(access);
-  if(denied)return ctx.send(denied.status,denied.body);
+  if(access.status)return ctx.send(access.status,access.body);
+  await ensureSchema(ctx);
 
   const includeOpenAISettings=ctx.body?.include_openai_settings===true||ctx.query.include_openai_settings==='true';
   const statements=[

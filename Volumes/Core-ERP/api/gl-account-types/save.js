@@ -1,4 +1,5 @@
 'use strict';
+const { validateCodeNumbering } = require("../_shared/erp/code-numbering");
 const {authTenant,requireAdmin,clean,nullable,bool,validateTypeResourceRoleMappings,saveTypeResourceRoleMappings}=require('../_shared/erp');
 
 module.exports=async ctx=>{
@@ -7,6 +8,9 @@ module.exports=async ctx=>{
   if(access.status)return ctx.send(access.status,access.body);
   const denied=requireAdmin(access);
   if(denied)return ctx.send(denied.status,denied.body);
+  const numbering = validateCodeNumbering(ctx.body.code_numbering);
+  if (numbering.error) return ctx.send(400, { error: numbering.error });
+  const numberingJson = numbering.value === null ? null : JSON.stringify(numbering.value);
   const id=nullable(ctx.body.gl_account_type_id);
   const orgId=ctx.body.organisation_id;
   const code=clean(ctx.body.type_code).toLowerCase().replace(/\s+/g,'_');
@@ -17,8 +21,8 @@ module.exports=async ctx=>{
     if(validation.error)return ctx.send(400,{error:validation.error});
   }
   const result=id
-    ? await ctx.broker('core_erp','query',{text:`UPDATE erp_gl_account_type SET type_code=$3,type_name=$4,is_required=$5,is_active=$6,updated_at=now() WHERE tenant_id=$1 AND organisation_id=$2 AND gl_account_type_id=$7 RETURNING *`,values:[access.tenantId,orgId,code,name,bool(ctx.body.is_required),bool(ctx.body.is_active),id]})
-    : await ctx.broker('core_erp','query',{text:`INSERT INTO erp_gl_account_type(tenant_id,organisation_id,type_code,type_name,is_required,is_seeded,is_active) VALUES($1,$2,$3,$4,$5,false,$6) RETURNING *`,values:[access.tenantId,orgId,code,name,bool(ctx.body.is_required),bool(ctx.body.is_active)]});
+    ? await ctx.broker('core_erp','query',{text:`UPDATE erp_gl_account_type SET type_code=$3,type_name=$4,is_required=$5,is_active=$6,code_numbering=COALESCE($8::jsonb,code_numbering),updated_at=now() WHERE tenant_id=$1 AND organisation_id=$2 AND gl_account_type_id=$7 RETURNING *`,values:[access.tenantId,orgId,code,name,bool(ctx.body.is_required),bool(ctx.body.is_active),id,numberingJson]})
+    : await ctx.broker('core_erp','query',{text:`INSERT INTO erp_gl_account_type(tenant_id,organisation_id,type_code,type_name,is_required,is_seeded,is_active,code_numbering) VALUES($1,$2,$3,$4,$5,false,$6,COALESCE($7::jsonb,'{"mode":"manual"}'::jsonb)) RETURNING *`,values:[access.tenantId,orgId,code,name,bool(ctx.body.is_required),bool(ctx.body.is_active),numberingJson]});
   if(!result.rowCount)return ctx.send(404,{error:'GL account type not found'});
   if(Array.isArray(ctx.body.resource_role_mappings)){
     const saved=await saveTypeResourceRoleMappings(ctx,access,{organisationId:orgId,objectKind:'gl_account',objectTypeId:result.rows[0].gl_account_type_id,mappings:ctx.body.resource_role_mappings});

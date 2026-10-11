@@ -18,6 +18,8 @@ module.exports=async ctx=>{
     const results=[];
     for(const s of statements){
       const r=await client.query(s.text,s.values||[]);
+      if(s.expectedRowCount!==undefined && r.rowCount!==s.expectedRowCount)
+        throw Object.assign(new Error('Transaction precondition failed'),{code:'TRANSACTION_PRECONDITION'});
       results.push({rows:r.rows,rowCount:r.rowCount,command:r.command});
     }
     await client.query('COMMIT');

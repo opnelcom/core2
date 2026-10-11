@@ -55,6 +55,20 @@ module.exports = async (ctx) => {
     return ctx.send(400, {
       error: "At least one module is required for a non-administrator role",
     });
+  const reportPermissions = Array.isArray(ctx.body.report_permissions) ? ctx.body.report_permissions : [];
+  if (ctx.body.report_permissions !== undefined && !Array.isArray(ctx.body.report_permissions))
+    return ctx.send(400,{error:"Report permissions must be a list"});
+  if (reportPermissions.length) {
+    const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (reportPermissions.some(row => !UUID.test(row.resource_code || "") || !UUID.test(row.division_id || "") || row.workflow_status !== "view"))
+      return ctx.send(400, {error:"Report grants require a report, a division and View access"});
+    const reportIds = [...new Set(reportPermissions.map(row => row.resource_code))];
+    const divisionIds = [...new Set(reportPermissions.map(row => row.division_id))];
+    const reports = await ctx.broker("core_erp", "query", {text:"SELECT report_id FROM erp_report WHERE tenant_id=$1 AND organisation_id=$2 AND report_id=ANY($3::uuid[])",values:[access.tenantId,orgId,reportIds]});
+    const divisions = await ctx.broker("core_erp", "query", {text:"SELECT division_id FROM erp_division WHERE tenant_id=$1 AND organisation_id=$2 AND division_id=ANY($3::uuid[]) AND workflow_status<>'deleted'",values:[access.tenantId,orgId,divisionIds]});
+    if(reports.rows.length!==reportIds.length||divisions.rows.length!==divisionIds.length)
+      return ctx.send(400,{error:"Report grants must belong to this organisation and use available divisions"});
+  }
   if (moduleIds.length) {
     const modules = await ctx.broker("core_erp", "query", {
       text: `SELECT module_id FROM erp_module WHERE tenant_id=$1 AND organisation_id=$2 AND module_id=ANY($3::uuid[]) AND is_active=true`,
@@ -140,7 +154,7 @@ module.exports = async (ctx) => {
     if ((!organisationScoped && !divisionId) || !resourceCode) return;
     statements.push({
       text: `INSERT INTO erp_role_permission(tenant_id,organisation_id,role_id,division_id,resource_kind,resource_code,workflow_status,action_code,applies_to_children)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8,true)`,
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       values: [
         access.tenantId,
         orgId,
@@ -150,6 +164,7 @@ module.exports = async (ctx) => {
         resourceCode,
         workflow,
         workflow === "view" ? "view" : "manage",
+        row.applies_to_children !== false,
       ],
     });
   };
@@ -166,6 +181,7 @@ module.exports = async (ctx) => {
     if (masterKinds.has(kind)) addPermission(kind, row);
   });
   transactionPermissions.forEach((row) => addPermission("transaction", row));
+  reportPermissions.forEach(row => addPermission("report", row));
   roleUsers.forEach((row) => {
     const email = clean(row.email).toLowerCase();
     const validFrom = nullable(row.valid_from);

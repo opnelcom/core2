@@ -1,0 +1,500 @@
+[
+  {
+    "formId": "organisation-form",
+    "width": 1440,
+    "viewPosition": "relative",
+    "listRatio": 1,
+    "position": "absolute",
+    "anchor": "view-organisations",
+    "withinViewport": true,
+    "close": true,
+    "sticky": "static",
+    "actionAlignment": "normal",
+    "tabs": 2,
+    "fields": [
+      {
+        "name": "Code",
+        "aligned": false
+      },
+      {
+        "name": "Name",
+        "aligned": false
+      },
+      {
+        "name": "Base currency",
+        "aligned": false
+      },
+      {
+        "name": "SVG icon markup",
+        "aligned": false
+      },
+      {
+        "name": "Upload SVG file",
+        "aligned": false
+      }
+    ]
+  },
+  {
+    "formId": "division-form",
+    "width": 1440,
+    "viewPosition": "relative",
+    "listRatio": 1,
+    "position": "absolute",
+    "anchor": "view-divisions",
+    "withinViewport": true,
+    "close": true,
+    "sticky": "static",
+    "actionAlignment": "normal",
+    "tabs": 0,
+    "fields": [
+      {
+        "name": "Parent division",
+        "aligned": false
+      },
+      {
+        "name": "Code",
+        "aligned": false
+      },
+      {
+        "name": "Name",
+        "aligned": false
+      },
+      {
+        "name": "Status",
+        "aligned": false
+      }
+    ]
+  },
+  {
+    "formId": "fiscal-form",
+    "width": 1440,
+    "viewPosition": "relative",
+    "listRatio": 1,
+    "position": "absolute",
+    "anchor": "view-fiscal",
+    "withinViewport": true,
+    "close": true,
+    "sticky": "static",
+    "actionAlignment": "normal",
+    "tabs": 0,
+    "fields": [
+      {
+        "name": "Code",
+        "aligned": false
+      },
+      {
+        "name": "Start date",
+        "aligned": false
+      },
+      {
+        "name": "End date",
+        "aligned": false
+      },
+      {
+        "name": "Status",
+        "aligned": false
+      }
+    ]
+  },
+  {
+    "formId": "country-form",
+    "width": 1440,
+    "viewPosition": "relative",
+    "listRatio": 1,
+    "position": "absolute",
+    "anchor": "view-countries",
+    "withinViewport": true,
+    "close": true,
+    "sticky": "static",
+    "actionAlignment": "normal",
+    "tabs": 0,
+    "fields": [
+      {
+        "name": "Alpha-2 code",
+        "aligned": false
+      },
+      {
+        "name": "Alpha-3 code",
+        "aligned": false
+      },
+      {
+        "name": "Numeric code",
+        "aligned": false
+      },
+      {
+        "name": "Name",
+        "aligned": false
+      },
+      {
+        "name": "Official name",
+        "aligned": false
+      },
+      {
+        "name": "Region",
+        "aligned": false
+      },
+      {
+        "name": "Subregion",
+        "aligned": false
+      },
+      {
+        "name": "Default currency",
+        "aligned": false
+      },
+      {
+        "name": "Calling code",
+        "aligned": false
+      },
+      {
+        "name": "Administrative level label",
+        "aligned": false
+      }
+    ]
+  },
+  {
+    "formId": "currency-form",
+    "width": 1440,
+    "viewPosition": "relative",
+    "listRatio": 1,
+    "position": "absolute",
+    "anchor": "view-currencies",
+    "withinViewport": true,
+    "close": true,
+    "sticky": "static",
+    "actionAlignment": "normal",
+    "tabs": 0,
+    "fields": [
+      {
+        "name": "Code",
+        "aligned": false
+      },
+      {
+        "name": "Name",
+        "aligned": false
+      },
+      {
+        "name": "Decimals",
+        "aligned": false
+      },
+      {
+        "name": "Symbol",
+        "aligned": false
+      },
+      {
+        "name": "Symbol position",
+        "aligned": false
+      },
+      {
+        "name": "Thousands separator",
+        "aligned": false
+      },
+      {
+        "name": "Decimal separator",
+        "aligned": false
+      }
+    ]
+  },
+  {
+    "formId": "tax-type-form",
+    "width": 1440,
+    "viewPosition": "static",
+    "listRatio": 1,
+    "position": "absolute",
+    "anchor": "",
+    "withinViewport": true,
+    "close": true,
+    "sticky": "static",
+    "actionAlignment": "normal",
+    "tabs": 0,
+    "fields": [
+      {
+        "name": "Code",
+        "aligned": false
+      },
+      {
+        "name": "Description",
+        "aligned": false
+      },
+      {
+        "name": "Direction",
+        "aligned": false
+      }
+    ]
+  },
+  {
+    "formId": "resource-role-form",
+    "width": 1440,
+    "viewPosition": "static",
+    "listRatio": 0.5445223721590909,
+    "position": "relative",
+    "anchor": "resource-role-modal",
+    "withinViewport": true,
+    "close": true,
+    "sticky": "static",
+    "actionAlignment": "normal",
+    "tabs": 2,
+    "fields": [
+      {
+        "name": "Code",
+        "aligned": false
+      },
+      {
+        "name": "Name",
+        "aligned": false
+      },
+      {
+        "name": "Description",
+        "aligned": false
+      }
+    ]
+  },
+  {
+    "formId": "organisation-form",
+    "width": 390,
+    "viewPosition": "relative",
+    "listRatio": 1,
+    "position": "absolute",
+    "anchor": "view-organisations",
+    "withinViewport": true,
+    "close": true,
+    "sticky": "static",
+    "actionAlignment": "normal",
+    "tabs": 2,
+    "fields": [
+      {
+        "name": "Code",
+        "aligned": false
+      },
+      {
+        "name": "Name",
+        "aligned": false
+      },
+      {
+        "name": "Base currency",
+        "aligned": false
+      },
+      {
+        "name": "SVG icon markup",
+        "aligned": false
+      },
+      {
+        "name": "Upload SVG file",
+        "aligned": false
+      }
+    ]
+  },
+  {
+    "formId": "division-form",
+    "width": 390,
+    "viewPosition": "relative",
+    "listRatio": 1,
+    "position": "absolute",
+    "anchor": "view-divisions",
+    "withinViewport": true,
+    "close": true,
+    "sticky": "static",
+    "actionAlignment": "normal",
+    "tabs": 0,
+    "fields": [
+      {
+        "name": "Parent division",
+        "aligned": false
+      },
+      {
+        "name": "Code",
+        "aligned": false
+      },
+      {
+        "name": "Name",
+        "aligned": false
+      },
+      {
+        "name": "Status",
+        "aligned": false
+      }
+    ]
+  },
+  {
+    "formId": "fiscal-form",
+    "width": 390,
+    "viewPosition": "relative",
+    "listRatio": 1,
+    "position": "absolute",
+    "anchor": "view-fiscal",
+    "withinViewport": true,
+    "close": true,
+    "sticky": "static",
+    "actionAlignment": "normal",
+    "tabs": 0,
+    "fields": [
+      {
+        "name": "Code",
+        "aligned": false
+      },
+      {
+        "name": "Start date",
+        "aligned": false
+      },
+      {
+        "name": "End date",
+        "aligned": false
+      },
+      {
+        "name": "Status",
+        "aligned": false
+      }
+    ]
+  },
+  {
+    "formId": "country-form",
+    "width": 390,
+    "viewPosition": "relative",
+    "listRatio": 1,
+    "position": "absolute",
+    "anchor": "view-countries",
+    "withinViewport": true,
+    "close": true,
+    "sticky": "static",
+    "actionAlignment": "normal",
+    "tabs": 0,
+    "fields": [
+      {
+        "name": "Alpha-2 code",
+        "aligned": false
+      },
+      {
+        "name": "Alpha-3 code",
+        "aligned": false
+      },
+      {
+        "name": "Numeric code",
+        "aligned": false
+      },
+      {
+        "name": "Name",
+        "aligned": false
+      },
+      {
+        "name": "Official name",
+        "aligned": false
+      },
+      {
+        "name": "Region",
+        "aligned": false
+      },
+      {
+        "name": "Subregion",
+        "aligned": false
+      },
+      {
+        "name": "Default currency",
+        "aligned": false
+      },
+      {
+        "name": "Calling code",
+        "aligned": false
+      },
+      {
+        "name": "Administrative level label",
+        "aligned": false
+      }
+    ]
+  },
+  {
+    "formId": "currency-form",
+    "width": 390,
+    "viewPosition": "relative",
+    "listRatio": 1,
+    "position": "absolute",
+    "anchor": "view-currencies",
+    "withinViewport": true,
+    "close": true,
+    "sticky": "static",
+    "actionAlignment": "normal",
+    "tabs": 0,
+    "fields": [
+      {
+        "name": "Code",
+        "aligned": false
+      },
+      {
+        "name": "Name",
+        "aligned": false
+      },
+      {
+        "name": "Decimals",
+        "aligned": false
+      },
+      {
+        "name": "Symbol",
+        "aligned": false
+      },
+      {
+        "name": "Symbol position",
+        "aligned": false
+      },
+      {
+        "name": "Thousands separator",
+        "aligned": false
+      },
+      {
+        "name": "Decimal separator",
+        "aligned": false
+      }
+    ]
+  },
+  {
+    "formId": "tax-type-form",
+    "width": 390,
+    "viewPosition": "static",
+    "listRatio": 1,
+    "position": "absolute",
+    "anchor": "",
+    "withinViewport": true,
+    "close": true,
+    "sticky": "static",
+    "actionAlignment": "normal",
+    "tabs": 0,
+    "fields": [
+      {
+        "name": "Code",
+        "aligned": false
+      },
+      {
+        "name": "Description",
+        "aligned": false
+      },
+      {
+        "name": "Direction",
+        "aligned": false
+      }
+    ]
+  },
+  {
+    "formId": "resource-role-form",
+    "width": 390,
+    "viewPosition": "static",
+    "listRatio": 1,
+    "position": "relative",
+    "anchor": "resource-role-modal",
+    "withinViewport": true,
+    "close": true,
+    "sticky": "static",
+    "actionAlignment": "normal",
+    "tabs": 2,
+    "fields": [
+      {
+        "name": "Code",
+        "aligned": false
+      },
+      {
+        "name": "Name",
+        "aligned": false
+      },
+      {
+        "name": "Description",
+        "aligned": false
+      }
+    ]
+  }
+]
