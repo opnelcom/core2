@@ -1,0 +1,29 @@
+from pathlib import Path
+p=Path('tmp/pdfs/rounded-workflows.py');s=p.read_text();insert='''
+layouts[0]={'active':(150,480),'deleted':(600,480),'archived':(600,320)}
+routes[0]={('active','deleted'):('e','w',[]),('active','archived'):('e-15','w',[(280,465),(280,320)])}
+layouts[2]={'submitted':(100,510),'draft':(400,510),'deleted':(700,510),'blocked':(400,350),'requesting_archive':(700,190),'archived':(1050,270),'requesting_reactivation':(1400,400),'active':(1800,550)}
+routes[2]={
+ ('draft','submitted'):('w-15','e-15',[(270,495),(270,440),(200,440),(200,495)]),
+ ('draft','deleted'):('e','w',[]),
+ ('submitted','draft'):('e','w',[]),
+ ('submitted','active'):('e15','w15',[(200,525),(200,620),(1670,620),(1670,565)]),
+ ('submitted','blocked'):('e-25','w',[(230,485),(230,350)]),
+ ('active','requesting_archive'):('w-25','e-15',[(1740,525),(1740,110),(860,110),(860,175)]),
+ ('requesting_archive','archived'):('e','w',[(870,190),(870,270)]),
+ ('requesting_archive','active'):('e15','w-15',[(900,205),(900,150),(1710,150),(1710,535)]),
+ ('blocked','requesting_reactivation'):('e15','w15',[(570,365),(570,460),(1220,460),(1220,415)]),
+ ('blocked','requesting_archive'):('e-15','w',[(550,335),(550,190)]),
+ ('archived','requesting_reactivation'):('e','w-15',[(1230,270),(1230,385)]),
+ ('requesting_reactivation','active'):('e','w',[(1650,400),(1650,550)]),
+ ('requesting_reactivation','blocked'):('w','e-5',[(1180,400),(1180,345)])}
+layouts[3]={'submitted':(130,500),'draft':(600,500),'deleted':(1050,500),'posted':(600,270),'archived':(1050,270)}
+routes[3]={('submitted','draft'):('e15','w15',[]),('draft','submitted'):('w-15','e-15',[(440,485),(440,410),(320,410),(320,485)]),('draft','deleted'):('e','w',[]),('draft','archived'):('e-15','w',[(760,485),(760,270)]),('submitted','posted'):('e-25','w',[(290,475),(290,270)])}
+layouts[4]['deleted']=(350,360);layouts[4]['cancelled']=(1270,360)
+routes[4][('draft','deleted')]=('e-15','w',[(220,505),(220,360)])
+routes[4][('in_progress','team_allocation_pending')]=('w-15','e-15',[(820,505),(820,450),(790,450),(790,505)])
+routes[4][('in_progress','cancelled')]=('e-15','w15',[(1090,505),(1090,375)])
+routes[4][('cancelled','in_progress')]=('w-15','e-25',[(1110,345),(1110,300),(1080,300),(1080,495)])
+routes[4][('resolved','in_progress')]=('w-15','e15',[(1130,505),(1130,450),(1070,450),(1070,535)])
+routes[4][('closed','resolved')]=('w-15','e-15',[(1430,505),(1430,450),(1400,450),(1400,505)])
+''';s=s.replace('def rounded(points,r=10):',insert+'\ndef rounded(points,r=10):');s=s.replace("   if i==4 and key==('cancelled','in_progress'):lx,ly=1190,310\n   if i==4 and key==('in_progress','resolved'):lx,ly=1120,540",'');s=s.replace('c.roundRect(lx-tw/2-5,ly-9,tw+10,19,6,fill=1,stroke=0)','c.setStrokeColor(HexColor("#B7C5D7"));c.roundRect(lx-tw/2-7,ly-9,tw+14,19,8,fill=1,stroke=1)');p.write_text(s)

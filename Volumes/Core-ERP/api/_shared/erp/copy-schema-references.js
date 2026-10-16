@@ -68,7 +68,7 @@ async function prepareSchemaReferenceCopy(ctx,tenantId,sourceId,targetId,stateme
  const payloads={};
  for(const kind of kinds)payloads[kind]=Object.fromEntries(sourceData[kind].map(row=>[row.id,remapSchemaReferences(row.additional_data,row.schema_json,mapping)]));
  statements.push(...copySchemaReferenceStatements(tenantId,sourceId,targetId,kinds,payloads));
- statements.forEach(s=>plan.write({text:s.text,values:s.values}));
+ statements.forEach(s=>plan.write({text:s.text,values:s.values,...(s.expectedRowCount!==undefined?{expectedRowCount:s.expectedRowCount}:{})}));
  return plan;
 }
 // These statements run after record copies in the same transaction. Resolve by

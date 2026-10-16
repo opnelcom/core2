@@ -12,7 +12,7 @@ function fixture({ administrator = false, permission = null, lineDivision = "roo
   const db = new DatabaseSync(":memory:");
   db.exec(`
     CREATE TABLE erp_division(division_id,parent_division_id,tenant_id,organisation_id);
-    CREATE TABLE erp_journal(journal_id,tenant_id,organisation_id,fiscal_period_id,workflow_status,transaction_type_id);
+    CREATE TABLE erp_journal(journal_id,tenant_id,organisation_id,fiscal_period_id,workflow_status,transaction_type_id,posted_at);
     CREATE TABLE erp_journal_line(journal_id,division_id,gl_account_id,debit_amount,credit_amount);
     CREATE TABLE erp_fiscal_period(fiscal_period_id,fiscal_year_id,start_date,end_date);
     CREATE TABLE erp_gl_account(gl_account_id,gl_account_type_id,account_code,account_name);
@@ -29,7 +29,7 @@ function fixture({ administrator = false, permission = null, lineDivision = "roo
     INSERT INTO erp_role VALUES('role',1);
     INSERT INTO erp_user_role VALUES('role','tenant','org','user@example.com','2020-01-01',NULL);
   `);
-  db.prepare("INSERT INTO erp_journal VALUES('journal','tenant','org','period04',?,'owner_deposit')").run(status);
+  db.prepare("INSERT INTO erp_journal VALUES('journal','tenant','org','period04',?,'owner_deposit',?)").run(status,['approved','reversed','posted'].includes(status)?'2026-10-03':null);
   db.prepare("INSERT INTO erp_journal_line VALUES('journal',?,'bank',1000,0),('journal',?,'equity',0,1000)").run(lineDivision,lineDivision);
   if (permission) db.prepare("INSERT INTO erp_role_permission VALUES('role',?,'transaction',?,?,?,?,?)").run(
     permission.division || "root", permission.code || "*", permission.status || "view",

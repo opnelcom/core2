@@ -21,7 +21,7 @@ module.exports=async ctx=>{
           JOIN erp_fiscal_period fp ON fp.fiscal_period_id=j.fiscal_period_id
           JOIN erp_division d ON d.division_id=j.source_division_id
           LEFT JOIN erp_journal_line l ON l.journal_id=j.journal_id
-          WHERE j.tenant_id=$1 AND j.organisation_id=$2 AND j.workflow_status <> 'deleted'
+          WHERE j.tenant_id=$1 AND j.organisation_id=$2 
           AND ($4::uuid IS NULL OR j.transaction_type_id=$4::uuid)
           AND ($5::uuid IS NULL OR EXISTS (
             WITH RECURSIVE selected_scope AS (
@@ -58,5 +58,6 @@ module.exports=async ctx=>{
           ORDER BY j.journal_date DESC,j.created_at DESC`,
     values:[access.tenantId,orgId,access.auth.email,transactionTypeId,activeDivisionId,includeChildren]
   });
+  await require('../_shared/erp/workflow-presentation').decorateWorkflowRecords(ctx,access,r.rows,{kind:'transaction',typeTable:'erp_transaction_type',typeIdColumn:'transaction_type_id'});
   return {journals:r.rows};
 };

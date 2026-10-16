@@ -1,5 +1,6 @@
 'use strict';
 const { validateGrid, validateGridDefinition, referenceClasses } = require('./schema-grids');
+const visibility = require('../../../public/schema-visibility');
 
 function clean(value,fallback=''){
   const text=String(value??'').trim();
@@ -114,9 +115,12 @@ function validateSchemaDefinition(schema,rootSchema=schema){
   if(!schema||typeof schema!=='object'||Array.isArray(schema))return ['Schema must be a JSON object'];
   if(schema.properties!==undefined&&(!schema.properties||typeof schema.properties!=='object'||Array.isArray(schema.properties)))return ['Schema properties must be an object'];
   const errors=[];
+  const scope = schema === rootSchema ? 'object' : 'row';
+  for (const [index, tab] of (Array.isArray(schema.tabs) ? schema.tabs : []).entries()) errors.push(...visibility.validate(tab?.showif,schema,rootSchema,scope,`tabs[${index}].showif`));
   if(schema.required!==undefined&&(!Array.isArray(schema.required)||schema.required.some(key=>typeof key!=='string'||!schema.properties?.[key])))errors.push('required must name existing properties');
   for(const [name,field] of Object.entries(schema.properties||{})){
     if(!field||typeof field!=='object'||Array.isArray(field)){errors.push(`${name} must define a field object`);continue;}
+    errors.push(...visibility.validate(field.showif,schema,rootSchema,scope,`${name}.showif`));
     if(field.type==='grid')errors.push(...validateGridDefinition(field,row=>validateSchemaDefinition(row,rootSchema)).map(error=>`${name}: ${error}`));
     if(field.type==='reference'){
       const targets=Array.isArray(field.target?.anyOf)?field.target.anyOf:[field.target];

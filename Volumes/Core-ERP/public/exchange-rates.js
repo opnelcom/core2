@@ -128,7 +128,7 @@
     $('add-exchange-rate').addEventListener('click', () => open());
     $('exchange-rate-search').addEventListener('input', render);
     form.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); close(); } });
-    // The shared close/cancel helper hides the panel; invalidate pending history and restore focus.
+    // The shared panel-close helper hides the panel; invalidate pending history and restore focus.
     new MutationObserver(() => {
       if (form.hidden) { ++historySequence; ++editorSequence; selected = null; if (opener?.isConnected) opener.focus(); }
       else boundEditor();
@@ -141,6 +141,10 @@
       $('exchange-rate-search').value = ''; $('exchange-rate-history').replaceChildren();
       error(''); listError(''); render(); selectListTab(0);
     }
+    root.erpSetupDeletion.install({form,kind:'exchange_rate',label:'Exchange rate',api,context,notify:message=>error(message),
+      getRecord:()=>({id:selected?.exchange_rate_id,name:selected ? `${selected.from_currency_code}/${selected.to_currency_code} ${selected.effective_from}` : ''}),
+      close:()=>close(),afterDelete:async()=>{await load(true);},
+    });
     return { load, reset };
   };
 })(window);

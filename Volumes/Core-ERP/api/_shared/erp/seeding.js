@@ -91,7 +91,8 @@ async function seedOrganisationDefaults(ctx, access, organisationId) {
     resourceRoleTypeMappings = [],
     moduleSeeds = [],
     moduleMappings = {},
-    workflowDefaults,
+    workflowStatuses,
+    workflows,
   } = loadTemplateDefaults();
   const org = await ctx.broker("core_erp", "query", {
     text: `SELECT is_template FROM erp_organisation WHERE tenant_id=$1 AND organisation_id=$2 AND workflow_status <> 'deleted'`,
@@ -118,6 +119,12 @@ async function seedOrganisationDefaults(ctx, access, organisationId) {
         ),
       ),
     ],
+  });
+  // CRM is consolidated into Sales in the template definitions only.
+  await ctx.broker("core_erp", "query", {
+    text: `UPDATE erp_module SET is_active=false,updated_at=now()
+           WHERE tenant_id=$1 AND organisation_id=$2 AND module_code='crm' AND is_seeded=true`,
+    values: [access.tenantId, organisationId],
   });
   await ctx.broker("core_erp", "query", {
     text: `INSERT INTO erp_currency(tenant_id,organisation_id,currency_code,currency_name,decimal_places,format_json,is_seeded,is_active)
@@ -226,9 +233,9 @@ async function seedOrganisationDefaults(ctx, access, organisationId) {
   });
   await ctx.broker("core_erp", "query", {
     text: `INSERT INTO erp_subledger_account_type(tenant_id,organisation_id,type_code,type_name,type_description,requires_legal_entity,schema_json,ui_schema_json,is_seeded,is_active)
-          SELECT $1,$2,ledger_family_code,family_name,'',requires_legal_entity,schema_json,'{}'::jsonb,true,true
+          SELECT $1,$2,ledger_family_code,family_name,type_description,requires_legal_entity,schema_json,'{}'::jsonb,true,true
           FROM jsonb_to_recordset($3::jsonb)
-          AS row(ledger_family_code text,family_name text,requires_standard_account_type boolean,requires_legal_entity boolean,schema_json jsonb)
+          AS row(ledger_family_code text,family_name text,type_description text,requires_standard_account_type boolean,requires_legal_entity boolean,schema_json jsonb)
           ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
           SET type_name=excluded.type_name,
               type_description=excluded.type_description,
@@ -250,9 +257,11 @@ async function seedOrganisationDefaults(ctx, access, organisationId) {
               family_name,
               requires_standard_account_type,
               requires_legal_entity,
+              type_description = "",
             ]) => ({
               ledger_family_code,
               family_name,
+              type_description,
               requires_standard_account_type,
               requires_legal_entity,
               schema_json: ledgerFamilySchemas[ledger_family_code] || {},
@@ -261,32 +270,10 @@ async function seedOrganisationDefaults(ctx, access, organisationId) {
       ),
     ],
   });
-  await ctx.broker("core_erp", "query", {
-    text: `WITH path AS (
-            INSERT INTO erp_workflow_path(tenant_id,organisation_id,path_name,initial_step_code,is_active,is_seeded)
-            VALUES($1,$2,$3,$4,true,true)
-            ON CONFLICT(tenant_id,organisation_id,path_name) DO UPDATE
-            SET initial_step_code=excluded.initial_step_code,is_active=true,is_seeded=true,updated_at=now()
-            RETURNING workflow_path_id
-          ),
-          steps AS (
-            INSERT INTO erp_workflow_step(tenant_id,organisation_id,workflow_path_id,step_code,step_label,colour,sort_order)
-            SELECT $1,$2,path.workflow_path_id,step.step_code,step.step_label,step.colour,step.sort_order
-            FROM path
-            CROSS JOIN jsonb_to_recordset($5::jsonb) AS step(step_code text,step_label text,colour text,sort_order integer)
-            ON CONFLICT(workflow_path_id,step_code) DO UPDATE
-            SET step_label=excluded.step_label,colour=excluded.colour,sort_order=excluded.sort_order,updated_at=now()
-          )
-          INSERT INTO erp_workflow_next(tenant_id,organisation_id,workflow_path_id,current_step_code,next_step_code)
-          SELECT $1,$2,path.workflow_path_id,next.current_step_code,next.next_step_code
-          FROM path
-          CROSS JOIN jsonb_to_recordset($6::jsonb) AS next(current_step_code text,next_step_code text)
-          ON CONFLICT(workflow_path_id,current_step_code,next_step_code) DO NOTHING`,
-    values: [access.tenantId, organisationId, workflowDefaults.name, workflowDefaults.initialStep, JSON.stringify(workflowDefaults.steps.map(([step_code,step_label,colour,sort_order])=>({step_code,step_label,colour,sort_order}))), JSON.stringify(workflowDefaults.transitions.map(([current_step_code,next_step_code])=>({current_step_code,next_step_code})))],
-  });
+  await require('./workflow-seeding').seedWorkflowDefinitions(ctx,access,organisationId,{workflowStatuses,workflows});
   await ctx.broker("core_erp", "query", {
     text: `WITH default_path AS (
-            SELECT workflow_path_id FROM erp_workflow_path WHERE tenant_id=$1 AND organisation_id=$2 AND path_name='Default workflow'
+            SELECT workflow_path_id FROM erp_workflow_path WHERE tenant_id=$1 AND organisation_id=$2 AND path_name='Simple Master Data'
           )
           UPDATE erp_subledger_account_type type
           SET workflow_path_id=default_path.workflow_path_id
@@ -296,12 +283,12 @@ async function seedOrganisationDefaults(ctx, access, organisationId) {
   });
   await ctx.broker("core_erp", "query", {
     text: `WITH default_path AS (
-            SELECT workflow_path_id FROM erp_workflow_path WHERE tenant_id=$1 AND organisation_id=$2 AND path_name='Default workflow'
+            SELECT workflow_path_id FROM erp_workflow_path WHERE tenant_id=$1 AND organisation_id=$2 AND path_name='Simple Master Data'
           )
           INSERT INTO erp_accounting_object_type(tenant_id,organisation_id,type_code,type_name,type_description,workflow_path_id,schema_json,ui_schema_json,is_seeded,is_active)
-          SELECT $1,$2,type_code,type_name,'',default_path.workflow_path_id,schema_json,ui_schema_json,true,true
+          SELECT $1,$2,type_code,type_name,type_description,default_path.workflow_path_id,schema_json,ui_schema_json,true,true
           FROM jsonb_to_recordset($3::jsonb)
-          AS row(type_code text,type_name text,schema_json jsonb,ui_schema_json jsonb)
+          AS row(type_code text,type_name text,type_description text,schema_json jsonb,ui_schema_json jsonb)
           CROSS JOIN default_path
           ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
           SET type_name=excluded.type_name,
@@ -316,9 +303,10 @@ async function seedOrganisationDefaults(ctx, access, organisationId) {
       access.tenantId,
       organisationId,
       JSON.stringify(
-        accountingObjectTypeSeeds.map(([type_code, type_name]) => ({
+        accountingObjectTypeSeeds.map(([type_code, type_name, type_description = ""]) => ({
           type_code,
           type_name,
+          type_description,
           schema_json: accountingObjectTypeMetadata[type_code]?.schema_json || {
             type: "object",
             properties: {},
@@ -333,12 +321,12 @@ async function seedOrganisationDefaults(ctx, access, organisationId) {
   });
   await ctx.broker("core_erp", "query", {
     text: `WITH default_path AS (
-            SELECT workflow_path_id FROM erp_workflow_path WHERE tenant_id=$1 AND organisation_id=$2 AND path_name='Default workflow'
+            SELECT workflow_path_id FROM erp_workflow_path WHERE tenant_id=$1 AND organisation_id=$2 AND path_name='Simple Master Data'
           )
           INSERT INTO erp_accounting_dimension_type(tenant_id,organisation_id,type_code,type_name,type_description,workflow_path_id,schema_json,ui_schema_json,is_seeded,is_active)
-          SELECT $1,$2,type_code,type_name,'',default_path.workflow_path_id,schema_json,'{}'::jsonb,true,true
+          SELECT $1,$2,type_code,type_name,type_description,default_path.workflow_path_id,schema_json,'{}'::jsonb,true,true
           FROM jsonb_to_recordset($3::jsonb)
-          AS row(type_code text,type_name text,schema_json jsonb)
+          AS row(type_code text,type_name text,type_description text,schema_json jsonb)
           CROSS JOIN default_path
           ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
           SET type_name=excluded.type_name,
@@ -352,9 +340,10 @@ async function seedOrganisationDefaults(ctx, access, organisationId) {
       access.tenantId,
       organisationId,
       JSON.stringify(
-        accountingDimensionTypeSeeds.map(([type_code, type_name]) => ({
+        accountingDimensionTypeSeeds.map(([type_code, type_name, type_description = ""]) => ({
           type_code,
           type_name,
+          type_description,
           schema_json: accountingDimensionTypeMetadata[type_code]?.schema_json || { type: "object", properties: {}, required: [], additionalProperties: false },
         })),
       ),
@@ -370,13 +359,13 @@ async function seedOrganisationDefaults(ctx, access, organisationId) {
             SELECT * FROM jsonb_to_recordset($3::jsonb)
             AS row(type_code text,dimension_code text,dimension_name text)
           )
-          INSERT INTO erp_accounting_dimension(tenant_id,organisation_id,owner_division_id,accounting_dimension_type_id,dimension_code,dimension_name,workflow_status,created_by_email,updated_by_email,approved_by_email,approved_at)
-          SELECT $1,$2,root.division_id,type.accounting_dimension_type_id,p.dimension_code,p.dimension_name,'approved',$4,$4,$4,now()
+          INSERT INTO erp_accounting_dimension(tenant_id,organisation_id,owner_division_id,accounting_dimension_type_id,dimension_code,dimension_name,workflow_status,created_by_email,updated_by_email)
+          SELECT $1,$2,root.division_id,type.accounting_dimension_type_id,p.dimension_code,p.dimension_name,'active',$4,$4
           FROM payload p
           CROSS JOIN root
           JOIN erp_accounting_dimension_type type ON type.tenant_id=$1 AND type.organisation_id=$2 AND type.type_code=p.type_code
           ON CONFLICT(tenant_id,organisation_id,accounting_dimension_type_id,dimension_code) DO UPDATE
-          SET dimension_name=excluded.dimension_name,workflow_status='approved',updated_by_email=$4,updated_at=now()`,
+          SET dimension_name=excluded.dimension_name,workflow_status='active',approved_by_email=NULL,approved_at=NULL,updated_by_email=$4,updated_at=now()`,
     values: [
       access.tenantId,
       organisationId,
@@ -657,6 +646,20 @@ async function seedOrganisationDefaults(ctx, access, organisationId) {
             JOIN erp_subledger_account_type type ON type.tenant_id=$1 AND type.organisation_id=$2 AND (p.resource_code='*' OR type.type_code=p.resource_code)
             WHERE p.resource_kind='master_data'
             UNION ALL
+            SELECT p.role_code,root.division_id,p.resource_kind,type.object_type_id,p.workflow_status
+            FROM payload p CROSS JOIN root
+            JOIN (
+              SELECT 'subledger_account'::text object_kind,type_code,subledger_account_type_id::text object_type_id FROM erp_subledger_account_type WHERE tenant_id=$1 AND organisation_id=$2
+              UNION ALL
+              SELECT 'accounting_object',type_code,accounting_object_type_id::text FROM erp_accounting_object_type WHERE tenant_id=$1 AND organisation_id=$2
+              UNION ALL
+              SELECT 'accounting_dimension',type_code,accounting_dimension_type_id::text FROM erp_accounting_dimension_type WHERE tenant_id=$1 AND organisation_id=$2
+            ) type ON type.object_kind=p.resource_kind AND (p.resource_code='*' OR type.type_code=p.resource_code)
+            WHERE p.resource_kind IN ('subledger_account','accounting_object','accounting_dimension')
+            UNION ALL
+            SELECT p.role_code,NULL::uuid,p.resource_kind,p.resource_code,p.workflow_status
+            FROM payload p WHERE p.resource_kind='resource' AND p.resource_code='*'
+            UNION ALL
             SELECT p.role_code,root.division_id,'accounting_object',type.accounting_object_type_id::text,p.workflow_status
             FROM payload p CROSS JOIN root
             JOIN erp_accounting_object_type type ON type.tenant_id=$1 AND type.organisation_id=$2
@@ -732,6 +735,16 @@ async function seedOrganisationDefaults(ctx, access, organisationId) {
             JOIN erp_subledger_account_type st ON st.tenant_id=rp.tenant_id AND st.organisation_id=rp.organisation_id AND (rp.resource_code='*' OR st.type_code=rp.resource_code OR st.subledger_account_type_id::text=rp.resource_code)
             JOIN erp_subledger_account_type_module sm ON sm.subledger_account_type_id=st.subledger_account_type_id
             WHERE rp.tenant_id=$1 AND rp.organisation_id=$2 AND rp.resource_kind='subledger_account'
+            UNION
+            SELECT rp.role_id,om.module_id FROM erp_role_permission rp
+            JOIN erp_accounting_object_type_module om ON om.accounting_object_type_id::text=rp.resource_code OR rp.resource_code='*'
+            JOIN erp_accounting_object_type ot ON ot.accounting_object_type_id=om.accounting_object_type_id AND ot.tenant_id=rp.tenant_id AND ot.organisation_id=rp.organisation_id
+            WHERE rp.tenant_id=$1 AND rp.organisation_id=$2 AND rp.resource_kind='accounting_object'
+            UNION
+            SELECT rp.role_id,dm.module_id FROM erp_role_permission rp
+            JOIN erp_accounting_dimension_type_module dm ON dm.accounting_dimension_type_id::text=rp.resource_code OR rp.resource_code='*'
+            JOIN erp_accounting_dimension_type dt ON dt.accounting_dimension_type_id=dm.accounting_dimension_type_id AND dt.tenant_id=rp.tenant_id AND dt.organisation_id=rp.organisation_id
+            WHERE rp.tenant_id=$1 AND rp.organisation_id=$2 AND rp.resource_kind='accounting_dimension'
             UNION
             SELECT rp.role_id,tm.module_id FROM erp_role_permission rp
             JOIN erp_transaction_type_module tm ON rp.resource_code='*' OR tm.transaction_type_id::text=rp.resource_code
@@ -858,6 +871,11 @@ async function seedOrganisationDefaults(ctx, access, organisationId) {
     });
   }
   await require("./seed-fiscal-years").seedFiscalYearDefaults(ctx, access, organisationId, loadTemplateDefaults());
+  await require('./workflow-seeding').seedWorkflowBindings(ctx,access,organisationId);
+  await require('./workflow-seeding').seedWorkflowActionRoles(ctx,access,organisationId,loadTemplateDefaults());
+  await require('./seed-grid-views').seedGridViews(ctx, access, organisationId, loadTemplateDefaults());
+  await require('./editor-layout').seedEditorLayouts(ctx, access, organisationId, loadTemplateDefaults());
+  await require('./seed-code-numbering').seedCodeNumbering(ctx, access, organisationId, loadTemplateDefaults());
   await require("./seed-reports").seedReportDefaults(ctx, access, organisationId, loadTemplateDefaults());
   await require("./seed-erp-admin-permissions").seedErpAdministratorPermissions(ctx, access, organisationId);
 }

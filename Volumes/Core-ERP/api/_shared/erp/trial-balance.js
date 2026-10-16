@@ -46,9 +46,9 @@ function scopedLinesSql() {
     SELECT l.journal_line_id,l.journal_id,l.tenant_id,l.organisation_id,l.division_id,l.gl_account_id,l.line_number,l.description,l.debit_amount,l.credit_amount,
       l.created_at line_created_at,j.created_at journal_created_at,
       j.journal_date,j.journal_number,j.description journal_description,j.transaction_type_id,j.workflow_status,j.reversing_journal_id,
-      ${transactionVisibilitySql({ tenant: "$1", organisation: "$2", division: "l.division_id", transactionType: "j.transaction_type_id", status: "'approved'", email: "$7", administrator: "$8" })} is_visible
+      ${transactionVisibilitySql({ tenant: "$1", organisation: "$2", division: "l.division_id", transactionType: "j.transaction_type_id", status: "CASE WHEN j.workflow_status='reversed' THEN 'approved' ELSE j.workflow_status END", email: "$7", administrator: "$8" })} is_visible
     FROM erp_journal_line l JOIN erp_journal j ON j.journal_id=l.journal_id AND j.tenant_id=l.tenant_id AND j.organisation_id=l.organisation_id
-    WHERE j.tenant_id=$1 AND j.organisation_id=$2 AND j.workflow_status IN ('approved','reversed')
+    WHERE j.tenant_id=$1 AND j.organisation_id=$2 AND j.posted_at IS NOT NULL
       AND j.journal_date <= (SELECT date_to FROM report_range) AND ($5::uuid IS NULL OR l.division_id IN (SELECT division_id FROM selected_division))
   ), visible_lines AS (SELECT * FROM scoped_lines WHERE is_visible)`;
 }

@@ -1,7 +1,8 @@
 'use strict';
 const {randomUUID}=require('crypto');
-const {authTenant,clean,nullable,money,checkPeriodOpen,requireResourcePermission,requireModuleAccess}=require('../_shared/erp');
+const {authTenant,clean,nullable,money,checkPeriodOpen,requireResourcePermission,requireModuleAccess,defaultWorkflowStepCode}=require('../_shared/erp');
 
+const {workflowUseSql}=require('../_shared/erp/workflow-configuration');
 const allocations=(rows,typeField,valueField)=>(Array.isArray(rows)?rows:[]).map(row=>({type_id:nullable(row[typeField]||row.type_id),value_id:nullable(row[valueField]||row.value_id)})).filter(row=>row.type_id||row.value_id);
 
 module.exports=async ctx=>{
@@ -19,10 +20,12 @@ module.exports=async ctx=>{
   if(moduleDenied)return ctx.send(moduleDenied.status,moduleDenied.body);
   if(lines.length<2)return ctx.send(400,{error:'At least two journal lines are required'});
   await checkPeriodOpen(ctx,access.tenantId,periodId);
-  const existing=id?await ctx.broker('core_erp','query',{text:`SELECT workflow_status FROM erp_journal WHERE tenant_id=$1 AND journal_id=$2`,values:[access.tenantId,id]}):null;
+  const existing=id?await ctx.broker('core_erp','query',{text:`SELECT workflow_status,posted_at,transaction_type_id FROM erp_journal WHERE tenant_id=$1 AND organisation_id=$2 AND journal_id=$3`,values:[access.tenantId,orgId,id]}):null;
   if(existing&&!existing.rowCount)return ctx.send(404,{error:'Journal not found'});
-  if(existing&&!['draft','rejected'].includes(existing.rows[0].workflow_status))return ctx.send(400,{error:'Only draft or rejected journals can be edited'});
-  const denied=await requireResourcePermission(ctx,access,{organisationId:orgId,divisionId,resourceKind:'transaction',resourceCode:transactionTypeId,workflowStatus:'draft'});
+  if(existing&&(existing.rows[0].posted_at||['deleted','archived'].includes(existing.rows[0].workflow_status)))return ctx.send(400,{error:'Posted, deleted or archived journals cannot be edited'});
+  if(existing&&existing.rows[0].transaction_type_id!==transactionTypeId)return ctx.send(400,{error:'An existing transaction cannot change type'});
+  const initialStep=await defaultWorkflowStepCode(ctx,access,{organisationId:orgId,typeTable:'erp_transaction_type',typeIdColumn:'transaction_type_id',typeId:transactionTypeId});
+  const denied=await requireResourcePermission(ctx,access,{organisationId:orgId,divisionId,resourceKind:'transaction',resourceCode:transactionTypeId,workflowStatus:existing?.rows[0]?.workflow_status||initialStep});
   if(denied)return ctx.send(denied.status,denied.body);
 
   const normalisedLines=lines.map((line,index)=>{
@@ -55,9 +58,9 @@ module.exports=async ctx=>{
   const dimensionIds=[...new Set(normalisedLines.flatMap(line=>line.accounting_dimensions.map(row=>row.value_id)))];
   const [accounts,subledgers,objects,dimensions,objectRequirements,dimensionRequirements]=await Promise.all([
     ctx.broker('core_erp','query',{text:`SELECT gl_account_id,requires_subledger,required_subledger_account_type_id FROM erp_gl_account WHERE tenant_id=$1 AND organisation_id=$2 AND gl_account_id=ANY($3::uuid[]) AND workflow_status<>'deleted'`,values:[access.tenantId,orgId,accountIds]}),
-    ctx.broker('core_erp','query',{text:`SELECT subledger_account_id,subledger_account_type_id FROM erp_subledger_account WHERE tenant_id=$1 AND organisation_id=$2 AND subledger_account_id=ANY($3::uuid[]) AND workflow_status<>'deleted'`,values:[access.tenantId,orgId,subledgerIds]}),
-    ctx.broker('core_erp','query',{text:`SELECT r.accounting_object_id,r.accounting_object_type_id,r.additional_data,t.type_code,t.schema_json FROM erp_accounting_object r JOIN erp_accounting_object_type t ON t.accounting_object_type_id=r.accounting_object_type_id WHERE r.tenant_id=$1 AND r.organisation_id=$2 AND r.accounting_object_id=ANY($3::uuid[]) AND r.workflow_status<>'deleted'`,values:[access.tenantId,orgId,objectIds]}),
-    ctx.broker('core_erp','query',{text:`SELECT accounting_dimension_id,accounting_dimension_type_id FROM erp_accounting_dimension WHERE tenant_id=$1 AND organisation_id=$2 AND accounting_dimension_id=ANY($3::uuid[]) AND workflow_status<>'deleted'`,values:[access.tenantId,orgId,dimensionIds]}),
+    ctx.broker('core_erp','query',{text:`SELECT r.subledger_account_id,r.subledger_account_type_id FROM erp_subledger_account r JOIN erp_subledger_account_type t ON t.subledger_account_type_id=r.subledger_account_type_id WHERE r.tenant_id=$1 AND r.organisation_id=$2 AND r.subledger_account_id=ANY($3::uuid[]) AND r.workflow_status<>'deleted' AND ${workflowUseSql('r','t')}`,values:[access.tenantId,orgId,subledgerIds]}),
+    ctx.broker('core_erp','query',{text:`SELECT r.accounting_object_id,r.accounting_object_type_id,r.additional_data,t.type_code,t.schema_json FROM erp_accounting_object r JOIN erp_accounting_object_type t ON t.accounting_object_type_id=r.accounting_object_type_id WHERE r.tenant_id=$1 AND r.organisation_id=$2 AND r.accounting_object_id=ANY($3::uuid[]) AND r.workflow_status<>'deleted' AND ${workflowUseSql('r','t')}`,values:[access.tenantId,orgId,objectIds]}),
+    ctx.broker('core_erp','query',{text:`SELECT r.accounting_dimension_id,r.accounting_dimension_type_id FROM erp_accounting_dimension r JOIN erp_accounting_dimension_type t ON t.accounting_dimension_type_id=r.accounting_dimension_type_id WHERE r.tenant_id=$1 AND r.organisation_id=$2 AND r.accounting_dimension_id=ANY($3::uuid[]) AND r.workflow_status<>'deleted' AND ${workflowUseSql('r','t')}`,values:[access.tenantId,orgId,dimensionIds]}),
     ctx.broker('core_erp','query',{text:`SELECT * FROM erp_transaction_line_definition_object_type WHERE tenant_id=$1 AND organisation_id=$2`,values:[access.tenantId,orgId]}),
     ctx.broker('core_erp','query',{text:`SELECT * FROM erp_transaction_line_definition_dimension_type WHERE tenant_id=$1 AND organisation_id=$2`,values:[access.tenantId,orgId]})
   ]);
@@ -73,6 +76,9 @@ module.exports=async ctx=>{
     if(!account)return ctx.send(400,{error:`${label} needs a valid GL account`});
     const definition=line.transaction_line_definition_id?definitionById.get(line.transaction_line_definition_id):null;
     if(line.transaction_line_definition_id&&!definition)return ctx.send(400,{error:`${label} uses a line definition from another transaction type`});
+    if(line.subledger_account_id&&!subledgerById.has(line.subledger_account_id))return ctx.send(400,{error:`${label} sub-ledger is not enabled for use`});
+    if(line.accounting_objects.some(a=>!objectById.has(a.value_id)))return ctx.send(400,{error:`${label} accounting object is not enabled for use`});
+    if(line.accounting_dimensions.some(a=>!dimensionById.has(a.value_id)))return ctx.send(400,{error:`${label} accounting dimension is not enabled for use`});
     if(definition){
       if(line.gl_account_id!==definition.gl_account_id)return ctx.send(400,{error:`${label} must use the GL configured by its line definition`});
       const side=line.debit_amount>0?'debit':'credit';
@@ -126,17 +132,18 @@ module.exports=async ctx=>{
   const objectValues=JSON.stringify(normalisedLines.flatMap(line=>line.accounting_objects.map(row=>({journal_line_id:line.journal_line_id,...row}))));
   const dimensionValues=JSON.stringify(normalisedLines.flatMap(line=>line.accounting_dimensions.map(row=>({journal_line_id:line.journal_line_id,...row}))));
   const saveSql=`WITH saved AS (
-      ${id?`UPDATE erp_journal SET transaction_type_id=$3,fiscal_period_id=$4,source_division_id=$5,journal_date=$6,description=$7,currency_code=$8,exchange_rate=$9,updated_by_email=$10,updated_at=now() WHERE tenant_id=$1 AND organisation_id=$2 AND journal_id=$14 RETURNING *`:`INSERT INTO erp_journal(tenant_id,organisation_id,transaction_type_id,fiscal_period_id,source_division_id,journal_date,description,currency_code,exchange_rate,workflow_status,created_by_email,updated_by_email) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft',$10,$10) RETURNING *`}
+      ${id?`UPDATE erp_journal SET transaction_type_id=$3,fiscal_period_id=$4,source_division_id=$5,journal_date=$6,description=$7,currency_code=$8,exchange_rate=$9,updated_by_email=$10,updated_at=now() WHERE tenant_id=$1 AND organisation_id=$2 AND journal_id=$14 AND posted_at IS NULL AND workflow_status=$15 RETURNING *`:`INSERT INTO erp_journal(journal_id,tenant_id,organisation_id,transaction_type_id,fiscal_period_id,source_division_id,journal_date,description,currency_code,exchange_rate,workflow_status,created_by_email,updated_by_email) VALUES($14,$1,$2,$3,$4,$5,$6,$7,$8,$9,$15,$10,$10) RETURNING *`}
     ), deleted AS (DELETE FROM erp_journal_line USING saved WHERE erp_journal_line.tenant_id=$1 AND erp_journal_line.journal_id=saved.journal_id),
     line_payload AS (SELECT * FROM jsonb_to_recordset($11::jsonb) AS row(journal_line_id uuid,line_number integer,transaction_line_definition_id uuid,division_id uuid,gl_account_id uuid,subledger_account_id uuid,description text,debit_amount numeric,credit_amount numeric,currency_code text)),
     inserted_lines AS (INSERT INTO erp_journal_line(journal_line_id,tenant_id,organisation_id,journal_id,transaction_line_definition_id,line_number,division_id,gl_account_id,subledger_account_id,description,debit_amount,credit_amount,currency_code) SELECT p.journal_line_id,$1,$2,saved.journal_id,p.transaction_line_definition_id,p.line_number,p.division_id,p.gl_account_id,p.subledger_account_id,p.description,p.debit_amount,p.credit_amount,p.currency_code FROM saved CROSS JOIN line_payload p),
     object_payload AS (SELECT * FROM jsonb_to_recordset($12::jsonb) AS row(journal_line_id uuid,type_id uuid,value_id uuid)),
-    inserted_objects AS (INSERT INTO erp_journal_line_accounting_object(tenant_id,organisation_id,journal_line_id,accounting_object_type_id,accounting_object_id) SELECT $1,$2,journal_line_id,type_id,value_id FROM object_payload),
+    inserted_objects AS (INSERT INTO erp_journal_line_accounting_object(tenant_id,organisation_id,journal_line_id,accounting_object_type_id,accounting_object_id) SELECT $1,$2,journal_line_id,type_id,value_id FROM object_payload CROSS JOIN saved),
     dimension_payload AS (SELECT * FROM jsonb_to_recordset($13::jsonb) AS row(journal_line_id uuid,type_id uuid,value_id uuid)),
-    inserted_dimensions AS (INSERT INTO erp_journal_line_accounting_dimension(tenant_id,organisation_id,journal_line_id,accounting_dimension_type_id,accounting_dimension_id) SELECT $1,$2,journal_line_id,type_id,value_id FROM dimension_payload)
+    inserted_dimensions AS (INSERT INTO erp_journal_line_accounting_dimension(tenant_id,organisation_id,journal_line_id,accounting_dimension_type_id,accounting_dimension_id) SELECT $1,$2,journal_line_id,type_id,value_id FROM dimension_payload CROSS JOIN saved)
     SELECT * FROM saved`;
   const values=[...headerValues,lineValues,objectValues,dimensionValues];
-  if(id)values.push(id);
+  values.push(id||randomUUID(),existing?.rows[0]?.workflow_status||initialStep);
   const header=await ctx.broker('core_erp','query',{text:saveSql,values});
+  if(!header.rowCount)return ctx.send(409,{error:'Journal changed while saving; reload it'});
   return {journal:header.rows[0]};
 };

@@ -1,0 +1,26 @@
+✔ Maintenance Order and Fleet Vehicle use valid configurable definitions and preserve allocation roles (2.8632ms)
+✔ Work Area reveals only the correct reference while retaining optional-reference validation (1.0741ms)
+✔ new examples cover all three work areas and six valid Maintenance workflow statuses with resolvable references (3.1293ms)
+✔ seeded dedicated permission roles match every Maintenance action and remain distinct from resource roles (6.4741ms)
+✔ definition seeding plans scoped permissions, module links, role assignments and type workflow bindings without DDL or user-role assignments for dedicated roles (280.7252ms)
+✔ example seeding validates explicit status against the type workflow and saves status with version snapshots (1.4176ms)
+✔ the complete example catalogue resolves new references together with existing legal-entity and asset examples (5.4313ms)
+﹣ configured maintenance references switch by Work Area and Fleet fields render at desktop and narrow widths (0.0851ms) # SKIP
+✔ Sales definitions support prospects without customer accounts and add no example records (2.8409ms)
+✔ Sales workflows preserve alternative outcomes, reopening and skippable opportunity stages without implying automatic conversion (2.0564ms)
+✔ income and expense allocation remains optional and never substitutes for balance-sheet sub-ledgers (0.2546ms)
+✔ template seeding consolidates CRM, binds the two workflows and contains no schema or record writes (299.0997ms)
+✔ status API defaults new settings and persists explicit settings within tenant and organisation (19.5488ms)
+✔ status API denies unauthorised setting changes before database writes (1.6688ms)
+✔ workflow membership copies catalogue availability but preserves explicit overrides (0.5419ms)
+✔ grid visibility follows catalogue independently of workflow availability (0.358ms)
+✔ Show hidden records can reveal and hide records repeatedly without losing source rows (0.666ms)
+✔ all seeded statuses have descriptions and defaults, with hidden lifecycle and disabled opportunity outcomes (0.3823ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 818.4003

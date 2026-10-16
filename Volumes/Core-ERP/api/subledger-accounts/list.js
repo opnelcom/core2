@@ -18,7 +18,7 @@ module.exports=async ctx=>{
           JOIN erp_subledger_account_type type ON type.subledger_account_type_id=account.subledger_account_type_id
           JOIN erp_division division ON division.division_id=account.owner_division_id
           LEFT JOIN erp_legal_entity entity ON entity.legal_entity_id=account.legal_entity_id
-          WHERE account.tenant_id=$1 AND account.organisation_id=$2 AND account.subledger_account_type_id=$3 AND account.workflow_status<>'deleted'
+          WHERE account.tenant_id=$1 AND account.organisation_id=$2 AND account.subledger_account_type_id=$3 
             AND ($6::uuid IS NULL OR EXISTS (
               WITH RECURSIVE selected_scope AS (
                 SELECT division_id FROM erp_division WHERE tenant_id=$1 AND organisation_id=$2 AND division_id=$6::uuid
@@ -47,5 +47,6 @@ module.exports=async ctx=>{
           ORDER BY account.account_code,account.account_name`,
     values:[access.tenantId,orgId,typeId,access.auth.email,isAdministrator(access),activeDivisionId,includeChildren]
   });
+  await require('../_shared/erp/workflow-presentation').decorateWorkflowRecords(ctx,access,result.rows,{kind:'subledger_account',typeTable:'erp_subledger_account_type',typeIdColumn:'subledger_account_type_id'});
   return {subledger_accounts:result.rows};
 };

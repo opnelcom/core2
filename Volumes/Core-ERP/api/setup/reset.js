@@ -76,10 +76,10 @@ module.exports = async (ctx) => {
     `DELETE FROM erp_module WHERE tenant_id=$1`,
     `DELETE FROM erp_division WHERE tenant_id=$1`,
     `DELETE FROM erp_workflow_next WHERE tenant_id=$1`,
-    `DELETE FROM erp_workflow_step WHERE tenant_id=$1`,
+    `DELETE FROM erp_workflow_path_status WHERE tenant_id=$1`,
     `DELETE FROM erp_workflow_path WHERE tenant_id=$1`,
+    `DELETE FROM erp_workflow_status WHERE tenant_id=$1`,
     `DELETE FROM erp_organisation WHERE tenant_id=$1`,
-    `DELETE FROM erp_note WHERE tenant_id=$1`,
   ];
   const reset = await ctx.broker("core_erp", "transaction", {
     statements: statements.map((text) => ({ text, values: [access.tenantId] })),

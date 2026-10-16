@@ -1,4 +1,5 @@
 'use strict';
+const {workflowActionRoleSql}=require('../_shared/erp/workflow-action-roles');
 const {authTenant,isAdministrator,requireModuleAccess}=require('../_shared/erp');
 
 module.exports=async ctx=>{
@@ -17,11 +18,12 @@ module.exports=async ctx=>{
             step.step_label workflow_step_label,
             step.colour workflow_step_colour,
             COALESCE((
-              SELECT jsonb_agg(jsonb_build_object('step_code',next_step.step_code,'step_label',next_step.step_label,'colour',next_step.colour) ORDER BY next_step.sort_order,next_step.step_label)
+              SELECT jsonb_agg(jsonb_build_object('workflow_next_id',wn.workflow_next_id,'action_label',wn.action_label,'step_code',next_step.step_code,'step_label',next_step.step_label,'colour',next_step.colour) ORDER BY next_step.sort_order,next_step.step_label)
                 FROM erp_workflow_next wn
                 JOIN erp_workflow_step next_step ON next_step.workflow_path_id=wn.workflow_path_id AND next_step.step_code=wn.next_step_code
                 WHERE wn.workflow_path_id=t.workflow_path_id
                   AND wn.current_step_code=o.workflow_status
+                AND ($5::boolean OR ${workflowActionRoleSql({tenant:'$1',organisation:'$2',action:'wn.workflow_next_id',email:'$4'})})
                 AND (
                   $5::boolean
                   OR EXISTS (
@@ -61,7 +63,7 @@ module.exports=async ctx=>{
           LEFT JOIN erp_accounting_object parent ON parent.tenant_id=o.tenant_id AND parent.organisation_id=o.organisation_id AND parent.accounting_object_id=o.parent_accounting_object_id
           LEFT JOIN erp_accounting_object_type parent_type ON parent_type.accounting_object_type_id=parent.accounting_object_type_id
           WHERE o.tenant_id=$1 AND o.organisation_id=$2 AND o.accounting_object_type_id=$3
-          AND o.workflow_status <> 'deleted'
+          
           AND ($6::uuid IS NULL OR EXISTS (
             WITH RECURSIVE selected_scope AS (
               SELECT division_id FROM erp_division WHERE tenant_id=$1 AND organisation_id=$2 AND division_id=$6::uuid

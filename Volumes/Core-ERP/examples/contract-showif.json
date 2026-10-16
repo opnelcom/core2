@@ -1,0 +1,418 @@
+{
+  "type": "object",
+  "tabs": [
+    {
+      "label": "General",
+      "fields": [
+        "contractNumber",
+        "contractType",
+        "counterpartyName"
+      ]
+    },
+    {
+      "label": "Dates",
+      "fields": [
+        "startDate",
+        "endDate",
+        "renewalDate"
+      ]
+    },
+    {
+      "label": "Value",
+      "fields": [
+        "contractValue",
+        "currencyCode",
+        "responsiblePerson"
+      ]
+    },
+    {
+      "label": "Fixed charges",
+      "fields": [
+        "fixedCharges"
+      ],
+      "showif": {
+        "field": "contractType",
+        "operator": "in",
+        "value": [
+          "lease_in",
+          "lease_out",
+          "rental_agreement"
+        ]
+      }
+    },
+    {
+      "label": "Parties",
+      "fields": [
+        "parties"
+      ]
+    },
+    {
+      "label": "Milestones",
+      "fields": [
+        "milestones"
+      ],
+      "showif": {
+        "field": "contractType",
+        "operator": "in",
+        "value": [
+          "service_provision",
+          "service_contract",
+          "supply_contract",
+          "grant_agreement",
+          "maintenance_contract"
+        ]
+      }
+    }
+  ],
+  "properties": {
+    "contractNumber": {
+      "type": "short_text",
+      "title": "Contract Number",
+      "x-listView": true,
+      "x-searchable": true,
+      "uiWidth": "short",
+      "maxLength": 30,
+      "sortOrder": 10
+    },
+    "contractType": {
+      "type": "select",
+      "title": "Contract Type",
+      "x-reportable": true,
+      "uiWidth": "medium",
+      "options": [
+        {
+          "code": "lease_in",
+          "description": "Lease in"
+        },
+        {
+          "code": "lease_out",
+          "description": "Lease out"
+        },
+        {
+          "code": "service_provision",
+          "description": "Service provision"
+        },
+        {
+          "code": "service_contract",
+          "description": "Service contract"
+        },
+        {
+          "code": "supply_contract",
+          "description": "Supply contract"
+        },
+        {
+          "code": "grant_agreement",
+          "description": "Grant agreement"
+        },
+        {
+          "code": "maintenance_contract",
+          "description": "Maintenance contract"
+        },
+        {
+          "code": "rental_agreement",
+          "description": "Rental agreement"
+        },
+        {
+          "code": "other",
+          "description": "Other"
+        }
+      ],
+      "sortOrder": 20
+    },
+    "counterpartyName": {
+      "type": "text",
+      "title": "Counterparty Name",
+      "x-searchable": true,
+      "uiWidth": "medium",
+      "maxLength": 150,
+      "sortOrder": 30
+    },
+    "startDate": {
+      "type": "date",
+      "title": "Start Date",
+      "uiWidth": "short",
+      "sortOrder": 40
+    },
+    "endDate": {
+      "type": "date",
+      "title": "End Date",
+      "uiWidth": "short",
+      "sortOrder": 50
+    },
+    "renewalDate": {
+      "type": "date",
+      "title": "Renewal Date",
+      "uiWidth": "short",
+      "sortOrder": 60,
+      "showif": {
+        "field": "contractType",
+        "operator": "in",
+        "value": [
+          "lease_in",
+          "lease_out",
+          "maintenance_contract",
+          "rental_agreement"
+        ]
+      }
+    },
+    "contractValue": {
+      "type": "currency",
+      "title": "Contract Value",
+      "uiWidth": "medium",
+      "precision": 14,
+      "scale": 2,
+      "minimum": 0,
+      "sortOrder": 70
+    },
+    "currencyCode": {
+      "type": "short_text",
+      "title": "Currency Code",
+      "uiWidth": "short",
+      "maxLength": 3,
+      "pattern": "[A-Z]{3}",
+      "placeholder": "ZAR",
+      "sortOrder": 80
+    },
+    "responsiblePerson": {
+      "type": "text",
+      "title": "Responsible Person",
+      "x-searchable": true,
+      "uiWidth": "medium",
+      "maxLength": 150,
+      "sortOrder": 90
+    },
+    "fixedCharges": {
+      "type": "grid",
+      "title": "Fixed charges",
+      "uiWidth": "full",
+      "rowSchema": {
+        "type": "object",
+        "properties": {
+          "chargeComponent": {
+            "type": "reference",
+            "title": "Charge component",
+            "target": {
+              "class": "accounting_dimension",
+              "types": [
+                "charge_component"
+              ]
+            },
+            "uiWidth": "medium",
+            "sortOrder": 10
+          },
+          "effectiveFrom": {
+            "type": "date",
+            "title": "Effective from",
+            "uiWidth": "short",
+            "sortOrder": 20
+          },
+          "effectiveTo": {
+            "type": "date",
+            "title": "Effective to",
+            "uiWidth": "short",
+            "sortOrder": 30,
+            "showif": {
+              "scope": "row",
+              "field": "frequency",
+              "operator": "ne",
+              "value": "once"
+            }
+          },
+          "amount": {
+            "type": "currency",
+            "title": "Amount",
+            "precision": 14,
+            "scale": 2,
+            "minimum": 0,
+            "uiWidth": "medium",
+            "sortOrder": 40
+          },
+          "currencyCode": {
+            "type": "short_text",
+            "title": "Currency",
+            "maxLength": 3,
+            "uiWidth": "short",
+            "pattern": "[A-Z]{3}",
+            "placeholder": "ZAR",
+            "sortOrder": 50
+          },
+          "frequency": {
+            "type": "select",
+            "title": "Frequency",
+            "options": [
+              {
+                "code": "once",
+                "description": "Once"
+              },
+              {
+                "code": "monthly",
+                "description": "Monthly"
+              },
+              {
+                "code": "quarterly",
+                "description": "Quarterly"
+              },
+              {
+                "code": "annually",
+                "description": "Annually"
+              }
+            ],
+            "uiWidth": "medium",
+            "sortOrder": 60
+          }
+        },
+        "required": [
+          "chargeComponent",
+          "effectiveFrom",
+          "amount",
+          "currencyCode",
+          "frequency"
+        ],
+        "additionalProperties": false
+      },
+      "periodControl": {
+        "from": "effectiveFrom",
+        "to": "effectiveTo",
+        "groupBy": [
+          "chargeComponent"
+        ],
+        "allowOverlap": false
+      },
+      "helpText": "Reference charges only; no automatic billing or postings.",
+      "sortOrder": 100,
+      "showif": {
+        "field": "contractType",
+        "operator": "in",
+        "value": [
+          "lease_in",
+          "lease_out",
+          "rental_agreement"
+        ]
+      }
+    },
+    "parties": {
+      "type": "grid",
+      "title": "Parties",
+      "uiWidth": "full",
+      "rowSchema": {
+        "type": "object",
+        "properties": {
+          "party": {
+            "type": "reference",
+            "title": "Party",
+            "target": {
+              "class": "legal_entity"
+            },
+            "uiWidth": "medium",
+            "sortOrder": 10
+          },
+          "role": {
+            "type": "select",
+            "title": "Role",
+            "options": [
+              {
+                "code": "customer",
+                "description": "Customer"
+              },
+              {
+                "code": "supplier",
+                "description": "Supplier"
+              },
+              {
+                "code": "landlord",
+                "description": "Landlord"
+              },
+              {
+                "code": "tenant",
+                "description": "Tenant"
+              },
+              {
+                "code": "guarantor",
+                "description": "Guarantor"
+              },
+              {
+                "code": "other",
+                "description": "Other"
+              }
+            ],
+            "uiWidth": "medium",
+            "sortOrder": 20
+          },
+          "notes": {
+            "type": "long_text",
+            "title": "Notes",
+            "maxLength": 4000,
+            "rows": 3,
+            "uiWidth": "full",
+            "sortOrder": 30
+          }
+        },
+        "required": [
+          "party",
+          "role"
+        ],
+        "additionalProperties": false
+      },
+      "sortOrder": 110
+    },
+    "milestones": {
+      "type": "grid",
+      "title": "Milestones",
+      "uiWidth": "full",
+      "rowSchema": {
+        "type": "object",
+        "properties": {
+          "milestone": {
+            "type": "text",
+            "title": "Milestone",
+            "maxLength": 150,
+            "uiWidth": "medium",
+            "sortOrder": 10
+          },
+          "targetDate": {
+            "type": "date",
+            "title": "Target date",
+            "uiWidth": "short",
+            "sortOrder": 20
+          },
+          "status": {
+            "type": "select",
+            "title": "Status",
+            "options": [
+              {
+                "code": "planned",
+                "description": "Planned"
+              },
+              {
+                "code": "in_progress",
+                "description": "In progress"
+              },
+              {
+                "code": "complete",
+                "description": "Complete"
+              }
+            ],
+            "uiWidth": "medium",
+            "sortOrder": 30
+          },
+          "notes": {
+            "type": "long_text",
+            "title": "Notes",
+            "maxLength": 4000,
+            "rows": 3,
+            "uiWidth": "full",
+            "sortOrder": 40
+          }
+        },
+        "required": [
+          "milestone",
+          "targetDate"
+        ],
+        "additionalProperties": false
+      },
+      "sortOrder": 120
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}

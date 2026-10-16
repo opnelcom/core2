@@ -1,4 +1,5 @@
 'use strict';
+const {workflowUseSql}=require('../_shared/erp/workflow-configuration');
 const {authTenant,clean,nullable,requireModuleAccess}=require('../_shared/erp');
 
 module.exports=async ctx=>{
@@ -15,7 +16,7 @@ module.exports=async ctx=>{
           FROM erp_accounting_object o
           JOIN erp_accounting_object_type t ON t.accounting_object_type_id=o.accounting_object_type_id
           JOIN erp_division d ON d.division_id=o.owner_division_id
-          WHERE o.tenant_id=$1 AND o.organisation_id=$2 AND o.workflow_status <> 'deleted'
+          WHERE o.tenant_id=$1 AND o.organisation_id=$2 AND o.workflow_status <> 'deleted' AND ${workflowUseSql('o','t')}
           AND ($3::uuid IS NULL OR o.accounting_object_id <> $3::uuid)
           AND (
             $4::text IS NULL

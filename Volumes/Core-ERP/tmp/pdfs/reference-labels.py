@@ -1,0 +1,2 @@
+from pathlib import Path
+p=Path('tmp/pdfs/rounded-workflows.py');s=p.read_text();s=s.replace("if v[0]==z[0]:lx+=48", "if v[0]==z[0]:lx+=48\n   if i==4:\n    overrides={('in_progress','team_allocation_pending'):(805,450),('resolved','in_progress'):(1100,450),('closed','resolved'):(1415,450),('in_progress','cancelled'):(1150,375),('cancelled','in_progress'):(1130,300)}\n    lx,ly=overrides.get(key,(lx,ly))");p.write_text(s)

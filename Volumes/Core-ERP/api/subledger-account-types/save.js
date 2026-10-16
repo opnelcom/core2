@@ -1,5 +1,7 @@
 "use strict";
+const { validateEditorLayout } = require("../_shared/erp/editor-layout");
 const { validateCodeNumbering } = require("../_shared/erp/code-numbering");
+const { validateDefaultGridView } = require("../_shared/erp/grid-views");
 const {
   authTenant,
   requireAdmin,
@@ -36,6 +38,8 @@ module.exports = async (ctx) => {
   const denied = requireAdmin(access);
   if (denied) return ctx.send(denied.status, denied.body);
   const numbering = validateCodeNumbering(ctx.body.code_numbering);
+  const gridView = validateDefaultGridView(ctx.body.default_grid_view);
+  if (gridView.error) return ctx.send(400, { error: gridView.error });
   if (numbering.error) return ctx.send(400, { error: numbering.error });
   const numberingJson = numbering.value === null ? null : JSON.stringify(numbering.value);
   const id = nullable(ctx.body.subledger_account_type_id);
@@ -54,6 +58,8 @@ module.exports = async (ctx) => {
     return ctx.send(400, {
       error: "Schema and UI schema must be valid JSON objects",
     });
+  const layoutError = validateEditorLayout(uiSchema);
+  if (layoutError) return ctx.send(400, { error: layoutError });
   const schemaErrors = validateSchemaDefinition(schema);
   if (schemaErrors.length) return ctx.send(400, { error: "Schema attributes are invalid", errors: schemaErrors });
   const invalidWorkflow = await validateWorkflowPath(ctx, access, {
@@ -82,7 +88,7 @@ module.exports = async (ctx) => {
   }
   const result = id
     ? await ctx.broker("core_erp", "query", {
-        text: `UPDATE erp_subledger_account_type SET type_code=$3,type_name=$4,type_description=$5,workflow_path_id=$6,requires_legal_entity=$7,schema_json=$8::jsonb,ui_schema_json=$9::jsonb,is_active=$10,code_numbering=COALESCE($11::jsonb,code_numbering),updated_at=now() WHERE tenant_id=$1 AND subledger_account_type_id=$2 AND organisation_id=$12 RETURNING *`,
+        text: `UPDATE erp_subledger_account_type SET type_code=$3,type_name=$4,type_description=$5,workflow_path_id=$6,requires_legal_entity=$7,schema_json=$8::jsonb,ui_schema_json=$9::jsonb,is_active=$10,code_numbering=COALESCE($11::jsonb,code_numbering),default_grid_view=COALESCE($13,default_grid_view),updated_at=now() WHERE tenant_id=$1 AND subledger_account_type_id=$2 AND organisation_id=$12 RETURNING *`,
         values: [
           access.tenantId,
           id,
@@ -96,10 +102,11 @@ module.exports = async (ctx) => {
           bool(ctx.body.is_active),
           numberingJson,
           orgId,
+          gridView.value,
         ],
       })
     : await ctx.broker("core_erp", "query", {
-        text: `INSERT INTO erp_subledger_account_type(tenant_id,organisation_id,type_code,type_name,type_description,workflow_path_id,requires_legal_entity,schema_json,ui_schema_json,is_seeded,is_active,code_numbering) VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,false,$10,COALESCE($11::jsonb,'{"mode":"manual"}'::jsonb)) RETURNING *`,
+        text: `INSERT INTO erp_subledger_account_type(tenant_id,organisation_id,type_code,type_name,type_description,workflow_path_id,requires_legal_entity,schema_json,ui_schema_json,is_seeded,is_active,code_numbering,default_grid_view) VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,false,$10,COALESCE($11::jsonb,'{"mode":"manual"}'::jsonb),COALESCE($12,'columnar')) RETURNING *`,
         values: [
           access.tenantId,
           orgId,
@@ -112,6 +119,7 @@ module.exports = async (ctx) => {
           JSON.stringify(uiSchema),
           bool(ctx.body.is_active),
           numberingJson,
+          gridView.value,
         ],
       });
   if (!result.rowCount)

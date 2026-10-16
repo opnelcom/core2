@@ -6,7 +6,7 @@
     <title>Core ERP</title>
     <link
       rel="stylesheet"
-      href="/erp/style.css?v=20261011-exchange-rates"
+      href="/erp/style.css?v=20261015-stacked-borders"
     />
     <script>
       (function () {
@@ -22,24 +22,6 @@
       class="workspace-context"
       aria-label="Organisation and division context"
     >
-      <div class="erp-title-row">
-        <strong class="erp-context-title">Core ERP</strong>
-        <div
-          class="organisation-tab-tools"
-          aria-label="ERP display preferences"
-        >
-          <button
-            type="button"
-            id="theme-toggle"
-            class="theme-toggle icon-button"
-            aria-label="Switch to dark mode"
-            aria-pressed="false"
-            title="Switch to dark mode"
-          >
-            <span aria-hidden="true">☾</span>
-          </button>
-        </div>
-      </div>
       <div class="organisation-tabs-row">
         <div
           id="organisation-tabs"
@@ -82,6 +64,21 @@
             aria-label="Active organisation"
           ></select
         ></label>
+        <div
+          class="organisation-tab-tools"
+          aria-label="ERP display preferences"
+        >
+          <button
+            type="button"
+            id="theme-toggle"
+            class="theme-toggle icon-button"
+            aria-label="Switch to dark mode"
+            aria-pressed="false"
+            title="Switch to dark mode"
+          >
+            <span aria-hidden="true">☾</span>
+          </button>
+        </div>
       </div>
       <div class="division-context-row">
         <span class="division-context-label">Active division</span>
@@ -191,6 +188,7 @@
       <main>
         <header class="topbar">
           <div>
+            <p id="page-object-class" hidden></p>
             <h1 id="page-title">Dashboard</h1>
             <p id="page-subtitle" hidden></p>
           </div>
@@ -235,7 +233,7 @@
               <div id="organisation-list"></div>
               <div id="init-template-result" class="empty" hidden></div>
             </div>
-            <form id="organisation-form" class="panel form" hidden>
+            <form id="organisation-form" class="panel form erp-field-rows organisation-setup-editor" hidden>
               <h2>Manage Organisation</h2>
               <input type="hidden" id="org-id" /><label
                 >Code<input id="org-code" required /></label
@@ -280,7 +278,8 @@
             </form>
           </div>
           <div id="org-copy-panel" class="panel form" hidden>
-            <h2>Copy Org</h2>
+            <h2>Copy Organisation Setup</h2>
+            <p class="muted">Copies selected setup into an existing target organisation. Matching configuration may be overwritten. Selected line definitions, financial-format lines and permission assignments can be rebuilt; copied reports are inactive for review. Review the source, target and selections before continuing.</p>
             <div class="form-row">
               <label
                 >Source organisation<select
@@ -426,7 +425,7 @@
               />
               <div id="division-list"></div>
             </div>
-            <form id="division-form" class="panel form" hidden>
+            <form id="division-form" class="panel form erp-field-rows organisation-setup-editor" hidden>
               <h2>Manage Division</h2>
               <input type="hidden" id="division-id" /><label
                 >Parent division<select id="division-parent"></select></label
@@ -505,7 +504,7 @@
                     Create 12 monthly periods</label
                   >
                   <div class="actions account-editor-actions">
-                    <button type="button" class="secondary" data-panel-cancel>Cancel</button>
+                    
                     <button type="submit">Save Fiscal Year</button
                     ><button
                       type="button"
@@ -549,7 +548,7 @@
                     </select></label
                   >
                   <div class="actions account-editor-actions">
-                    <button type="button" class="secondary" data-panel-cancel>Cancel</button>
+                    
                     <button type="submit">Save Period</button
                     ><button
                       type="button"
@@ -615,21 +614,21 @@
                 class="account-fixed-panel"
                 data-account-fixed-panel="identification"
               >
-                <label>Family<select id="account-form-family"></select></label
-                ><label
+                <select id="account-form-family" hidden aria-hidden="true"></select>
+                <label class="detail-field detail-field--medium"
                   >Account type<select
                     id="account-type"
                     required
                   ></select></label
-                ><label
+                ><label class="detail-field detail-field--medium"
                   >Owner division<select id="account-division"></select></label
-                ><label
+                ><label class="detail-field detail-field--medium"
                   >Legal entity<select
                     id="account-legal-entity"
                   ></select></label
-                ><label>Code<input id="account-code" required /></label
-                ><label>Name<input id="account-name" required /></label
-                ><label
+                ><label class="detail-field detail-field--short">Code<input id="account-code" required /></label
+                ><label class="detail-field detail-field--wide">Name<input id="account-name" required /></label
+                ><label class="detail-field detail-field--medium"
                   >Required subledger<select
                     id="account-subledger-family"
                   ></select></label
@@ -817,10 +816,9 @@
           <div class="split">
             <div class="panel">
               <div class="panel-head">
-                <h2>Accounting Objects</h2>
+                <h2 id="accounting-object-grid-title">Accounting Objects</h2>
                 <div class="panel-actions">
-                  <select id="accounting-object-type-select"></select
-                  ><button
+                  <button
                     type="button"
                     id="add-accounting-object"
                     class="add-record-button"
@@ -834,6 +832,7 @@
                 class="grid-search"
                 placeholder="Search accounting objects"
               />
+              <p id="accounting-object-context-message" role="status" hidden></p>
               <div id="accounting-object-list"></div>
             </div>
             <form
@@ -841,18 +840,14 @@
               class="panel form grid-form"
               hidden
             >
-              <h2>Manage Accounting Object</h2>
-              <input type="hidden" id="accounting-object-id" /><label
-                >Object type<select
-                  id="accounting-object-type"
-                  required
-                ></select></label
-              ><label
+              <h2 id="accounting-object-form-title">Accounting Object</h2>
+              <input type="hidden" id="accounting-object-id" />
+              <input type="hidden" id="accounting-object-type" /><label class="detail-field detail-field--medium"
                 >Owner division<select
                   id="accounting-object-division"
                   required
                 ></select></label
-              ><label
+              ><label class="detail-field detail-field--wide"
                 >Parent object<input
                   id="accounting-object-parent-search"
                   list="accounting-object-parent-options"
@@ -861,14 +856,14 @@
                   id="accounting-object-parent" /><datalist
                   id="accounting-object-parent-options"
                 ></datalist></label
-              ><label>Code<input id="accounting-object-code" required /></label
-              ><label>Name<input id="accounting-object-name" required /></label
-              ><label
+              ><label class="detail-field detail-field--short">Code<input id="accounting-object-code" required /></label
+              ><label class="detail-field detail-field--wide">Name<input id="accounting-object-name" required /></label
+              ><label class="detail-field detail-field--short"
                 >Valid from<input
                   id="accounting-object-valid-from"
                   type="date"
                   required /></label
-              ><label
+              ><label class="detail-field detail-field--short"
                 >Valid to<input id="accounting-object-valid-to" type="date"
               /></label>
               <div
@@ -892,7 +887,7 @@
           <div class="split">
             <div class="panel">
               <div class="panel-head">
-                <h2>Accounting Dimensions</h2>
+                <h2 id="accounting-dimension-grid-title">Accounting Dimensions</h2>
                 <div class="panel-actions">
                   <select id="accounting-dimension-type-select"></select
                   ><button
@@ -917,26 +912,22 @@
               hidden
             >
               <h2>Manage Accounting Dimension</h2>
-              <input type="hidden" id="accounting-dimension-id" /><label
-                >Dimension type<select
-                  id="accounting-dimension-type"
-                  required
-                ></select></label
-              ><label
+              <input type="hidden" id="accounting-dimension-id" /><input type="hidden" id="accounting-dimension-type" />
+              <label class="detail-field detail-field--medium"
                 >Owner division<select
                   id="accounting-dimension-division"
                   required
                 ></select></label
-              ><label
+              ><label class="detail-field detail-field--short"
                 >Code<input id="accounting-dimension-code" required /></label
-              ><label
+              ><label class="detail-field detail-field--wide"
                 >Name<input id="accounting-dimension-name" required /></label
-              ><label
+              ><label class="detail-field detail-field--short"
                 >Valid from<input
                   id="accounting-dimension-valid-from"
                   type="date"
                   required /></label
-              ><label
+              ><label class="detail-field detail-field--short"
                 >Valid to<input id="accounting-dimension-valid-to" type="date"
               /></label>
               <div
@@ -979,7 +970,10 @@
             <div id="journal-list"></div>
           </div>
           <form id="journal-form" class="panel form" hidden>
-            <h2>Transaction Capture</h2>
+            <header class="record-editor-header">
+              <h2 id="journal-capture-title">Transaction Capture</h2>
+              <p id="journal-capture-description" class="record-type-description" hidden></p>
+            </header>
             <input type="hidden" id="journal-id" />
             <div class="tabs setup-type-tabs" role="tablist" aria-label="Transaction capture">
               <button type="button" id="journal-transaction-tab" class="tab active" role="tab" data-setup-type-tab="journal" data-tab="transaction" aria-controls="journal-transaction-panel" aria-selected="true">Transaction</button>
@@ -1034,37 +1028,7 @@
               ><button type="submit" id="journal-save">Save Draft</button
               ><button type="button" id="new-journal" class="secondary">
                 New</button
-              ><button
-                type="button"
-                data-journal-action="submit"
-                class="secondary"
-              >
-                Submit</button
-              ><button
-                type="button"
-                data-journal-action="approve"
-                class="secondary"
-              >
-                Approve</button
-              ><button
-                type="button"
-                data-journal-action="reject"
-                class="secondary"
-              >
-                Reject</button
-              ><button
-                type="button"
-                data-journal-action="block"
-                class="secondary"
-              >
-                Block</button
-              ><button
-                type="button"
-                data-journal-action="reverse"
-                class="secondary danger"
-              >
-                Reverse
-              </button>
+              ><span id="journal-workflow-actions"></span>
             </div>
           </form>
         </section>
@@ -1089,7 +1053,7 @@
               </div><div id="report-panel-columns" role="tabpanel" aria-labelledby="report-tab-columns" data-report-panel="columns" hidden><h3>Columns</h3><div class="schema-grid-scroll"><table class="data-grid report-column-grid"><thead><tr><th scope="col">Field</th><th scope="col">Column heading</th><th scope="col">Actions</th></tr></thead><tbody id="report-design-columns"></tbody></table></div><button type="button" id="report-add-column">Add column</button>
               </div><div id="report-panel-filters" role="tabpanel" aria-labelledby="report-tab-filters" data-report-panel="filters" hidden><h3>Filters and user parameters</h3><p>All conditions apply together. An empty optional parameter skips its condition.</p><div class="schema-grid-scroll"><table class="data-grid report-config-grid report-filters-grid"><thead><tr><th scope="col">Field</th><th scope="col">Condition</th><th scope="col">Input</th><th scope="col">Fixed value</th><th scope="col">Parameter key</th><th scope="col">Parameter label</th><th scope="col">Required</th><th scope="col">Actions</th></tr></thead><tbody id="report-design-filters"></tbody></table></div><button type="button" id="report-add-filter">Add condition</button>
               </div><div id="report-panel-sort" role="tabpanel" aria-labelledby="report-tab-sort" data-report-panel="sort" hidden><h3>Sorting</h3><div class="schema-grid-scroll"><table class="data-grid report-config-grid report-sort-grid"><thead><tr><th scope="col">Field</th><th scope="col">Direction</th><th scope="col">Actions</th></tr></thead><tbody id="report-design-sort"></tbody></table></div><button type="button" id="report-add-sort">Add sort</button>
-              </div><div id="report-panel-scope" role="tabpanel" aria-labelledby="report-tab-scope" data-report-panel="scope" hidden><h3>Modules</h3><p>Allocate this report to one or more modules for menu navigation. Report permissions control who can run it.</p><div id="report-design-modules" class="module-checklist"></div></div><div class="actions account-editor-actions"><button type="submit">Save report</button><button type="button" id="cancel-report-definition" class="secondary">Cancel</button></div>
+              </div><div id="report-panel-scope" role="tabpanel" aria-labelledby="report-tab-scope" data-report-panel="scope" hidden><h3>Modules</h3><p>Allocate this report to one or more modules for menu navigation. Report permissions control who can run it.</p><div id="report-design-modules" class="module-checklist"></div></div><div class="actions account-editor-actions"><button type="submit">Save report</button></div>
             </form>
           </div>
         </section>
@@ -1179,7 +1143,7 @@
               />
               <div id="country-list"></div>
             </div>
-            <form id="country-form" class="panel form" hidden>
+            <form id="country-form" class="panel form erp-field-rows organisation-setup-editor" hidden>
               <h2>Manage Country</h2>
               <label
                 >Alpha-2 code<input
@@ -1252,7 +1216,7 @@
                 <div id="exchange-rate-list"></div>
               </div>
             </div>
-            <form id="currency-form" class="panel form" hidden>
+            <form id="currency-form" class="panel form erp-field-rows organisation-setup-editor" hidden>
               <p id="currency-error" class="form-error" role="alert" hidden></p>
               <h2>Manage Currency</h2>
               <label
@@ -1284,7 +1248,7 @@
               <label hidden>Correction reason<textarea id="exchange-rate-reason" maxlength="1000" rows="3" aria-describedby="exchange-rate-reason-help"></textarea><small id="exchange-rate-reason-help" class="detail-field-help">Required when changing a saved rate</small></label>
               <p id="exchange-rate-updated" class="empty"></p>
               <div id="exchange-rate-history"></div>
-              <div class="actions account-editor-actions"><button type="button" class="secondary" data-panel-cancel>Cancel</button><button type="submit" id="exchange-rate-save">Save Rate</button></div>
+              <div class="actions account-editor-actions"><button type="submit" id="exchange-rate-save">Save Rate</button></div>
             </form>
           </div>
         </section>
@@ -1308,7 +1272,7 @@
               />
               <div id="tax-type-list"></div>
             </div>
-            <form id="tax-type-form" class="panel form" hidden>
+            <form id="tax-type-form" class="panel form erp-field-rows organisation-setup-editor" hidden>
               <h2>Manage Tax Type</h2>
               <input type="hidden" id="tax-type-id" /><label
                 >Code<input id="tax-type-code" required /></label
@@ -1364,7 +1328,7 @@
               <label class="check"><input type="checkbox" id="gl-account-type-required" checked /> Required in chart</label>
               <label class="check"><input type="checkbox" id="gl-account-type-active" checked /> Active</label>
               <div class="actions account-editor-actions">
-                <button type="button" class="secondary" data-panel-cancel>Cancel</button>
+                
                 <button type="submit">Save GL Account Type</button>
                 <button type="button" id="new-gl-account-type" class="secondary" hidden>New</button>
               </div>
@@ -1549,7 +1513,7 @@
             />
             <div id="financial-format-list"></div>
           </div>
-          <form id="financial-format-form" class="panel form" hidden>
+          <form id="financial-format-form" class="panel form erp-field-rows organisation-setup-editor" hidden>
             <h2>Manage Financial Statement Format</h2>
             <input type="hidden" id="financial-format-id" />
             <div class="form-row compact-row">
@@ -1865,7 +1829,7 @@
                 Active</label
               >
               <div class="actions">
-                <button type="button" class="secondary" data-panel-cancel>Cancel</button>
+                
                 <button type="submit">Save Module</button
                 ><button type="button" id="new-module" class="secondary" hidden>
                   New
@@ -1900,7 +1864,7 @@
           <div id="resource-role-modal" class="modal-backdrop" hidden>
             <form
               id="resource-role-form"
-              class="panel form resource-role-modal-panel"
+              class="panel form resource-role-modal-panel erp-field-rows organisation-setup-editor"
               role="dialog"
               aria-modal="true"
               aria-labelledby="resource-role-modal-title"
@@ -2048,7 +2012,7 @@
                 Active</label
               >
               <div class="actions">
-                <button type="button" id="cancel-resource" class="secondary">Cancel</button>
+                
                 <button type="submit">Save Resource</button>
                 <button type="button" id="new-resource" class="secondary" hidden>
                   New
@@ -2150,6 +2114,16 @@
     <script src="/erp/report-builder.js?v=field-captions-20261005-menu"></script>
     <script src="/erp/exchange-rate-math.js?v=20261011"></script>
     <script src="/erp/exchange-rates.js?v=20261011"></script>
-    <script src="/erp/app.js?v=20261011-exchange-rates"></script>
+    <script src="/erp/setup-deletion.js?v=20261015-header-actions"></script>
+    <script src="/erp/organisation-setup-ui.js?v=20261012"></script>
+    <script src="/erp/record-comments.js?v=20261013"></script>
+    <script src="/erp/schema-visibility.js?v=20261013"></script>
+    <script src="/erp/workflow-grid-visibility.js?v=20261015"></script>
+    <script src="/erp/object-grid-views.js?v=20261014-actions"></script>
+    <script src="/erp/object-statement.js?v=20261014-class-pills"></script>
+    <script src="/erp/object-actions.js?v=20261014-editor-button-alignment"></script>
+    <script src="/erp/record-editor-layout.js?v=20261015"></script>
+    <script src="/erp/movable-panels.js?v=20261015"></script>
+    <script src="/erp/app.js?v=20261015-movable-editors"></script>
   </body>
 </html>

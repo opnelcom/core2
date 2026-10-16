@@ -75,8 +75,9 @@ module.exports=async ctx=>{
   if(needsAccountTypeDelete)add('gl_account_types',`DELETE FROM erp_gl_account_type WHERE tenant_id=$1 AND organisation_id=$2`);
   if(wants.accountingTypes){
     add('workflow_next',`DELETE FROM erp_workflow_next WHERE tenant_id=$1 AND organisation_id=$2`);
-    add('workflow_steps',`DELETE FROM erp_workflow_step WHERE tenant_id=$1 AND organisation_id=$2`);
+    add('workflow_steps',`DELETE FROM erp_workflow_path_status WHERE tenant_id=$1 AND organisation_id=$2`);
     add('workflow_paths',`DELETE FROM erp_workflow_path WHERE tenant_id=$1 AND organisation_id=$2`);
+    add('workflow_statuses',`DELETE FROM erp_workflow_status WHERE tenant_id=$1 AND organisation_id=$2`);
   }
   if(wants.transactionTypes)add('transaction_types',`DELETE FROM erp_transaction_type WHERE tenant_id=$1 AND organisation_id=$2`);
   if(wants.transactionGroups)add('transaction_groups',`DELETE FROM erp_transaction_group WHERE tenant_id=$1 AND organisation_id=$2`);

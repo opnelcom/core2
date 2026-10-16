@@ -19,6 +19,10 @@ module.exports = async (ctx) => {
   if (!code || !name)
     return ctx.send(400, { error: "Organisation code and name are required" });
   const currency = clean(ctx.body.base_currency_code, "ZAR").toUpperCase();
+  const hasIconColour = Object.prototype.hasOwnProperty.call(ctx.body, "organisation_icon_colour");
+  const iconColour = clean(ctx.body.organisation_icon_colour).toUpperCase() || null;
+  if (hasIconColour && iconColour && !/^#[0-9A-F]{6}$/.test(iconColour))
+    return ctx.send(400, { error: "Icon colour must be a six-digit hex colour, or empty." });
   const hasIconSvg = Object.prototype.hasOwnProperty.call(
     ctx.body,
     "organisation_icon_svg",
@@ -31,7 +35,8 @@ module.exports = async (ctx) => {
     result = await ctx.broker("core_erp", "query", {
       text: `UPDATE erp_organisation
             SET organisation_code=$3,organisation_name=$4,base_currency_code=$5,is_template=$6,updated_by_email=$7,
-                organisation_icon_svg=CASE WHEN $8 THEN $9 ELSE organisation_icon_svg END,updated_at=now()
+                organisation_icon_svg=CASE WHEN $8 THEN $9 ELSE organisation_icon_svg END,
+                organisation_icon_colour=CASE WHEN $10 THEN $11 ELSE organisation_icon_colour END,updated_at=now()
             WHERE tenant_id=$1 AND organisation_id=$2 AND workflow_status <> 'deleted'
             RETURNING *`,
       values: [
@@ -44,13 +49,15 @@ module.exports = async (ctx) => {
         access.auth.email,
         hasIconSvg,
         iconSvg ?? null,
+        hasIconColour,
+        iconColour,
       ],
     });
   } else {
     result = await ctx.broker("core_erp", "query", {
       text: `WITH created AS (
-              INSERT INTO erp_organisation(tenant_id,organisation_code,organisation_name,base_currency_code,is_template,organisation_icon_svg,workflow_status,created_by_email,updated_by_email)
-              VALUES($1,$2,$3,$4,$5,$6,'approved',$7,$7)
+              INSERT INTO erp_organisation(tenant_id,organisation_code,organisation_name,base_currency_code,is_template,organisation_icon_svg,organisation_icon_colour,workflow_status,created_by_email,updated_by_email)
+              VALUES($1,$2,$3,$4,$5,$6,$8,'approved',$7,$7)
               RETURNING *
             ), root AS (
               INSERT INTO erp_division(tenant_id,organisation_id,parent_division_id,division_code,division_name,workflow_status,created_by_email,updated_by_email)
@@ -74,6 +81,7 @@ module.exports = async (ctx) => {
         bool(ctx.body.is_template),
         iconSvg ?? null,
         access.auth.email,
+        iconColour,
       ],
     });
 

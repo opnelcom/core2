@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Record comments test fixture</title><link rel="stylesheet" href="/style.css">
+<style>body{display:block;height:auto;overflow:auto;padding:20px}main{max-width:760px;margin:auto}.fixture-tools{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px}.fixture-tools label{min-width:180px}form{position:static!important;width:100%!important;max-height:none!important}#fixture-result{white-space:pre-wrap}</style></head><body><main>
+<div class="fixture-tools"><label>Object class<select id="fixture-class"><option value="gl_account">GL account</option><option value="subledger_account">Sub-ledger</option><option value="accounting_object">Accounting object</option><option value="accounting_dimension">Accounting dimension</option><option value="legal_entity">Legal entity</option></select></label><label>Record<select id="fixture-record"><option value="record-a">Existing record A</option><option value="record-b">Existing record B</option><option value="">New record</option></select></label><label><input id="fixture-denied" type="checkbox">Deny API access</label><label><input id="fixture-hold" type="checkbox">Hold submission</label><button id="fixture-release" type="button">Release submission</button></div>
+<div id="fixture-editors"></div><pre id="fixture-result" role="status"></pre>
+</main><script src="/record-comments.js"></script><script>
+// Isolated presentation harness: never contacts a real database or submits ERP data.
+const records=new Map(), prefixes=['account','accounting-object','accounting-dimension','legal-entity'];
+const cls=document.getElementById('fixture-class'),rec=document.getElementById('fixture-record');
+let release,controller,submissions=0;
+const currentPrefix=()=>['gl_account','subledger_account'].includes(cls.value)?'account':cls.value.replaceAll('_','-');
+const targets=prefixes.map(prefix=>{
+ const form=document.createElement('form');form.id=`${prefix}-form`;form.className='panel form grid-form accounting-record-editor';
+ form.innerHTML=`<button type="button" class="panel-close" aria-label="Close panel">&times;</button><h2>Office refurbishment</h2><div class="record-editor-header"><p>Accounting Object / Project</p></div><div class="account-editor-tabs tabs"><button type="button" data-base="identification">Identification</button><button type="button" data-record-tab="versions">Versions</button></div><section data-base-panel><label class="detail-field detail-field--wide">Name<input required value="Unsaved object change"></label></section><div class="actions account-editor-actions"><button type="submit">Save Object</button></div>`;
+ document.getElementById('fixture-editors').append(form);
+ const tabAttribute=prefix==='legal-entity'?'data-legal-entity-tab':prefix==='account'?'data-account-fixed-tab':'data-record-tab';
+ const panelAttribute=prefix==='legal-entity'?'data-legal-entity-panel':prefix==='account'?'data-account-fixed-panel':'data-record-panel';
+ const tabs=form.querySelector('.tabs');
+ function select(tab){form.querySelector('[data-base-panel]').hidden=tab!=='identification';form.querySelectorAll(`[${panelAttribute}]`).forEach(p=>p.hidden=p.getAttribute(panelAttribute)!==tab);tabs.querySelectorAll('button').forEach(b=>{const active=(b.getAttribute(tabAttribute)||b.dataset.base)===tab;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active))});if(tab==='comments')controller.show(prefix)}
+ tabs.querySelector('[data-base]').addEventListener('click',()=>select('identification'));
+ if(prefix==='accounting-object'||prefix==='accounting-dimension')tabs.addEventListener('click',event=>{const button=event.target.closest(`[${tabAttribute}]`);if(button)select(button.getAttribute(tabAttribute))});
+ form.addEventListener('submit',event=>{event.preventDefault();document.getElementById('fixture-result').textContent='Object Save invoked'});
+ return {prefix,form,tabs,tabAttribute,panelAttribute,select,organisationId:()=> 'organisation-a',id:()=>rec.value,kind:()=>prefix==='account'?cls.value:prefix.replaceAll('-','_')};
+});
+async function api(path,options){
+ if(document.getElementById('fixture-denied').checked)throw new Error('You do not have permission for this ERP operation');
+ if(!options){const params=new URLSearchParams(path.split('?')[1]);return {comments:records.get(`${params.get('entity_kind')}:${params.get('entity_id')}`)||[]}}
+ const data=JSON.parse(options.body),key=`${data.entity_kind}:${data.entity_id}`;
+ submissions++;document.getElementById('fixture-result').textContent=JSON.stringify({submissions,...data},null,2);
+ if(document.getElementById('fixture-hold').checked)await new Promise(resolve=>release=resolve);
+ const comment={comment_id:String(submissions),comment_text:data.comment_text,created_by_email:'tester@example.com',created_at:new Date().toISOString()};
+ records.set(key,[comment,...(records.get(key)||[])]);return {comment};
+}
+controller=ERPRecordComments.create({api,targets});
+function open(){targets.forEach(target=>{controller.reset(target.prefix);target.form.hidden=target.prefix!==currentPrefix();target.select('identification')})}
+cls.addEventListener('change',open);rec.addEventListener('change',open);document.getElementById('fixture-release').addEventListener('click',()=>{if(release){release();release=null}});open();
+</script></body></html>

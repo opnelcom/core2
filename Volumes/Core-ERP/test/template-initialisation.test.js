@@ -36,3 +36,20 @@ test("Initialise Schema dispatches structural SQL without any template seeding q
  const ddl=ctx.calls.filter(c=>c.args.text?.includes("CREATE TABLE"));assert.equal(ddl.length,1);
  assert.ok(!ddl[0].args.text.includes("INSERT INTO erp_workflow_path"));assert.ok(!ctx.calls.some(c=>c.args.operation||c.args.text?.includes("SELECT organisation_id FROM erp_organisation")));
 });
+
+
+test("definition initialisation executes with the shared status catalogue and multiple workflows",async()=>{
+ const defaults=require('../api/_shared/erp/seeding').loadTemplateDefaults();
+ assert.equal(defaults.workflowDefaults,undefined);
+ const writes=[];let seeded=false;
+ const scope={module:{exports:{}},require:id=>id==='./seeding'?{
+   loadTemplateDefaults:()=>defaults,
+   seedOrganisationDefaults:async(_ctx,access,id)=>{assert.equal(access.tenantId,'tenant');assert.equal(id,'org');assert.equal(defaults.workflows.length,8);seeded=true;}
+ }:id==='./access'?{canInitialiseTemplateOrganisation:async()=>true}:id.startsWith('node:')?require(id):require(path.resolve(__dirname,'../api/_shared/erp',id))};
+ vm.createContext(scope);
+ vm.runInContext(fs.readFileSync(path.join(__dirname,'../api/_shared/erp/template-initialisation.js'),'utf8'),scope);
+ const client={query:async(text,values)=>{writes.push({text,values});return {rows:[{organisation_id:'org',is_template:true}],rowCount:1};}};
+ const result=await scope.module.exports.executeTemplateInitialisation(client,{access:{tenantId:'tenant',auth:{email:'owner@example.test'}},mode:'definitions',confirmed:true});
+ assert.equal(result[0].rows[0].organisation.organisation_id,'org');assert.equal(seeded,true);
+ assert.ok(writes.some(q=>q.text.includes('INSERT INTO erp_user_role')));
+});

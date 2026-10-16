@@ -96,7 +96,7 @@ module.exports = async (ctx) => {
     return ctx.send(400, { error: "Additional data must be valid JSON" });
   }
   const errors = validateSchema(type.rows[0].schema_json, data);
-  if (!errors.length) errors.push(...await validateSchemaReferences(ctx, access, orgId, type.rows[0].schema_json, data));
+  if (!errors.length) errors.push(...await validateSchemaReferences(ctx, access, orgId, type.rows[0].schema_json, data, {kind:'accounting_object',id:submittedId}));
   if (errors.length)
     return ctx.send(400, { error: "Additional data is invalid", errors });
   if (submittedId) {

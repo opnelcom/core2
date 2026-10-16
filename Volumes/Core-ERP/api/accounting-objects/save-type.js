@@ -1,5 +1,7 @@
 "use strict";
+const { validateEditorLayout } = require("../_shared/erp/editor-layout");
 const { validateCodeNumbering } = require("../_shared/erp/code-numbering");
+const { validateDefaultGridView } = require("../_shared/erp/grid-views");
 const {
   authTenant,
   requireAdmin,
@@ -26,6 +28,8 @@ module.exports = async (ctx) => {
   const denied = requireAdmin(access);
   if (denied) return ctx.send(denied.status, denied.body);
   const numbering = validateCodeNumbering(ctx.body.code_numbering);
+  const gridView = validateDefaultGridView(ctx.body.default_grid_view);
+  if (gridView.error) return ctx.send(400, { error: gridView.error });
   if (numbering.error) return ctx.send(400, { error: numbering.error });
   const numberingJson = numbering.value === null ? null : JSON.stringify(numbering.value);
   const id = nullable(ctx.body.accounting_object_type_id);
@@ -74,6 +78,8 @@ module.exports = async (ctx) => {
   } catch {
     return ctx.send(400, { error: "Schema and UI schema must be valid JSON" });
   }
+  const layoutError = validateEditorLayout(uiSchema);
+  if (layoutError) return ctx.send(400, { error: layoutError });
   const schemaErrors = validateSchemaDefinition(schema);
   if (schemaErrors.length) return ctx.send(400, { error: "Schema attributes are invalid", errors: schemaErrors });
   const values = [
@@ -87,14 +93,15 @@ module.exports = async (ctx) => {
     JSON.stringify(uiSchema),
     bool(ctx.body.is_active),
     numberingJson,
+    gridView.value,
   ];
   const text = id
     ? `UPDATE erp_accounting_object_type
-       SET type_code=$3,type_name=$4,type_description=$5,workflow_path_id=$6,schema_json=$7::jsonb,ui_schema_json=$8::jsonb,is_active=$9,code_numbering=COALESCE($10::jsonb,code_numbering),updated_at=now()
-       WHERE tenant_id=$1 AND organisation_id=$2 AND accounting_object_type_id=$11
+       SET type_code=$3,type_name=$4,type_description=$5,workflow_path_id=$6,schema_json=$7::jsonb,ui_schema_json=$8::jsonb,is_active=$9,code_numbering=COALESCE($10::jsonb,code_numbering),default_grid_view=COALESCE($11,default_grid_view),updated_at=now()
+       WHERE tenant_id=$1 AND organisation_id=$2 AND accounting_object_type_id=$12
        RETURNING *`
-    : `INSERT INTO erp_accounting_object_type(tenant_id,organisation_id,type_code,type_name,type_description,workflow_path_id,schema_json,ui_schema_json,is_seeded,is_active,code_numbering)
-       VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,false,$9,COALESCE($10::jsonb,'{"mode":"manual"}'::jsonb)) RETURNING *`;
+    : `INSERT INTO erp_accounting_object_type(tenant_id,organisation_id,type_code,type_name,type_description,workflow_path_id,schema_json,ui_schema_json,is_seeded,is_active,code_numbering,default_grid_view)
+       VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,false,$9,COALESCE($10::jsonb,'{"mode":"manual"}'::jsonb),COALESCE($11,'columnar')) RETURNING *`;
   const r = await ctx.broker("core_erp", "query", {
     text,
     values: id ? [...values, id] : values,

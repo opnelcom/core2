@@ -136,18 +136,12 @@ label {
   border-bottom: 1px solid var(--line);
   background: var(--panel);
 }
-.erp-title-row,
 .organisation-tabs-row {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 7px 14px;
   background: var(--panel);
-}
-.erp-title-row {
-  min-height: 38px;
-  padding-bottom: 2px;
-  background: color-mix(in srgb, var(--page) 70%, var(--panel));
 }
 .organisation-tabs-row {
   align-items: flex-end;
@@ -157,13 +151,6 @@ label {
   border-bottom: 1px solid var(--line);
   background: color-mix(in srgb, var(--page) 70%, var(--panel));
 }
-.erp-context-title {
-  flex: 0 0 auto;
-  margin-right: 2px;
-  color: var(--ink);
-  font-size: 1.5rem;
-  font-weight: 600;
-}
 .organisation-tabs {
   display: flex;
   align-items: center;
@@ -172,6 +159,8 @@ label {
 }
 .organisation-tab-tools {
   display: flex;
+  align-self: center;
+  flex-shrink: 0;
   align-items: center;
   gap: 10px;
   margin-left: auto;
@@ -315,9 +304,48 @@ label {
   gap: 10px;
   margin: 8px 0 14px;
 }
-.organisation-icon-editor label {
+.organisation-icon-editor label:not(.check) {
   display: grid;
   gap: 5px;
+}
+.organisation-icon-editor {
+  --icon-caption-width: minmax(90px, min(160px, 35%));
+  --icon-control-offset: calc(max(90px, min(160px, 35%)) + 16px);
+}
+.organisation-icon-editor label.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 0 var(--icon-control-offset);
+}
+.organisation-icon-editor label.check input {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  flex: 0 0 auto;
+}
+.organisation-icon-editor textarea {
+  min-height: 110px;
+  height: 110px;
+  resize: vertical;
+}
+.organisation-icon-editor > .actions {
+  margin: 0 0 0 var(--icon-control-offset);
+}
+.organisation-icon-preview-row {
+  display: grid;
+  grid-template-columns: var(--icon-caption-width) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.organisation-icon-preview-row > * {
+  min-width: 0;
+}
+.organisation-icon-preview-row > span {
+  padding-top: 8px;
+}
+.organisation-icon-preview-row p {
+  margin: 8px 0 0;
 }
 .organisation-icon-preview {
   display: grid;
@@ -904,6 +932,61 @@ nav {
   color: var(--brand);
   border-color: #a7c4c0;
 }
+.object-grid-view-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.object-grid-view-control select { width: 150px; min-width: 0; }
+.object-status-grid { display: flex; align-items: stretch; gap: 16px; }
+.object-status-column {
+  flex: 1 0 280px;
+  min-width: 280px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--workflow-colour) 4%, var(--panel));
+}
+.object-status-column-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.object-status-column-heading > span:first-child {
+  border-left: 3px solid var(--workflow-colour);
+  padding-left: 8px;
+}
+.object-status-column-count { color: var(--muted); font-weight: 400; }
+.object-status-tile {
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--workflow-colour);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--ink);
+}
+.object-status-tile:last-child { margin-bottom: 0; }
+.object-status-record, .object-status-record:hover {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 0 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.object-status-grid-wrap { overflow-x: auto; }
 .workflow-status-wrap {
   position: relative;
   display: inline-flex;
@@ -913,7 +996,9 @@ nav {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  width: auto;
+  box-sizing: border-box;
+  width: 220px;
+  flex: 0 0 220px;
   min-height: 28px;
   padding: 5px 9px;
   border-color: transparent;
@@ -922,9 +1007,31 @@ nav {
   color: var(--workflow-colour, #667085);
   white-space: nowrap;
 }
+.workflow-status-button > .workflow-status-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
 .workflow-status-button:hover {
   background: color-mix(in srgb, var(--workflow-colour, #667085) 18%, var(--panel));
   color: var(--workflow-colour, #667085);
+}
+.account-editor-actions .workflow-footer-status {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+}
+.account-editor-actions .workflow-footer-status[hidden] {
+  display: none;
+}
+.account-editor-actions .workflow-footer-status .workflow-status-button {
+  width: auto;
+  flex: 0 1 auto;
+  min-height: 34px;
+  max-width: 100%;
+  border: 1px solid var(--workflow-colour, #667085);
 }
 .workflow-dot {
   display: inline-block;
@@ -935,14 +1042,15 @@ nav {
   background: #667085;
 }
 .workflow-status-arrow {
+  flex: 0 0 auto;
   font-size: 0.72rem;
   line-height: 1;
 }
 .workflow-status-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: 20;
+  position: fixed;
+  z-index: 10000;
+  box-sizing: border-box;
+  overflow: auto;
   min-width: 190px;
   padding: 7px;
   border: 1px solid var(--line);
@@ -971,30 +1079,8 @@ nav {
   color: var(--muted);
   font-size: 0.82rem;
 }
-.workflow-progress {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-.workflow-progress-step {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--muted);
-}
-.workflow-progress-step.current {
-  color: var(--brand);
-  font-weight: 500;
-}
 .workflow-panel {
   margin-top: 10px;
-}
-.workflow-header {
-  display: flex;
-  justify-content: flex-end;
-  margin: -4px 0 12px;
 }
 .workflow-setup {
   align-items: start;
@@ -1133,7 +1219,6 @@ body.panels-glass .workspace-context {
 body.panels-glass main {
   background: rgba(244, 247, 250, var(--panel-glass-alpha, 0.1));
 }
-body.panels-glass .erp-title-row,
 body.panels-glass .organisation-tabs-row,
 body.panels-glass .division-context-row,
 body.panels-glass .sidebar,
@@ -1157,6 +1242,8 @@ body.panels-glass .panel-close,
 body.panels-glass .mini-toggle,
 body.panels-glass .financial-line-grid,
 body.panels-glass .tax-rate-line-grid,
+body.panels-glass .workflow-action-grid,
+body.panels-glass .workflow-current-status-grid,
 body.panels-glass .permission-line-grid,
 body.panels-glass .workflow-step-line-grid,
 body.panels-glass .workflow-next-line-grid,
@@ -1166,6 +1253,8 @@ body.panels-glass .role-user-line-grid {
 body.panels-glass th,
 body.panels-glass .financial-line-head,
 body.panels-glass .tax-rate-line-head,
+body.panels-glass .workflow-action-head,
+body.panels-glass .workflow-status-head,
 body.panels-glass .permission-line-head,
 body.panels-glass .workflow-step-line-head,
 body.panels-glass .workflow-next-line-head,
@@ -1256,7 +1345,8 @@ body.panels-glass .nav.menu-entry.active {
 #view-glaccounttypes,
 #view-reportdefinitions,
 #view-masterdata,
-#view-workflows {
+#view-workflows,
+#view-workflowstatuses {
   position: relative;
 }
 #view-organisations > .split,
@@ -1278,7 +1368,8 @@ body.panels-glass .nav.menu-entry.active {
 #view-modules > .split,
 #view-glaccounttypes > .split,
 #view-reportdefinitions > .split,
-#view-workflows > .split {
+#view-workflows > .split,
+#view-workflowstatuses > .split {
   grid-template-columns: 1fr;
 }
 #view-organisations > .split > #organisation-form,
@@ -1304,6 +1395,7 @@ body.panels-glass .nav.menu-entry.active {
 #view-accountingobjecttypes > .split > #accounting-object-type-form,
 #view-accountingdimensiontypes > .split > #accounting-dimension-type-form,
 #view-workflows > .split > #workflow-form,
+#view-workflowstatuses > .split > #workflow-status-form,
 #view-accounts > #account-form,
 #view-masterdata > #master-record-form {
   position: absolute;
@@ -1315,6 +1407,7 @@ body.panels-glass .nav.menu-entry.active {
   overflow: auto;
   box-shadow: 0 22px 56px rgba(22, 32, 51, 0.24);
 }
+#view-taxtypes > .split > #tax-type-form,
 #view-transactiontypes > .split > #transaction-type-form,
 #view-permissions > .split > #role-form,
 #view-legalentities > .split > #legal-entity-form,
@@ -1325,9 +1418,11 @@ body.panels-glass .nav.menu-entry.active {
 #view-modules > .split > #module-form,
 #view-glaccounttypes > .split > #gl-account-type-form,
 #view-accounts > #account-form,
-#view-masterdata > #master-record-form,
-#view-workflows > .split > #workflow-form {
+#view-masterdata > #master-record-form {
   width: min(820px, calc(100% - 24px));
+}
+#view-workflows > .split > #workflow-form {
+  width: min(940px, calc(100% - 24px));
 }
 #view-transactiontypes.transaction-type-editor-open
   > .split
@@ -1457,6 +1552,28 @@ body.panels-glass .nav.menu-entry.active {
   font-size: 1.15rem;
   line-height: 1;
 }
+.add-record-button.object-grid-add {
+  display: inline-block;
+  width: auto;
+  padding: 7px 12px;
+  font-size: inherit;
+  line-height: normal;
+}
+#page-object-class,
+.object-grid-count {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+#page-object-class { margin: 0 0 6px; }
+#page-subtitle {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 8px 0 0;
+  line-height: 1.5;
+}
+.topbar > div:first-child { min-width: 0; }
+.object-grid-count { flex: 1; }
 .panel-close {
   position: absolute;
   top: 10px;
@@ -1521,6 +1638,50 @@ body.panels-glass .nav.menu-entry.active {
   overflow: auto;
   box-shadow: 0 18px 44px rgba(22, 32, 51, 0.18);
 }
+.record-editor-header {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin-bottom: -4px; /* Shared editor gap is 20px; header-to-tabs gap is 16px. */
+}
+#journal-form > .record-editor-header {
+  margin-bottom: 8px; /* Capture uses the standard 8px form gap. */
+}
+.record-editor-header > h2 {
+  margin: 0;
+  padding-right: 34px;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.record-editor-header > .record-type-context {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.record-editor-header > .record-type-description {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.record-editor-header--classified {
+  padding-right: 34px;
+}
+.record-editor-header--classified > .record-type-context {
+  margin: 0;
+}
+.record-editor-header--classified > h2 {
+  margin-top: 6px;
+  padding-right: 0;
+}
 #account-form,
 .accounting-record-editor {
   grid-template-columns: minmax(0, 1fr);
@@ -1535,10 +1696,6 @@ body.panels-glass .nav.menu-entry.active {
   display: grid;
   gap: 9px;
   align-content: start;
-}
-.account-core-fields input,
-.account-core-fields select {
-  min-height: 38px;
 }
 .account-fixed-tabs {
   display: flex;
@@ -1568,19 +1725,71 @@ body.panels-glass .nav.menu-entry.active {
   flex: 0 0 auto;
   white-space: nowrap;
 }
+.record-tab-navigation {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  gap: 6px;
+  border-bottom: 1px solid var(--line);
+}
+:is(#account-form, .accounting-record-editor) .record-tab-navigation .account-editor-tabs {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  border-bottom: 0;
+  margin-bottom: 0;
+}
+.record-tab-navigation [data-tab-overflow] { display: none !important; }
+.record-tabs-more {
+  flex: 0 0 auto;
+  align-self: start;
+  white-space: nowrap;
+  background: var(--panel);
+  color: var(--ink);
+  border-color: var(--line);
+}
+.record-tabs-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  display: grid;
+  min-width: min(200px, 100%);
+  max-width: 100%;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 12px 28px rgba(22, 32, 51, 0.18);
+}
+.record-tabs-menu[hidden], .record-tabs-more[hidden] { display: none; }
+.record-tabs-menu button {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  padding: 9px 12px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.record-tabs-more.active,
+.record-tabs-menu button:is(:hover, :focus-visible, .active) {
+  background: var(--close-hover);
+  color: var(--brand);
+}
 :is(#account-form, .accounting-record-editor) .account-detail-panel {
   grid-template-columns: minmax(0, 1fr);
 }
 :is(#account-form, .accounting-record-editor) .detail-field {
   grid-column: 1 / -1;
 }
-:is(#account-form, .accounting-record-editor) .detail-field--short > :is(input, select, textarea) {
+:is(#account-form, .accounting-record-editor) .detail-field--short > :is(input, select, textarea, .schema-choice-control) {
   width: min(100%, 180px);
 }
-:is(#account-form, .accounting-record-editor) .detail-field--medium > :is(input, select, textarea) {
+:is(#account-form, .accounting-record-editor) .detail-field--medium > :is(input, select, textarea, .schema-choice-control) {
   width: min(100%, 340px);
 }
-:is(#account-form, .accounting-record-editor) .detail-field--wide > :is(input, select, textarea) {
+:is(#account-form, .accounting-record-editor) .detail-field--wide > :is(input, select, textarea, .schema-choice-control) {
   width: min(100%, 500px);
 }
 .detail-field-help {
@@ -1620,9 +1829,9 @@ body.panels-glass .nav.menu-entry.active {
   gap: 16px;
   margin: 0;
 }
-.schema-design-preview .detail-field--short > :is(input, select, textarea) { width: min(100%, 180px); }
-.schema-design-preview .detail-field--medium > :is(input, select, textarea) { width: min(100%, 340px); }
-.schema-design-preview .detail-field--wide > :is(input, select, textarea) { width: min(100%, 500px); }
+.schema-design-preview .detail-field--short > :is(input, select, textarea, .schema-choice-control) { width: min(100%, 180px); }
+.schema-design-preview .detail-field--medium > :is(input, select, textarea, .schema-choice-control) { width: min(100%, 340px); }
+.schema-design-preview .detail-field--wide > :is(input, select, textarea, .schema-choice-control) { width: min(100%, 500px); }
 #account-identification-panel > label:not(.check),
 #account-detail-fields label:not(.check),
 .accounting-record-general > label:not(.check),
@@ -1777,6 +1986,17 @@ body.panels-glass .nav.menu-entry.active {
 .actions button {
   width: auto;
 }
+.editor-unsaved-dialog {
+  width: min(560px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+}
+.editor-unsaved-dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
+.editor-unsaved-dialog .actions { justify-content: flex-end; }
 .setup-section {
   display: grid;
   gap: 8px;
@@ -1888,25 +2108,37 @@ body.panels-glass .nav.menu-entry.active {
 .financial-line select[multiple] {
   min-height: 86px;
 }
-.tax-rate-line-grid {
+.tax-rate-line-grid,
+.workflow-action-grid,
+.workflow-current-status-grid {
   overflow: auto;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid var(--line);
   border-radius: 7px;
   background: var(--panel);
 }
-.tax-rate-line {
+.tax-rate-line,
+.workflow-action-row,
+.workflow-status-row {
   display: grid;
-  grid-template-columns: 120px 150px 150px 120px auto;
   gap: 8px;
   align-items: center;
-  min-width: 680px;
   padding: 8px;
   border-bottom: 1px solid var(--line);
 }
-.tax-rate-line:last-child {
+.tax-rate-line {
+  grid-template-columns: 120px 150px 150px 120px auto;
+  min-width: 680px;
+}
+.tax-rate-line:last-child,
+.workflow-action-row:last-child {
   border-bottom: 0;
 }
-.tax-rate-line-head {
+.tax-rate-line-head,
+.workflow-action-head,
+.workflow-status-head {
   background: var(--tab-active);
   color: var(--muted);
   font-size: 0.72rem;
@@ -2363,6 +2595,11 @@ td {
 }
 .schema-grid .detail-field-help { font-size: 12px; }
 .schema-reference-control { display: grid; gap: 5px; min-width: 0; width: 100%; max-width: 500px; }
+.schema-reference-choice { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.schema-reference-choice > .schema-choice-control { flex: 1 1 auto; min-width: 0; }
+.schema-reference-source { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 18px; width: 18px; height: 18px; box-sizing: border-box; border: 1.5px solid var(--brand); border-radius: 50%; color: var(--brand); font-size: 12px; font-weight: 600; cursor: help; }
+.schema-reference-source:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.schema-reference-source-tooltip { position: fixed; inset: auto; margin: 0; border: 0; box-sizing: border-box; width: max-content; max-width: min(300px, calc(100vw - 16px)); padding: 8px 12px; border-radius: 6px; background: var(--ink); color: var(--panel); font-size: 13px; font-weight: 400; line-height: 1.5; white-space: normal; pointer-events: none; }
 .schema-reference-control :is(input,select) { font-size: 13px; width: 100%; }
 .schema-reference-message { font-size: 12px; color: var(--muted); }
 .object-version-panel { min-width: 0; }
@@ -2781,10 +3018,6 @@ td {
   .organisation-more-wrap {
     display: none;
   }
-  .erp-title-row {
-    min-height: 38px;
-    padding: 7px 12px 2px;
-  }
   .organisation-tabs-row {
     align-items: center;
     min-height: 0;
@@ -2904,6 +3137,8 @@ td {
   #view-divisions > .split > #division-form,
   #view-fiscal > .split > .editor-stack,
   #view-countries > .split > #country-form,
+  #view-workflowstatuses > .split > #workflow-status-form,
+  #view-workflows > .split > #workflow-form,
   #view-currencies > .split > #currency-form,
   #view-currencies > .split > #exchange-rate-form,
   #view-taxtypes > .split > #tax-type-form,
@@ -3144,6 +3379,8 @@ td {
 :root[data-theme="dark"] th,
 :root[data-theme="dark"] .financial-line-head,
 :root[data-theme="dark"] .tax-rate-line-head,
+:root[data-theme="dark"] .workflow-action-head,
+:root[data-theme="dark"] .workflow-status-head,
 :root[data-theme="dark"] .permission-line-head,
 :root[data-theme="dark"] .workflow-step-line-head,
 :root[data-theme="dark"] .workflow-next-line-head,
@@ -3215,7 +3452,6 @@ td {
 :root[data-theme="dark"] body.panels-glass main {
   background: rgba(13, 21, 31, var(--panel-glass-alpha, 0.1));
 }
-:root[data-theme="dark"] body.panels-glass .erp-title-row,
 :root[data-theme="dark"] body.panels-glass .organisation-tabs-row,
 :root[data-theme="dark"] body.panels-glass .division-context-row,
 :root[data-theme="dark"] body.panels-glass .sidebar,
@@ -3375,6 +3611,7 @@ textarea.schema-textarea {
 #report-definitions-status:empty { display: none; }
 
 /* Shared edit-field convention: caption left, control right at every viewport. */
+.erp-field-rows .erp-pill-field,
 :is(.erp-field-rows, #account-form, #accounting-object-form, #accounting-dimension-form, #report-definition-form) label:not(.check):not(.schema-grid label) {
   display: grid;
   grid-template-columns: minmax(90px, min(160px, 35%)) minmax(0, 1fr);
@@ -3398,6 +3635,46 @@ textarea.schema-textarea {
 #report-definition-form .report-design-row + .report-design-row { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
 #report-definition-form .report-design-row > button { justify-self: end; }
 
+/* Organisation setup reuses the shared left/right field convention. */
+.organisation-icon-colour-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.organisation-icon-colour-controls input[type="color"] {
+  width: 48px;
+  height: 38px;
+  padding: 3px;
+  flex: 0 0 48px;
+}
+.organisation-icon-colour-controls input:not([type="color"]) {
+  max-width: 140px;
+  min-width: 0;
+}
+.organisation-setup-editor :is(.form-row, .resource-role-definition-grid) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.organisation-setup-editor .setup-section > label + label {
+  margin-top: 9px;
+}
+.organisation-setup-editor label:not(.check) > :is(input, select, textarea) {
+  width: 100%;
+  max-width: 500px;
+}
+.organisation-setup-editor .module-scope-field {
+  grid-template-columns: minmax(90px, min(160px, 35%)) minmax(0, 1fr);
+  gap: 8px 16px;
+  align-items: start;
+}
+.organisation-setup-editor .module-scope-field > * {
+  min-width: 0;
+}
+.organisation-setup-editor .module-checklist {
+  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+}
+
 /* Shared built-in code numbering settings in every Setup type editor. */
 .code-numbering-fields {
   display: grid;
@@ -3418,6 +3695,53 @@ textarea.schema-textarea {
   max-width: 340px;
 }
 .code-numbering-fields p { overflow-wrap: anywhere; }
+
+/* Shared Definition layout for subledger, object and dimension types. */
+.accounting-type-editor { --type-label-width: 160px; --type-field-gap: 16px; }
+.accounting-type-editor > .setup-type-panel[data-panel="definition"] { gap: 14px; }
+.accounting-type-editor > .setup-type-panel[data-panel="definition"] > label,
+.accounting-type-editor .code-numbering-fields > label {
+  display: grid;
+  grid-template-columns: var(--type-label-width) minmax(0, 1fr);
+  gap: var(--type-field-gap);
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+}
+.accounting-type-editor > .setup-type-panel[data-panel="definition"] > label > .account-field-caption,
+.accounting-type-editor .code-numbering-fields > label > .account-field-caption {
+  grid-column: 1;
+  grid-row: 1;
+}
+.accounting-type-editor > .setup-type-panel[data-panel="definition"] > label > :is(input, select, textarea),
+.accounting-type-editor .code-numbering-fields > label > :is(input, select) {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  width: 100%;
+  max-width: 340px;
+}
+.accounting-type-editor > .setup-type-panel[data-panel="definition"] > label:has(textarea) { align-items: start; }
+.accounting-type-editor > .setup-type-panel[data-panel="definition"] > label > textarea { max-width: 100%; }
+.accounting-type-editor > .setup-type-panel[data-panel="definition"] > label > input[id$="-code"] { max-width: 260px; }
+.accounting-type-editor > .setup-type-panel[data-panel="definition"] > label.check > input {
+  width: auto;
+  justify-self: start;
+  margin: 0;
+}
+.accounting-type-editor .code-numbering-fields > label > select { max-width: 300px; }
+.accounting-type-editor .code-numbering-fields input:is([id$="-start"], [id$="-end"]) { max-width: 160px; }
+.accounting-type-editor .code-numbering-fields input[id$="-padding"] { max-width: 80px; }
+.accounting-type-editor .code-numbering-fields input[id$="-prefix"] { max-width: 180px; }
+.accounting-type-editor .code-numbering-fields > label[hidden] { display: none; }
+.accounting-type-editor .code-numbering-fields > p { margin-left: calc(var(--type-label-width) + var(--type-field-gap)); }
+@media (max-width: 440px) {
+  .accounting-type-editor > .setup-type-panel[data-panel="definition"] > label,
+  .accounting-type-editor .code-numbering-fields > label { grid-template-columns: minmax(0, 1fr); gap: 5px; }
+  .accounting-type-editor > .setup-type-panel[data-panel="definition"] > label > :is(input, select, textarea),
+  .accounting-type-editor .code-numbering-fields > label > :is(input, select) { grid-column: 1; grid-row: 2; }
+  .accounting-type-editor .code-numbering-fields > p { margin-left: 0; }
+}
 
 .report-column-grid { min-width: 660px; table-layout: fixed; }
 .report-column-grid th:first-child { width: 40%; }
@@ -3448,3 +3772,232 @@ textarea.schema-textarea {
 
 #view-fiscal .period-toolbar > button { width: auto; flex: 0 0 auto; }
 #view-fiscal .period-toolbar > strong { white-space: nowrap; }
+
+/* One shell for all Organisation setup editors, with a wider content variant. */
+#view-resourceroles, #view-taxtypes { position: relative; }
+#view-resourceroles > .split { grid-template-columns: minmax(0, 1fr); }
+#view-resourceroles > .organisation-setup-panel-wrapper,
+#view-financialformats > #financial-format-form.organisation-standard-panel {
+  position: absolute;
+  top: 22px;
+  right: 34px;
+  left: auto;
+  z-index: 20;
+  width: min(520px, calc(100% - 24px));
+  max-height: calc(100vh - 140px);
+  overflow: auto;
+  box-shadow: 0 22px 56px rgba(22, 32, 51, 0.24);
+}
+#view-financialformats > #financial-format-form.organisation-standard-panel--wide {
+  width: min(1100px, calc(100% - 24px));
+}
+.organisation-standard-editor { gap: 20px; min-width: 0; }
+.organisation-standard-editor .setup-section,
+.organisation-standard-editor .setup-section > div {
+  min-width: 0;
+  max-width: 100%;
+}
+.organisation-standard-editor > .organisation-setup-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+  padding-right: 34px;
+  min-width: 0;
+}
+.organisation-setup-heading h2 { margin: 0; font-size: 18px; font-weight: 500; overflow-wrap: anywhere; }
+.organisation-setup-actions { flex: 0 0 auto; position: relative; }
+.organisation-setup-actions[hidden] { display: none; }
+.organisation-setup-actions summary {
+  cursor: pointer;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  min-height: 34px;
+  box-sizing: border-box;
+}
+.organisation-setup-action-list {
+  position: absolute;
+  right: 0;
+  z-index: 25;
+  min-width: 180px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: 0 8px 20px rgba(22, 32, 51, 0.18);
+}
+.organisation-setup-action-list button { display: block; width: 100%; text-align: left; margin: 2px 0; }
+:is(#organisation-form, #division-form, #fiscal-form, #fiscal-period-form, #country-form, #currency-form, #exchange-rate-form, #tax-type-form, #resource-role-form, #financial-format-form) > .organisation-setup-footer {
+  position: sticky;
+  bottom: -18px;
+  z-index: 2;
+  justify-content: flex-end;
+  margin: 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+.organisation-standard-editor :is(.organisation-tab-panel, .resource-role-definition-grid) { gap: 9px; }
+.organisation-standard-editor .resource-role-tab-panel { min-height: 0; }
+.organisation-standard-editor .resource-role-tab-panel[hidden] { display: none; }
+.organisation-standard-editor > .tabs { flex-wrap: nowrap; overflow-x: auto; min-width: 0; margin: 0; }
+.organisation-standard-editor > .tabs button { flex-shrink: 0; }
+:is(#organisation-form, #division-form, #fiscal-form, #fiscal-period-form, #country-form, #currency-form, #exchange-rate-form, #tax-type-form, #resource-role-form, #financial-format-form) .detail-field--short > :is(input, select, textarea, .schema-choice-control) { max-width: 180px; }
+:is(#organisation-form, #division-form, #fiscal-form, #fiscal-period-form, #country-form, #currency-form, #exchange-rate-form, #tax-type-form, #resource-role-form, #financial-format-form) .detail-field--medium > :is(input, select, textarea, .schema-choice-control) { max-width: 340px; }
+:is(#organisation-form, #division-form, #fiscal-form, #fiscal-period-form, #country-form, #currency-form, #exchange-rate-form, #tax-type-form, #resource-role-form, #financial-format-form) .detail-field--wide > :is(input, select, textarea, .schema-choice-control) { max-width: 500px; }
+#resource-role-form > .panel-head { padding-right: 34px; }
+@media (max-width: 800px) {
+  #view-resourceroles > .organisation-setup-panel-wrapper,
+  #view-financialformats > #financial-format-form.organisation-standard-panel {
+    left: 12px;
+    right: 12px;
+    width: auto;
+  }
+}
+/* Shared comments tab for all ERP record classes. */
+.record-comments-panel { min-width: 0; }
+.record-comments-panel textarea { resize: vertical; }
+.record-comments-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 12px 0 20px; }
+.record-comments-status { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+.record-comments-toolbar button { flex-shrink: 0; }
+.record-comments-grid { overflow-x: auto; max-width: 100%; }
+.record-comments-grid table { width: 100%; table-layout: fixed; }
+.record-comments-grid th:first-child { width: 50%; }
+.record-comments-grid td { white-space: pre-wrap; overflow-wrap: anywhere; vertical-align: top; }
+.record-comments-grid th { overflow-wrap: anywhere; }
+@media (max-width: 480px) {
+  .record-comments-toolbar { flex-wrap: wrap; }
+  .record-comments-grid th:first-child { width: 40%; }
+}
+
+/* Workflow membership rows own status settings; each expansion contains child actions. */
+.workflow-rows-scroll { overflow-x: auto; width: 100%; grid-column: 1 / -1; }
+.workflow-current-status-grid { min-width: 740px; }
+.workflow-status-row {
+  grid-template-columns: 34px minmax(150px, 170px) minmax(170px, 1fr) 55px 100px 60px 34px;
+  gap: 9px;
+}
+.workflow-status-group:last-child > .workflow-status-row { border-bottom: 0; }
+.workflow-status-group:has(.workflow-status-actions:not([hidden])) > .workflow-status-row { border-bottom: 1px solid var(--line); }
+.workflow-status-actions {
+  padding: 16px 18px 16px 52px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+.workflow-status-group:last-child > .workflow-status-actions { border-bottom: 0; }
+.workflow-status-actions > .panel-head { margin-bottom: 8px; }
+.workflow-status-actions-title { margin: 0; font-size: inherit; font-weight: 400; }
+.workflow-action-grid { min-width: 730px; }
+.workflow-action-row { grid-template-columns: 180px 180px minmax(200px, 1fr) 60px 34px; gap: 9px; align-items: start; }
+:is(.workflow-action-row, .workflow-status-row) input:not([type="checkbox"]),
+:is(.workflow-action-row, .workflow-status-row) select { min-width: 0; width: 100%; }
+.workflow-status-row .workflow-step-preview { white-space: normal; overflow-wrap: anywhere; }
+.workflow-status-expand, .workflow-status-delete { width: auto; }
+.workflow-actions-empty { margin: 8px 0 0; }
+
+.workflow-role-picker { padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
+.workflow-role-picker summary { cursor: pointer; overflow-wrap: anywhere; }
+.checkbox-picker-popover { position: fixed; inset: auto; margin: 0; padding: 10px; box-sizing: border-box; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--text); box-shadow: 0 10px 24px rgba(22,32,51,.2); overflow: auto; }
+.checkbox-picker-popover:popover-open { display: grid; gap: 10px; }
+.checkbox-picker-popover > input[type="search"] { min-width: 0; width: 100%; min-height: 34px; }
+.checkbox-picker-popover > p { margin: 0; }
+.workflow-role-options { display: grid; gap: 8px; max-height: 240px; overflow-y: auto; padding-right: 4px; }
+.workflow-role-options .check[hidden] { display: none; }
+.workflow-role-options .check { align-items: flex-start; overflow-wrap: anywhere; }
+.workflow-role-summary { font-size: 12px; line-height: 1.5; margin-top: 5px; overflow-wrap: anywhere; }
+#object-statement-parameters { display: grid; gap: 16px; max-width: 1200px; margin: 20px 0; }
+#object-statement-parameters .actions { grid-column: 1 / -1; }
+.object-statement-table .statement-amount { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.object-statement-table .statement-total { font-weight: 500; background: var(--panel); }
+.object-statement-table .statement-journal-link { background: transparent; color: var(--accent); padding: 0; border: 0; text-decoration: underline; }
+
+/* Statement dates share a row beneath the object selection. */
+#object-statement-parameters .statement-date-row { display: grid; grid-template-columns: minmax(90px, min(160px, 35%)) minmax(0, 1fr) auto minmax(0, 1fr); gap: 16px; align-items: center; max-width: 720px; min-width: 0; }
+#object-statement-parameters > label { max-width: 720px; }
+/* Match the shared field selector's specificity so date captions inherit the outer columns. */
+#object-statement-parameters .statement-date-row label:not(.check):not(.schema-grid label) { grid-column: span 2; grid-template-columns: subgrid; }
+#object-statement-parameters .erp-pill-field,
+#object-statement-parameters label:not(.check):not(.schema-grid label) { align-items: center; }
+.statement-output { position: fixed; margin: 0; box-sizing: border-box; width: min(1200px, calc(100vw - 48px)); max-width: calc(100vw - 16px); max-height: calc(100vh - 48px); overflow: auto; color: var(--ink); background: var(--panel); border: 1px solid var(--line); box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24); }
+.statement-output::backdrop { background: rgba(15, 23, 42, 0.34); }
+.statement-output > h2 { padding-right: 34px; }
+.object-action-menu { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--ink); box-shadow: var(--shadow); overflow: auto; }
+.object-action-menu-context { padding: 12px 14px; color: var(--muted); border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.object-action-menu details + details { border-top: 1px solid var(--line); }
+.object-action-menu summary { padding: 12px 14px; font-weight: 500; cursor: pointer; }
+.object-action-menu .object-action-menu-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; border-radius: 0; padding: 10px 16px 10px 42px; background: transparent; color: var(--ink); white-space: normal; }
+.object-action-menu-label { min-width: 0; overflow-wrap: anywhere; }
+.object-action-menu-item:hover { background: var(--surface-soft); }
+.object-action-menu-empty { padding: 10px 16px 10px 30px; color: var(--muted); }
+.object-action-button { width: auto; white-space: nowrap; flex: 0 0 auto; }
+.record-editor-header--actions { position: relative; padding-right: 150px; }
+:is(#account-form, #accounting-object-form) > .object-record-action-button { position: absolute; top: 10px; right: 50px; height: 34px; min-height: 34px; z-index: 1; }
+:is(#account-form, #accounting-object-form):has(> .object-record-action-button) > .panel-close { top: 10px; right: 10px; height: 34px; min-height: 34px; z-index: 2; }
+.object-action-dialog { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; padding: 24px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); }
+.object-action-dialog::backdrop { background: rgba(22,32,51,.35); }
+.object-action-dialog form { display: grid; gap: 16px; min-width: 0; }
+.object-action-dialog h2, .object-action-dialog p { margin: 0; }
+.object-action-line-choice { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
+.object-action-line-choice:has(input:checked) { background: var(--surface-soft); border-color: var(--brand); }
+.object-action-line-choice input { width: auto; min-height: 0; margin-top: 4px; flex-shrink: 0; }
+.object-action-line-choice small { color: var(--muted); }
+
+/* Reusable single-choice pill controls. */
+.erp-pill-field { max-width: 720px; }
+.erp-pill-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr)); grid-auto-rows: 1fr; gap: 8px; min-width: 0; }
+.erp-pill-group > button.secondary { width: 100%; height: 100%; max-width: 100%; white-space: normal; border-radius: 999px; text-align: center; }
+.erp-pill-group > button.secondary[aria-pressed="true"] { background: var(--brand); color: var(--button-ink); border-color: var(--brand); }
+
+/* Record layouts share one content scroller with a fixed header and action footer. */
+:is(#account-form, #accounting-object-form, #accounting-dimension-form).record-layout-editor {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+  height: min(800px, calc(100dvh - var(--record-editor-top, 140px) - 16px));
+  max-height: calc(100dvh - var(--record-editor-top, 140px) - 16px);
+  min-height: 0;
+  overflow: hidden;
+}
+:is(#account-form, #accounting-object-form, #accounting-dimension-form).record-layout-editor[hidden] { display: none; }
+.record-layout-editor > :is(.record-editor-header, .record-editor-layout-switch, .account-editor-actions) { flex: 0 0 auto; }
+.record-layout-editor > .record-editor-header { margin-bottom: 0; }
+.record-editor-layout-switch { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; }
+.record-editor-layout-switch button { display: inline-flex; align-items: center; justify-content: center; width: 34px; min-width: 34px; height: 34px; padding: 7px; background: var(--panel); color: var(--ink); border-color: var(--line); }
+.record-editor-layout-switch button svg { width: 18px; height: 18px; flex: 0 0 auto; }
+.record-editor-layout-switch button[aria-pressed="true"] { background: var(--brand); color: var(--button-ink, #fff); border-color: var(--brand); }
+.record-editor-layout-switch[hidden] { display: none; }
+.record-editor-body { flex: 1 1 auto; min-height: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; padding-right: 4px; }
+.record-editor-body > .record-tab-navigation { margin-bottom: 16px; }
+.record-editor-body .record-tab-navigation[hidden] { display: none; }
+.record-editor-section { min-width: 0; }
+.record-editor-section[hidden] { display: none; }
+.record-layout-editor[data-editor-layout="stacked"] .record-editor-section { border: 1px solid var(--line); border-radius: 6px; padding: 0; margin-bottom: 14px; }
+.record-layout-editor[data-editor-layout="stacked"] .record-editor-section-heading { margin: 0; border-radius: 5px; background: var(--surface-soft); }
+.record-layout-editor[data-editor-layout="stacked"] .record-editor-section-heading:has(> button[aria-expanded="true"]) { border-bottom: 1px solid var(--line); border-radius: 5px 5px 0 0; }
+.record-layout-editor[data-editor-layout="stacked"] .record-editor-section-toggle { display: block; padding: 10px 14px; border-radius: inherit; background: transparent; }
+.record-layout-editor[data-editor-layout="stacked"] .record-editor-section-toggle:hover { background: var(--close-hover); }
+.record-layout-editor[data-editor-layout="stacked"] .record-editor-section > :not(.record-editor-section-heading) { padding: 16px; }
+.record-editor-section-heading { margin: 0 0 12px; }
+.record-editor-section-toggle { width: 100%; text-align: left; padding: 8px 0; border: 0; border-radius: 0; background: transparent; color: var(--ink); font-size: 14px; font-weight: 500; }
+.record-layout-editor > .account-editor-actions { position: static; margin: 0; padding: 12px 0 0; }
+.record-layout-editor > .account-editor-actions button { width: auto; }
+.record-layout-editor .account-detail-layout { display: block; }
+.record-layout-editor .account-detail-fields { display: block; }
+.record-layout-editor .record-editor-body .schema-grid-scroll { max-height: none; }
+
+/* Shared movement affordance; body controls keep their native interaction. */
+.editor-drag-heading { cursor: grab; touch-action: none; user-select: none; }
+.editor-moving .editor-drag-heading { cursor: grabbing; }
+.editor-move-handle { display: inline-grid; place-items: center; vertical-align: middle; width: 28px; min-width: 28px; min-height: 28px; padding: 0; margin: 0 6px 0 0; border: 0; background: transparent; color: var(--muted); cursor: grab; touch-action: none; font-size: 18px; }
+.editor-move-handle:hover { background: var(--close-hover); color: var(--brand); }
+.editor-drag-heading :is(button:not(.editor-move-handle), input, select, textarea, a, summary) { touch-action: auto; user-select: auto; }
+.editor-moving { user-select: none; }
+
+/* Native popup shows codes and labels; closed controls show only the label. */
+.schema-choice-control { position: relative; display: block; min-width: 0; width: 100%; font-size: 13px; }
+.schema-choice-control > select { width: 100%; color: transparent; appearance: none; }
+.schema-choice-control::after { content: ""; position: absolute; right: 12px; top: calc(50% - 4px); width: 6px; height: 6px; border-right: 1.5px solid var(--control-ink); border-bottom: 1.5px solid var(--control-ink); transform: rotate(45deg); pointer-events: none; }
+.schema-choice-control > select option { color: var(--control-ink); background: var(--panel); }
+.schema-choice-label { position: absolute; inset: 0 30px 0 12px; display: flex; align-items: center; overflow: hidden; white-space: nowrap; pointer-events: none; color: var(--control-ink); }

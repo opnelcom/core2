@@ -8,7 +8,7 @@ function createTransactionPlan(ctx, tables) {
     throw new Error('Explicit ERP transaction tables are required');
   const guards = [], writes = [], lockedTables = new Set(tables);
   const includeTables = text => {
-    for(const match of text.matchAll(/\b(?:FROM|JOIN|UPDATE|INTO|TABLE)\s+(erp_[a-z_]+)\b/gi)) lockedTables.add(match[1]);
+    for(const match of text.matchAll(/\b(?:FROM|JOIN|UPDATE|INTO|TABLE)\s+"?(erp_[a-z_]+)\b/gi)) lockedTables.add(match[1]);
   };
   const snapshotSql = sql => `SELECT COALESCE(jsonb_agg(to_jsonb(snapshot_row) ORDER BY to_jsonb(snapshot_row)::text),'[]'::jsonb) AS snapshot FROM (${sql}) snapshot_row`;
   const client = {

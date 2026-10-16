@@ -19,13 +19,34 @@ function fixture() {
     formatOrgMoney: (value) => require("../public/currency-format").format(value, { currency_code: "ZAR", decimal_places: 2 }),
     option: (control, choices, key, name, placeholder) => { control.rows = choices; control.placeholder = placeholder; control.value = ""; } };
   vm.createContext(scope);
-  for (const [start,end] of [["  function journalDefinitionFor(","  function renderJournalClassifications("],["  function subledgerTypeForJournalLine(","  function fillLegalEntitySelects("],["  function defaultJournalLinesForType(","  function renderJournalLines("],["  function recalculateBalancingLines(","  const classificationValueCache"]]) vm.runInContext(source.slice(source.indexOf(start),source.indexOf(end)),scope);
+  for (const [start,end] of [["  function journalDefinitionFor(","  function renderJournalClassifications("],["  function subledgerTypeForJournalLine(","  function fillLegalEntitySelects("],["  function defaultJournalLineForDefinition(","  function renderJournalLines("],["  function recalculateBalancingLines(","  const classificationValueCache"]]) vm.runInContext(source.slice(source.indexOf(start),source.indexOf(end)),scope);
   return scope;
 }
 function rowFor(definition, amount = "") {
   const controls = { ".line-definition": { value: definition.transaction_line_definition_id, dataset: {} }, ".line-sub": { value: "vendor1", dataset: {} }, ".line-drcr": { value: definition.debit_credit }, ".line-amount": { value: amount }, button: {} };
   return { controls, dataset: { subledgerType: definition.subledger_account_type_id || "" }, querySelector: (selector) => controls[selector] };
 }
+
+test("capture moves the type heading and description into the panel and restores list context", () => {
+  const scope = fixture();
+  for (const id of ["page-title", "page-subtitle", "journal-capture-title", "journal-capture-description"])
+    scope.elements[id] = {};
+  scope.elements["view-journals"] = { hidden: false };
+  scope.elements["journal-form"] = { hidden: false };
+  const type = { type_name: "Municipal services invoice", type_description: "Supplier invoice details." };
+  scope.syncTransactionDescription(type);
+  assert.equal(scope.elements["page-title"].textContent, "Transaction Capture");
+  assert.equal(scope.elements["page-subtitle"].hidden, true);
+  assert.equal(scope.elements["journal-capture-title"].textContent, type.type_name);
+  assert.equal(scope.elements["journal-capture-description"].textContent, type.type_description);
+  scope.syncTransactionDescription({ type_name: "Payment", type_description: "" });
+  assert.equal(scope.elements["journal-capture-title"].textContent, "Payment");
+  assert.equal(scope.elements["journal-capture-description"].hidden, true);
+  scope.elements["journal-form"].hidden = true;
+  scope.syncTransactionDescription(type);
+  assert.equal(scope.elements["page-title"].textContent, type.type_name);
+  assert.equal(scope.elements["page-subtitle"].textContent, type.type_description);
+});
 test("all seeded financial types initialise only their required and generated definitions", () => {
   const scope = fixture();
   for (const type of seeds.transactionTypes) {
@@ -90,7 +111,7 @@ function saveFixture(typeCode = "owner_deposit", editing = false) {
     clean: (value,fallback = "") => String(value ?? "").trim() || fallback,
     nullable: (value) => value || null, money: (value) => Number(value) || 0,
     objectReferenceConsistencyError: require("../api/_shared/erp/object-reference-consistency").objectReferenceConsistencyError,
-    checkPeriodOpen: async () => {}, requireResourcePermission: async () => null, requireModuleAccess: async () => null,
+    workflowUseSql:()=>"true",defaultWorkflowStepCode:async()=>"draft",checkPeriodOpen: async () => {}, requireResourcePermission: async () => null, requireModuleAccess: async () => null,
   } };
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(require.resolve("../api/journals/save.js"),"utf8"),context);
@@ -98,11 +119,11 @@ function saveFixture(typeCode = "owner_deposit", editing = false) {
     broker: async (_profile,_action,query) => {
       queries.push(query);
       let rows = [];
-      if (query.text.includes("SELECT workflow_status")) rows = [{ workflow_status: "draft" }];
+      if (query.text.includes("SELECT workflow_status")) rows = [{ workflow_status: "draft",transaction_type_id:typeCode }];
       else if (query.text.includes("FROM erp_transaction_type WHERE")) rows = [{ type_code: typeCode, allow_additional_lines: false }];
       else if (query.text.includes("SELECT definition.*")) rows = selected;
       else if (query.text.includes("FROM erp_gl_account WHERE")) rows = selected.map((line) => ({ gl_account_id: line.gl_account_id }));
-      else if (query.text.includes("FROM erp_subledger_account WHERE")) rows = [{ subledger_account_id: "bank1", subledger_account_type_id: "bank" }];
+      else if (query.text.includes("FROM erp_subledger_account r")) rows = [{ subledger_account_id: "bank1", subledger_account_type_id: "bank" }];
       else if (query.text.startsWith("WITH saved")) rows = [{ journal_id: "journal1" }];
       return { rows, rowCount: rows.length };
     } };
@@ -114,7 +135,7 @@ test("saving uses configured lines for any type code and correct create/update S
     const result = await api(ctx);
     assert.equal(result.journal.journal_id,"journal1");
     const save = queries.at(-1);
-    assert.equal(save.values.length, editing ? 14 : 13);
+    assert.equal(save.values.length, 15);
     assert.equal(save.values[5],"2026-10-03");
     assert.equal(JSON.parse(save.values[10])[0].subledger_account_id,"bank1");
     if (editing) assert.equal(save.values[13],"journal1");

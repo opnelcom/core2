@@ -5,6 +5,7 @@ const { validateSchemaReferences } = require("../_shared/erp/schema-references")
 const { objectSaveStatements } = require("../_shared/erp/object-versions");
 const {
   authTenant,
+  defaultWorkflowStepCode,
   clean,
   nullable,
   parseJson,
@@ -58,7 +59,7 @@ module.exports = async (ctx) => {
     return ctx.send(400, { error: "Additional data must be valid JSON" });
   }
   const errors = validateSchema(type.rows[0].schema_json, data);
-  if (!errors.length) errors.push(...await validateSchemaReferences(ctx, access, orgId, type.rows[0].schema_json, data));
+  if (!errors.length) errors.push(...await validateSchemaReferences(ctx, access, orgId, type.rows[0].schema_json, data, {kind:'accounting_dimension',id:submittedId}));
   if (errors.length)
     return ctx.send(400, { error: "Additional data is invalid", errors });
   if (submittedId) {
@@ -99,13 +100,14 @@ module.exports = async (ctx) => {
     access.auth.email,
     id,
   ];
+  const initialStep=await defaultWorkflowStepCode(ctx,access,{organisationId:orgId,typeTable:'erp_accounting_dimension_type',typeIdColumn:'accounting_dimension_type_id',typeId});
   const text = submittedId
     ? `UPDATE erp_accounting_dimension
        SET owner_division_id=$3,accounting_dimension_type_id=$4,dimension_code=$5,dimension_name=$6,valid_from=COALESCE($7::date,CURRENT_DATE),valid_to=$8::date,additional_data=$9::jsonb,updated_by_email=$10,updated_at=now()
        WHERE tenant_id=$1 AND organisation_id=$2 AND accounting_dimension_id=$11`
     : `INSERT INTO erp_accounting_dimension(accounting_dimension_id,tenant_id,organisation_id,owner_division_id,accounting_dimension_type_id,dimension_code,dimension_name,workflow_status,valid_from,valid_to,additional_data,created_by_email,updated_by_email)
-       VALUES($11,$1,$2,$3,$4,$5,$6,'draft',COALESCE($7::date,CURRENT_DATE),$8::date,$9::jsonb,$10,$10)`;
-  const statements = [numberedRecordStatement({ text, values }, { kind: "accounting_dimension", typeParameter: 4, codeParameter: 5, idParameter: 11, submittedId })];
+       VALUES($11,$1,$2,$3,$4,$5,$6,$12,COALESCE($7::date,CURRENT_DATE),$8::date,$9::jsonb,$10,$10)`;
+  const statements = [numberedRecordStatement({ text, values:submittedId?values:[...values,initialStep] }, { kind: "accounting_dimension", typeParameter: 4, codeParameter: 5, idParameter: 11, submittedId })];
   if (resourcePlan.replace) statements.push(...resourcePlan.statements);
   await saveNumberedTransaction(ctx, objectSaveStatements({ statements, submittedId, access, organisationId: orgId, kind: "accounting_dimension", id, schema: type.rows[0].schema_json, data }));
   const r = await ctx.broker("core_erp", "query", {

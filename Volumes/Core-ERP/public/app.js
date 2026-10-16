@@ -45,6 +45,7 @@
     workflowPaths: [],
     workflowSteps: [],
     workflowNext: [],
+    workflowStatuses: [],
     roles: [],
     rolePermissions: [],
     roleUsers: [],
@@ -120,20 +121,10 @@
     "transactiongroups",
     "transactiontypes",
     "workflows",
+    "workflowstatuses",
     "permissions",
     "resourceroles",
   ]);
-  const transactionWorkflowOptions = [
-    "view",
-    "*",
-    "draft",
-    "submitted",
-    "approved",
-    "rejected",
-    "blocked",
-    "reversed",
-    "deleted",
-  ];
   const resourceAssignmentEditors = new Map();
 
   function sanitizedModuleSvg(value) {
@@ -338,12 +329,24 @@
     const svg = clone(parsed.documentElement);
     return svg ? new XMLSerializer().serializeToString(svg) : "";
   }
-  function organisationIconElement(value, className = "organisation-tab-icon") {
+  function organisationIconElement(value, className = "organisation-tab-icon", colour = null) {
     const icon = document.createElement("span");
     icon.className = className;
     icon.setAttribute("aria-hidden", "true");
     icon.innerHTML =
       sanitizedOrganisationSvg(value) || menuIconSvg.organisation;
+    if (/^#[0-9a-f]{6}$/i.test(colour || "")) {
+      icon.style.color = colour;
+      const tint = (node, fill = "black", stroke = "none") => {
+        if (["defs", "mask", "clipPath", "title", "desc"].includes(node.localName)) return;
+        const nodeFill = node.getAttribute("fill") || fill;
+        const nodeStroke = node.getAttribute("stroke") || stroke;
+        node.setAttribute("fill", nodeFill === "none" ? "none" : "currentColor");
+        node.setAttribute("stroke", nodeStroke === "none" ? "none" : "currentColor");
+        [...node.children].forEach(child => tint(child, nodeFill, nodeStroke));
+      };
+      tint(icon.querySelector("svg"));
+    }
     return icon;
   }
   const menuIconSvg = {
@@ -796,10 +799,54 @@
     notify: message => alert(message),
     saved: async () => { await ensureReportDefinitions(); await loadMenuData(true); },
   });
+  const objectStatement = window.createObjectStatement({
+    api, context: () => state, openReport, formatMoney: formatOrgMoney,
+    notify: message => alert(message),
+    openJournal: async row => {
+      const orgId = state.orgId;
+      const detail = await api(`journals/detail?journal_id=${encodeURIComponent(row.journal_id)}&organisation_id=${orgId}`);
+      if (orgId !== state.orgId) return;
+      await openTransactionType(detail.journal.transaction_type_id);
+      await displayJournalDetail(detail);
+    },
+  });
   const exchangeRateEditor = window.createExchangeRateEditor({
     api, context: () => state, currencies: () => state.currencies, table,
     installSetupTypeTabs, showSetupTypeTab, syncRequiredMarkers,
   });
+  const objectActions = window.erpObjectActions.create({
+    api, context: () => state,
+    openStatement: selection => openReport("object_statement", selection),
+    openTransaction: openObjectActionTransaction,
+    notify: message => alert(message), beforeOpen: closeWorkflowMenu,
+    iconMarkup: name => fixedMenuIconMarkup(name, "menu-entry-icon"),
+  });
+  function objectActionContext(kind, row) {
+    const subledger = kind === "subledger_account";
+    return {
+      kind, objectId: subledger ? row.subledger_account_id || row.account_id : row.accounting_object_id,
+      typeId: subledger ? row.subledger_account_type_id : row.accounting_object_type_id,
+      code: subledger ? row.account_code : row.object_code,
+      name: subledger ? row.account_name : row.object_name,
+    };
+  }
+  async function openObjectActionTransaction(selection) {
+    const current = () => selection.organisationId === state.orgId && selection.workspaceDivisionId === state.divisionId;
+    if (!current()) return;
+    await ensureTransactionSetup(true);
+    if (!current()) return;
+    const typeId = selection.transaction.transaction_type_id;
+    await openTransactionType(typeId);
+    if (!current() || selectedTransactionTypeId !== typeId) return;
+    openNewJournal({ sourceDivisionId: selection.sourceDivisionId });
+    const definitions = state.lineDefinitions.filter(line => line.transaction_type_id === typeId);
+    const lines = window.erpObjectActions.prepareLines({
+      definitions, lines: defaultJournalLinesForType(typeId),
+      kind: selection.kind, object: selection.object, definitionId: selection.definitionId,
+      createLine: defaultJournalLineForDefinition,
+    });
+    renderJournalLines(lines);
+  }
   async function ensureReportDefinitions() {
     if (!state.orgId) { state.reportDefinitions = []; return; }
     const orgId = state.orgId;
@@ -1039,12 +1086,6 @@
       }
       actions.classList.add("account-editor-actions");
       $(`new-${prefix}`).hidden = true;
-      const cancel = document.createElement("button");
-      cancel.type = "button";
-      cancel.className = "secondary";
-      cancel.textContent = "Cancel";
-      cancel.addEventListener("click", () => form.querySelector(".panel-close").click());
-      actions.prepend(cancel);
       form.append(tabs, general, schema, resources, actions);
       const documentsPanel = form.querySelector('[data-record-panel="documents"]');
       if (documentsPanel) form.insertBefore(documentsPanel, actions);
@@ -1078,12 +1119,6 @@
       actions.classList.add("account-editor-actions");
       actions.querySelector('[type="submit"]').textContent = "Save account";
       $("new-account").hidden = true;
-      const cancel = document.createElement("button");
-      cancel.type = "button";
-      cancel.className = "secondary";
-      cancel.textContent = "Cancel";
-      cancel.addEventListener("click", () => form.querySelector(".panel-close").click());
-      actions.prepend(cancel);
       form.append(actions);
       form.addEventListener("invalid", (event) => {
         const schemaPanel = event.target.closest("[data-account-detail-panel]");
@@ -1150,71 +1185,14 @@
     installWorkflowPathField(
       "accounting-dimension-type-form",
       "accounting-dimension-type-workflow-path",
+      "transaction-type-workflow-path",
     );
-    if (!$("view-workflows")) {
-      const section = document.createElement("section");
-      section.id = "view-workflows";
-      section.className = "view";
-      section.hidden = true;
-      section.innerHTML =
-        '<div class="split workflow-setup"><div class="panel"><div class="panel-head"><h2>Workflow Paths</h2><button type="button" id="add-workflow" class="add-record-button" aria-label="Add workflow path" title="Add workflow path">+</button></div><input id="workflow-search" class="grid-search" placeholder="Search workflow paths"><div id="workflow-list"></div></div><form id="workflow-form" class="panel form workflow-editor" hidden><div class="panel-head workflow-editor-head"><div><h2>Workflow Path</h2><span id="workflow-path-meta" class="muted"></span></div><label class="check workflow-active-check"><input type="checkbox" id="workflow-path-active" checked> Active</label></div><input type="hidden" id="workflow-path-id"><div class="form-row compact-row"><label>Name<input id="workflow-path-name" required></label><label>Initial step<select id="workflow-initial-step" required></select></label></div><section class="setup-section full workflow-config-section"><div class="panel-head"><h2>Steps</h2><button type="button" id="add-workflow-step" class="add-record-button" aria-label="Add workflow step" title="Add workflow step">+</button></div><div id="workflow-step-lines"></div></section><section class="setup-section full workflow-config-section"><div class="panel-head"><h2>Allowed Next Steps</h2><button type="button" id="add-workflow-next" class="add-record-button" aria-label="Add next step" title="Add next step">+</button></div><div id="workflow-next-lines"></div></section><div class="actions"><button type="submit">Save Workflow</button><button type="button" id="new-workflow" class="secondary">New</button></div></form></div>';
-      $("view-setup").insertAdjacentElement("beforebegin", section);
-      $("add-workflow").addEventListener("click", newWorkflowPath);
-      $("new-workflow").addEventListener("click", newWorkflowPath);
-      $("workflow-search").addEventListener("input", renderWorkflows);
-      $("add-workflow-step").addEventListener("click", () => {
-        addWorkflowStepLine({
-          sort_order:
-            (document.querySelectorAll(
-              ".workflow-step-line:not(.workflow-step-line-head)",
-            ).length +
-              1) *
-            10,
-        });
-        syncWorkflowInitialOptions($("workflow-initial-step").value);
-      });
-      $("add-workflow-next").addEventListener("click", () =>
-        addWorkflowNextLine(),
-      );
-      $("workflow-form").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        await api("setup/workflows", {
-          method: "POST",
-          body: JSON.stringify({
-            organisation_id: state.orgId,
-            workflow_path_id: $("workflow-path-id").value,
-            path_name: $("workflow-path-name").value,
-            initial_step_code: $("workflow-initial-step").value,
-            is_active: $("workflow-path-active").checked,
-            steps: collectWorkflowSteps(),
-            next: collectWorkflowNext(),
-          }),
-        });
-        $("workflow-form").hidden = true;
-        await loadMenuData(true);
-        renderWorkflows();
-        fillWorkflowPathSelect("ledger-family-workflow-path");
-        fillWorkflowPathSelect("master-workflow-path");
-        fillWorkflowPathSelect("accounting-object-type-workflow-path");
-        fillWorkflowPathSelect("accounting-dimension-type-workflow-path");
-      });
-    }
-    if (!$("accounting-object-workflow-progress")) {
-      const form = $("accounting-object-form");
-      form
-        ?.querySelector("h2")
-        ?.insertAdjacentHTML(
-          "afterend",
-          '<div id="accounting-object-workflow-header" class="workflow-header"></div>',
-        );
-      form
-        ?.querySelector(".actions")
-        ?.insertAdjacentHTML(
-          "beforebegin",
-          '<section id="accounting-object-workflow-progress" class="workflow-panel full"></section><section id="accounting-object-workflow-history" class="workflow-panel full"></section>',
-        );
+    installWorkflowSetup();
+    if (!$("transaction-type-workflow-path")) {
+      $("transaction-type-name").closest("label").insertAdjacentHTML("afterend", '<label>Workflow<select id="transaction-type-workflow-path" required></select></label>');
     }
   }
+
   function ensureTextareaField(formId, inputId, labelText, afterId) {
     if ($(inputId)) return;
     const after = $(afterId)?.closest("label");
@@ -1392,6 +1370,12 @@
     updateRecordCodeField(config.prefix, type, !!$(`${config.prefix}-id`).value);
   }
   function installSetupTypeEditors() {
+    for (const prefix of ["ledger-family", "accounting-object-type", "accounting-dimension-type"])
+      window.erpRecordEditorLayout.installDefaultControl($(`${prefix}-workflow-path`), prefix);
+    for (const prefix of ["ledger-family", "accounting-object-type", "accounting-dimension-type", "transaction-type"])
+      window.erpObjectGridViews.installDefaultControl($(`${prefix}-workflow-path`), `${prefix}-default-grid-view`);
+    for (const formId of ["ledger-family-form", "accounting-object-type-form", "accounting-dimension-type-form"])
+      $(formId)?.classList.add("accounting-type-editor");
     for (const [formId, prefix] of [["gl-account-type-form", "gl-account-type"], ["ledger-family-form", "ledger-family"],
       ["accounting-object-type-form", "accounting-object-type"], ["accounting-dimension-type-form", "accounting-dimension-type"]])
       installCodeNumberingFields(formId, prefix);
@@ -1458,10 +1442,16 @@
             "ledger-family-name",
             "ledger-family-description",
             "ledger-family-workflow-path",
+            "ledger-family-default-grid-view",
+            "ledger-family-default-editor-layout",
             "ledger-family-legal-entity",
             "ledger-family-active",
-            "ledger-family-numbering",
           ],
+        },
+        {
+          name: "numbering",
+          label: "Code Numbering",
+          controlIds: ["ledger-family-numbering"],
         },
         {
           name: "scope",
@@ -1492,9 +1482,15 @@
             "accounting-object-type-name",
             "accounting-object-type-description",
             "accounting-object-type-workflow-path",
+            "accounting-object-type-default-grid-view",
+            "accounting-object-type-default-editor-layout",
             "accounting-object-type-active",
-            "accounting-object-type-numbering",
           ],
+        },
+        {
+          name: "numbering",
+          label: "Code Numbering",
+          controlIds: ["accounting-object-type-numbering"],
         },
         {
           name: "scope",
@@ -1527,9 +1523,15 @@
             "accounting-dimension-type-name",
             "accounting-dimension-type-description",
             "accounting-dimension-type-workflow-path",
+            "accounting-dimension-type-default-grid-view",
+            "accounting-dimension-type-default-editor-layout",
             "accounting-dimension-type-active",
-            "accounting-dimension-type-numbering",
           ],
+        },
+        {
+          name: "numbering",
+          label: "Code Numbering",
+          controlIds: ["accounting-dimension-type-numbering"],
         },
         {
           name: "scope",
@@ -1562,6 +1564,8 @@
             "transaction-type-code",
             "transaction-type-name",
             "transaction-type-description",
+            "transaction-type-workflow-path",
+            "transaction-type-default-grid-view",
             "transaction-type-sort",
             "transaction-type-financial",
             "transaction-type-additional-lines",
@@ -1588,7 +1592,7 @@
       editor.placeholder = '{"type":"object","properties":{"amount":{"type":"currency","precision":14,"scale":2,"uiWidth":"medium"}},"required":[]}';
       const guide = document.createElement("details");
       guide.className = "schema-design-guide";
-      guide.innerHTML = '<summary>Field types and layout attributes</summary><p>Use integer for whole numbers; decimal for rates and measurements; currency for money; short_text for codes; text for names; long_text for descriptions; boolean, date, date_time, email, url, or select for specialised fields.</p><p>Text: maxLength, minLength, pattern. Numbers: minimum, maximum. Decimal and currency: precision (total digits), scale (decimal places); precision 14 and scale 2 allow 12 digits before the decimal. Layout: uiWidth (short, medium, wide, full), rows, placeholder, helpText. Choices: options [{code, description}] or enum.</p>';
+      guide.innerHTML = '<summary>Field types and layout attributes</summary><p>Use integer for whole numbers; decimal for rates and measurements; currency for money; currency_code for an active organisation currency selector (stores the full code); short_text for codes; text for names; long_text for descriptions; boolean, date, date_time, email, url, or select for specialised fields.</p><p>Text: maxLength, minLength, pattern. Numbers: minimum, maximum. Decimal and currency: precision (total digits), scale (decimal places); precision 14 and scale 2 allow 12 digits before the decimal. Layout: uiWidth (short, medium, wide, full), rows, placeholder, helpText. Choices: options [{code, description}] or enum.</p>';
       guide.innerHTML += '<p>Grids: type "grid", rowSchema with ordinary column definitions; optional periodControl {from, to, groupBy, allowOverlap:false}. Blank end dates mean indefinitely. References: type "reference", target {class, types:[typeCode]}, or target {anyOf:[{class, types}]}. Mixed references store class:UUID. Optional referenceSource {field, grid, column} restricts choices to a saved root-reference record’s grid. sortOrder controls independent field and grid-column ordering. Save stores ordinary fields and all grids together, preserving a complete object version.</p>';
       const preview = document.createElement("section");
       preview.className = "schema-design-preview";
@@ -1719,9 +1723,14 @@
     o.textContent = label;
     select.insertBefore(o, select.firstChild);
   }
-  function table(target, columns, rows, onClick) {
+  function table(target, columns, rows, onClick, visibilityPrepared = false) {
+    if (!visibilityPrepared && globalThis.erpWorkflowGridVisibility) {
+      const sourceRows = rows;
+      rows = window.erpWorkflowGridVisibility.prepare(target, sourceRows, state.workflowStatuses, () => table(target, columns, sourceRows, onClick));
+    }
     if (!rows.length) {
-      target.innerHTML = '<p class="empty">No records yet.</p>';
+      const search = target.closest('.view')?.dataset.organisationSetup ? target.closest('.panel')?.querySelector('.grid-search') : null;
+      target.innerHTML = `<p class="empty">${search?.value.trim() ? "No records match the search." : "No records yet."}</p>`;
       return;
     }
     const el = document.createElement("table");
@@ -1787,12 +1796,45 @@
     dot.style.background = colour || "#667085";
     return dot;
   }
+  let activeWorkflowMenu = null;
+  function closeWorkflowMenu({ restoreFocus = false } = {}) {
+    if (!activeWorkflowMenu) return;
+    const { button, menu } = activeWorkflowMenu;
+    activeWorkflowMenu = null;
+    menu.hidden = true;
+    menu.remove();
+    button.setAttribute("aria-expanded", "false");
+    if (restoreFocus && button.isConnected) button.focus();
+  }
+  function openWorkflowMenu(button, menu) {
+    closeWorkflowMenu();
+    document.body.append(menu);
+    menu.hidden = false;
+    button.setAttribute("aria-expanded", "true");
+    activeWorkflowMenu = { button, menu };
+    const gap = 6;
+    const margin = 8;
+    const rect = button.getBoundingClientRect();
+    const width = document.documentElement.clientWidth;
+    const height = document.documentElement.clientHeight;
+    menu.style.maxWidth = `${Math.max(0, width - margin * 2)}px`;
+    menu.style.minWidth = `${Math.min(190, Math.max(0, width - margin * 2))}px`;
+    menu.style.maxHeight = `${Math.max(0, height - margin * 2)}px`;
+    const below = Math.max(0, height - rect.bottom - gap - margin);
+    const above = Math.max(0, rect.top - gap - margin);
+    const openAbove = menu.getBoundingClientRect().height > below && above > below;
+    menu.style.maxHeight = `${openAbove ? above : below}px`;
+    const bounds = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(margin, Math.min(rect.right - bounds.width, width - bounds.width - margin))}px`;
+    menu.style.top = `${Math.max(margin, openAbove ? rect.top - gap - bounds.height : rect.bottom + gap)}px`;
+  }
   function workflowStatusButton({ row, kind, onMove }) {
     const wrap = document.createElement("span");
     wrap.className = "workflow-status-wrap";
     const button = document.createElement("button");
     button.type = "button";
     button.className = "workflow-status-button";
+    button.setAttribute("aria-expanded", "false");
     button.style.setProperty(
       "--workflow-colour",
       row.workflow_step_colour || "#667085",
@@ -1800,6 +1842,8 @@
     button.append(workflowDot(row.workflow_step_colour));
     const label = document.createElement("span");
     label.textContent = workflowStepLabel(row);
+    label.className = "workflow-status-label";
+    button.title = label.textContent;
     button.append(label);
     const arrow = document.createElement("span");
     arrow.className = "workflow-status-arrow";
@@ -1824,65 +1868,77 @@
         item.className = "workflow-menu-item";
         item.append(workflowDot(step.colour));
         const text = document.createElement("span");
-        text.textContent = step.step_label || pretty(step.step_code);
+        text.textContent = step.action_label || step.step_label || pretty(step.step_code);
         item.append(text);
         item.addEventListener("click", (event) => {
           event.stopPropagation();
-          menu.hidden = true;
-          if (onMove) onMove(step.step_code);
+          closeWorkflowMenu();
+          if (onMove) onMove(step.workflow_next_id || step.step_code);
         });
         menu.append(item);
       });
     }
-    wrap.append(menu);
+    menu.addEventListener("click", (event) => event.stopPropagation());
     button.addEventListener("click", (event) => {
       event.stopPropagation();
-      document.querySelectorAll(".workflow-status-menu").forEach((other) => {
-        if (other !== menu) other.hidden = true;
-      });
-      menu.hidden = !menu.hidden;
+      if (activeWorkflowMenu?.menu === menu) closeWorkflowMenu();
+      else openWorkflowMenu(button, menu);
     });
     wrap.addEventListener("click", (event) => event.stopPropagation());
     return wrap;
   }
-  document.addEventListener("click", () =>
-    document.querySelectorAll(".workflow-status-menu").forEach((menu) => {
-      menu.hidden = true;
-    }),
-  );
+  document.addEventListener("click", () => closeWorkflowMenu());
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && activeWorkflowMenu) {
+      event.preventDefault();
+      closeWorkflowMenu({ restoreFocus: true });
+    }
+  });
+  document.addEventListener("scroll", (event) => {
+    if (activeWorkflowMenu && !activeWorkflowMenu.menu.contains(event.target)) closeWorkflowMenu();
+  }, true);
+  window.addEventListener("resize", () => closeWorkflowMenu());
+  function refreshWorkflowEditor(prefix,id,record,onMove){
+    const form=$(`${prefix}-form`);
+    if(!form||form.hidden||$(`${prefix}-id`).value!==id)return;
+    if(!record){form.hidden=true;return;}
+    renderWorkflowFooter(prefix,record,action=>onMove(record,action).catch(error=>alert(error.message)));
+    renderWorkflowHistory(`${prefix}-workflow-history`,record);
+  }
+  async function moveSubledgerWorkflow(row,actionId){
+    const organisationId=state.orgId;
+    const family=row.scope_code||selectedAccountScopeCode;
+    await api("subledger-accounts/workflow",{method:"POST",body:JSON.stringify({organisation_id:organisationId,subledger_account_id:row.subledger_account_id||row.account_id,workflow_next_id:actionId})});
+    if(state.orgId!==organisationId)return;
+    loadedAccountFamilies.delete(family);
+    await loadAccountsForFamily(family);
+    if(state.orgId!==organisationId)return;
+    renderAccounts();
+    const id=row.subledger_account_id||row.account_id;
+    refreshWorkflowEditor("account",id,state.accounts.find(account=>(account.subledger_account_id||account.account_id)===id),moveSubledgerWorkflow);
+  }
+  async function moveDimensionWorkflow(row,actionId){
+    const organisationId=state.orgId;
+    await api("accounting-dimensions/workflow",{method:"POST",body:JSON.stringify({organisation_id:organisationId,accounting_dimension_id:row.accounting_dimension_id,workflow_next_id:actionId})});
+    if(state.orgId!==organisationId)return;
+    await loadAccountingMasterRecords("dimension");
+    if(state.orgId!==organisationId)return;
+    refreshWorkflowEditor("accounting-dimension",row.accounting_dimension_id,state.accountingDimensions.find(record=>record.accounting_dimension_id===row.accounting_dimension_id),moveDimensionWorkflow);
+  }
   async function moveAccountingObjectWorkflow(record, nextStepCode) {
+    const organisationId=state.orgId;
     await api("accounting-objects/workflow", {
       method: "POST",
       body: JSON.stringify({
         accounting_object_id: record.accounting_object_id,
-        next_step_code: nextStepCode,
+        workflow_next_id: nextStepCode,
+        organisation_id: organisationId,
       }),
     });
+    if(state.orgId!==organisationId)return;
     await loadAccountingMasterRecords("object");
-  }
-  function renderWorkflowProgress(targetId, type, row) {
-    const target = $(targetId);
-    if (!target) return;
-    const path = workflowPathForType(type);
-    const steps = workflowStepsForPath(path?.workflow_path_id);
-    if (!row?.workflow_status || !steps.length) {
-      target.innerHTML = "";
-      return;
-    }
-    target.innerHTML = "<h2>Workflow progress</h2>";
-    const line = document.createElement("div");
-    line.className = "workflow-progress";
-    steps.forEach((step) => {
-      const item = document.createElement("span");
-      item.className = "workflow-progress-step";
-      if (step.step_code === row.workflow_status) item.classList.add("current");
-      item.append(workflowDot(step.colour));
-      const label = document.createElement("span");
-      label.textContent = step.step_label;
-      item.append(label);
-      line.append(item);
-    });
-    target.append(line);
+    if(state.orgId!==organisationId)return;
+    refreshWorkflowEditor("accounting-object",record.accounting_object_id,state.accountingObjects.find(row=>row.accounting_object_id===record.accounting_object_id),moveAccountingObjectWorkflow);
   }
   function renderWorkflowHistory(targetId, row) {
     const target = $(targetId);
@@ -1912,12 +1968,19 @@
       history,
     );
   }
-  function renderWorkflowHeader(targetId, row, onMove) {
-    const target = $(targetId);
-    if (!target) return;
-    target.innerHTML = "";
-    if (row?.workflow_status)
-      target.append(workflowStatusButton({ row, onMove }));
+  function renderWorkflowFooter(prefix, row, onMove) {
+    const actions = $(`${prefix}-form`)?.querySelector(".account-editor-actions, .actions");
+    if (!actions) return;
+    let target = actions.querySelector(".workflow-footer-status");
+    if (!target) {
+      target = document.createElement("span");
+      target.className = "workflow-footer-status";
+      actions.insertBefore(target, actions.querySelector(":scope > button:not(.object-editor-resize)"));
+    }
+    if (activeWorkflowMenu && target.contains(activeWorkflowMenu.button)) closeWorkflowMenu();
+    target.replaceChildren();
+    target.hidden = !row?.workflow_status;
+    if (row?.workflow_status) target.append(workflowStatusButton({ row, onMove }));
   }
   function currentOrg() {
     return (
@@ -2010,7 +2073,7 @@
         org.organisation_id === state.orgId ? "true" : "false",
       );
       button.title = organisationLabel(org);
-      button.append(organisationIconElement(org.organisation_icon_svg));
+      button.append(organisationIconElement(org.organisation_icon_svg, "organisation-tab-icon", org.organisation_icon_colour));
       const code = document.createElement("span");
       code.className = "organisation-tab-code";
       code.textContent = org.organisation_code;
@@ -2034,7 +2097,7 @@
     $("organisation-more").replaceChildren();
     if (activeOverflow) {
       $("organisation-more").append(
-        organisationIconElement(activeOverflow.organisation_icon_svg),
+        organisationIconElement(activeOverflow.organisation_icon_svg, "organisation-tab-icon", activeOverflow.organisation_icon_colour),
       );
       const label = document.createElement("span");
       label.textContent = organisationLabel(activeOverflow);
@@ -2070,6 +2133,7 @@
         organisationIconElement(
           org.organisation_icon_svg,
           "organisation-more-icon",
+          org.organisation_icon_colour,
         ),
       );
       const label = document.createElement("span");
@@ -2280,6 +2344,8 @@
     });
   }
   function show(view) {
+    objectActions.close();
+    if (view !== "reports") objectStatement.hide();
     if (view !== "journals" && view !== "reports") {
       trialBalanceReturn = null;
       $("return-trial-balance").hidden = true;
@@ -2294,9 +2360,11 @@
     $("page-title").textContent =
       document.querySelector(`[data-view="${view}"]`)?.textContent ||
       $("page-title").textContent;
+    if (view === "accountingobjects") syncAccountingMasterContext("object");
     syncTransactionDescription(view === "journals"
       ? state.transactionTypes.find((type) => type.transaction_type_id === selectedTransactionTypeId)
       : null);
+    syncObjectGridContext();
     if (state.orgId) syncContextUrl();
   }
   async function openView(view) {
@@ -2755,6 +2823,7 @@
                 depth: 2,
               }),
               menuItemMarkup({ label: "Trial Balance", attributes: 'data-report-view="trial_balance"', icon: "report", depth: 2 }),
+              menuItemMarkup({ label: "Object Statement", attributes: 'data-report-view="object_statement"', icon: "report", depth: 2 }),
             ],
             {
               icon: "report",
@@ -3033,7 +3102,7 @@
           items: [
             ["Organisations", 'data-view="organisations"', "organisation"],
             ["Divisions", 'data-view="divisions"', "division"],
-            ["Fiscal Year", 'data-view="fiscal"', "calendar"],
+            ["Fiscal Years", 'data-view="fiscal"', "calendar"],
             ["Countries", 'data-view="countries"', "globe"],
             ["Currencies", 'data-view="currencies"', "currency"],
             ["Tax Types", 'data-view="taxtypes"', "tax"],
@@ -3086,14 +3155,13 @@
               'data-view="transactiontypes"',
               "transaction",
             ],
-            ["Workflows", 'data-view="workflows"', "workflow"],
           ],
         },
         {
           id: "security",
-          label: "Security",
+          label: "Permissions",
           icon: "security",
-          items: [["Permissions", 'data-view="permissions"', "role"]],
+          items: [["Permissions", 'data-view="permissions"', "role"], ["Workflow Status", 'data-view="workflowstatuses"', "workflow"], ["Workflows", 'data-view="workflows"', "workflow"]],
         },
       );
     }
@@ -3335,7 +3403,8 @@
     selectedTransactionTypeId = "";
     await ensureViewData(view);
     const config = accountingMasterConfig(kind);
-    if (typeId) $(`${config.prefix}-type-select`).value = typeId;
+    if (typeId && !config.isObject) $(`${config.prefix}-type-select`).value = typeId;
+    if (config.isObject) $(`${config.prefix}-form`).hidden = true;
     await loadAccountingMasterRecords(kind);
     show(view);
     setMenuExpanded(
@@ -3346,8 +3415,8 @@
     collapseDynamicMenus(
       kind === "object" ? "object-toggle" : "dimension-toggle",
     );
-    $("page-title").textContent =
-      kind === "object" ? "Accounting Objects" : "Accounting Dimensions";
+    if (config.isObject) syncAccountingMasterContext(kind);
+    syncObjectGridContext();
     highlightDynamicMenu();
   }
   async function openLedgerFamily(familyCode) {
@@ -3410,7 +3479,7 @@
     patchDynamicSelects();
     highlightDynamicMenu();
   }
-  async function openReport(report) {
+  async function openReport(report, statementSelection) {
     await ensureViewData("reports");
     selectedReport = report;
     selectedAccountScopeCode = "";
@@ -3424,9 +3493,11 @@
       financial_statement: "Financial Statement",
       ledger: "Ledger Balances",
       trial_balance: "Trial Balance",
+      object_statement: "Object Statement",
     };
     $("page-title").textContent = titles[report] || "Reports";
     $("report-title").textContent = titles[report] || "Reports";
+    $("report-title").hidden = report === "object_statement";
     const financial = report === "financial_statement";
     [
       "report-format-label",
@@ -3442,7 +3513,15 @@
     $("trial-balance-controls").hidden = report !== "trial_balance";
     $("trial-balance-status").hidden = report !== "trial_balance";
     $("trial-balance-detail").hidden = true;
-    $("report-year-label").hidden = false;
+    $("report-year-label").hidden = report === "object_statement";
+    $("report-result").hidden = report === "object_statement";
+    $("run-report").hidden = report === "object_statement";
+    if (report === "object_statement") {
+      await objectStatement.prepare(statementSelection);
+      highlightDynamicMenu();
+      return;
+    }
+    objectStatement.hide();
     fillReportFormatSelect();
     fillReportPeriodSelects();
     if (report === "trial_balance") syncTrialBalanceRangeControls();
@@ -3737,7 +3816,7 @@
     const typeId = subledgerTypeForJournalLine(row);
     const accounts = state.accounts.filter(
       (account) =>
-        account.account_kind === "subledger" &&
+        account.account_kind === "subledger" && account.enabled_for_use !== false &&
         (!typeId || account.subledger_account_type_id === typeId),
     );
     option(
@@ -3781,8 +3860,9 @@
   }
   function setRequiredMarker(label, required) {
     if (!label) return;
+    const accountingTypeField = label.matches('.accounting-type-editor > .setup-type-panel[data-panel="definition"] > label');
     const recordField = label.closest(".erp-field-rows, #account-form, #accounting-object-form, #accounting-dimension-form, #report-definition-form") && !label.closest(".schema-grid");
-    if ((recordField || label.closest(".code-numbering-fields, #account-identification-panel, #account-detail-fields, .accounting-record-general, .accounting-record-editor .account-schema-fields, .schema-design-preview, #resource-form, #module-form, #transaction-type-form") || label.matches("#gl-account-type-form > .setup-type-panel > label")) && !label.classList.contains("check")) {
+    if (accountingTypeField || (recordField || label.closest(".code-numbering-fields, #account-identification-panel, #account-detail-fields, .accounting-record-general, .accounting-record-editor .account-schema-fields, .schema-design-preview, #resource-form, #module-form, #transaction-type-form") || label.matches("#gl-account-type-form > .setup-type-panel > label")) && !label.classList.contains("check")) {
       let caption = label.querySelector(":scope > .account-field-caption, :scope > .tx-field-label");
       if (!caption) {
         caption = document.createElement("span");
@@ -4010,6 +4090,22 @@
     $("intake-review").hidden = true;
     currentIntakeDraft = null;
   }
+  let recordComments;
+  function installRecordCommentTabs() {
+    recordComments = window.ERPRecordComments.create({ api, targets:
+      ["account", "accounting-object", "accounting-dimension", "legal-entity"].map(prefix => ({
+        prefix,
+        form: $(`${prefix}-form`),
+        tabs: $(`${prefix}-form`).querySelector(prefix === "legal-entity" ? ".legal-entity-tabs" : ".account-editor-tabs"),
+        tabAttribute: prefix === "legal-entity" ? "data-legal-entity-tab" : prefix === "account" ? "data-account-fixed-tab" : "data-record-tab",
+        panelAttribute: prefix === "legal-entity" ? "data-legal-entity-panel" : prefix === "account" ? "data-account-fixed-panel" : "data-record-panel",
+        organisationId: () => state.orgId,
+        id: () => $(`${prefix}-id`).value,
+        kind: () => prefix === "account" ? ($("account-form-family").value === "gl" ? "gl_account" : "subledger_account") : prefix.replaceAll("-", "_"),
+        select: id => prefix === "legal-entity" ? showLegalEntityTab(id) : prefix === "account" ? showAccountEditorTab(id) : showAccountingEditorTab(prefix, id),
+      }))
+    });
+  }
   function showLegalEntityTab(tab) {
     document
       .querySelectorAll("[data-legal-entity-tab]")
@@ -4022,6 +4118,8 @@
     document.querySelectorAll("[data-legal-entity-panel]").forEach((panel) => {
       panel.hidden = panel.dataset.legalEntityPanel !== tab;
     });
+    document.querySelectorAll("[data-legal-entity-tab]").forEach(button => button.setAttribute("aria-selected", String(button.dataset.legalEntityTab === tab)));
+    if (tab === "comments") recordComments.show("legal-entity");
   }
   function setupLegalEntityTabs() {
     const form = $("legal-entity-form");
@@ -4143,6 +4241,7 @@
         names.forEach((name) => assigned.add(name));
         return {
           id: `tab-${index}`,
+          showif: tab.showif,
           label: tab.label || tab.title || tab.name || `Tab ${index + 1}`,
           fields: names,
         };
@@ -4178,7 +4277,7 @@
       field["x-ui-width"] ||
       null;
     if (["short", "medium", "wide", "full"].includes(width)) return width;
-    if (detailFieldType(field) === "short_text") return "short";
+    if (["short_text", "currency_code"].includes(detailFieldType(field))) return "short";
     if (["long_text", "textarea"].includes(detailFieldType(field)))
       return "full";
     return "medium";
@@ -4238,27 +4337,39 @@
     const normalized = whole.replace(/^(-?)0+(?=\d)/, "$1");
     return scale ? `${normalized}.${fraction.padEnd(scale, "0")}` : normalized;
   }
+  // Keep native select semantics and popup options; overlay only its closed label.
+  function detailChoiceDisplay(select) {
+    const wrapper = document.createElement("span");
+    wrapper.className = "schema-choice-control";
+    const display = document.createElement("span");
+    display.className = "schema-choice-label";
+    display.setAttribute("aria-hidden", "true");
+    const refresh = () => {
+      const option = [...select.children].find(item => item.value === select.value);
+      display.textContent = option?.dataset.choiceLabel ?? option?.textContent ?? "";
+    };
+    select.addEventListener("change", refresh);
+    wrapper.append(select, display);
+    wrapper.refreshChoiceLabel = refresh;
+    refresh();
+    return wrapper;
+  }
+  function detailChoiceOption(value, label) {
+    const option = document.createElement("option");
+    option.value = String(value);
+    option.dataset.choiceLabel = String(label ?? "");
+    option.textContent = label ? `${value} - ${label}` : String(value);
+    return option;
+  }
   function detailEnumOptions(field) {
+    if (detailFieldType(field) === "currency_code")
+      return state.currencies.filter(item => item.is_active === true).map(item => ({ value: item.currency_code, label: item.currency_name ?? "" }));
     if (Array.isArray(field.options))
-      return field.options.map((item) => {
-        if (typeof item === "object")
-          return {
-            value: item.code ?? item.value ?? "",
-            label:
-              item.description ??
-              item.label ??
-              item.name ??
-              item.code ??
-              item.value ??
-              "",
-          };
-        return { value: item, label: String(item) };
-      });
+      return field.options.map(item => typeof item === "object"
+        ? { value: item.code ?? item.value ?? "", label: item.description ?? item.label ?? item.name ?? "" }
+        : { value: item, label: "" });
     if (Array.isArray(field.enum))
-      return field.enum.map((item, index) => ({
-        value: item,
-        label: field.enumNames?.[index] || String(item),
-      }));
+      return field.enum.map((item, index) => ({ value: item, label: field.enumNames?.[index] ?? "" }));
     return [];
   }
   function renderDetailInput(name, field, value, required, context = {}) {
@@ -4273,7 +4384,7 @@
       label.append(renderDetailReference(name, field, value, required, context));
       return label;
     }
-    if (enumOptions.length) {
+    if (enumOptions.length || detailFieldType(field) === "currency_code") {
       const select = document.createElement("select");
       select.dataset.detailField = name;
       if (!required) {
@@ -4283,14 +4394,11 @@
         select.append(blank);
       }
       enumOptions.forEach((item) => {
-        const option = document.createElement("option");
-        option.value = String(item.value);
-        option.textContent = item.label || String(item.value);
-        select.append(option);
+        select.append(detailChoiceOption(item.value, item.label));
       });
       select.value = value ?? "";
       applyDetailAttributes(select, field, required);
-      label.append(select);
+      label.append(detailChoiceDisplay(select));
       return label;
     }
     if (detailFieldType(field) === "boolean") {
@@ -4334,6 +4442,19 @@
     label.append(input);
     return label;
   }
+  function detailReferenceSourceText(target) {
+    const classes = {
+      subledger_account: ["Sub Ledger", state.subledgerAccountTypes],
+      accounting_object: ["Accounting Object", state.accountingObjectTypes],
+      accounting_dimension: ["Accounting Dimension", state.accountingDimensionTypes],
+    };
+    const sources = (target?.anyOf || [target]).filter(Boolean).map(source => {
+      const [label, types] = classes[source.class] || [pretty(source.class || "Object"), []];
+      const names = (source.types || []).map(code => (types || []).find(type => type.type_code === code)?.type_name || code);
+      return `${label} / ${names.length ? names.join(", ") : "All types"}`;
+    });
+    return `Source: ${sources.join("; ")}`;
+  }
   function renderDetailReference(name, field, value, required, context = {}) {
     const wrapper = document.createElement("span");
     wrapper.className = "schema-reference-control";
@@ -4341,6 +4462,7 @@
     select.dataset.detailField = name;
     select.required = required;
     select.setAttribute("aria-label", field.title || pretty(name));
+    const choiceDisplay = detailChoiceDisplay(select);
     let chosen = value || "", request = 0;
     const draw = (records) => {
       const previous = select.value || chosen;
@@ -4353,9 +4475,13 @@
       }
       records.forEach(row => {
         const option = document.createElement("option");
-        option.value = row.id; option.textContent = `${row.code} — ${row.name}${row.object_class ? ` (${pretty(row.object_class)})` : ""}`; select.append(option);
+        option.value = row.id;
+        option.dataset.choiceLabel = row.name ?? "";
+        option.textContent = row.name ? `${row.code} - ${row.name}${row.object_class ? ` (${pretty(row.object_class)})` : ""}` : String(row.code ?? "");
+        select.append(option);
       });
       select.value = previous;
+      choiceDisplay.refreshChoiceLabel();
     };
     draw([]);
     const message = document.createElement("small");
@@ -4381,7 +4507,51 @@
       } catch (error) { if (sequence === request) message.textContent = error.message; }
     };
     select.addEventListener("change", () => { chosen = select.value; });
-    wrapper.append(select, message);
+    if (field.target) {
+      const row = document.createElement("span");
+      row.className = "schema-reference-choice";
+      const help = document.createElement("span");
+      help.className = "schema-reference-source";
+      help.tabIndex = 0;
+      help.setAttribute("role", "img");
+      const sourceText = detailReferenceSourceText(field.target);
+      help.setAttribute("aria-label", sourceText);
+      help.textContent = "?";
+      const tooltip = document.createElement("span");
+      tooltip.className = "schema-reference-source-tooltip";
+      tooltip.setAttribute("aria-hidden", "true");
+      tooltip.setAttribute("popover", "manual");
+      tooltip.textContent = sourceText;
+      help.append(tooltip);
+      let visible = false;
+      const hideSource = () => {
+        if (!visible) return;
+        visible = false;
+        tooltip.hidePopover();
+        window.removeEventListener("scroll", hideSource, true);
+        window.removeEventListener("resize", hideSource);
+      };
+      const showSource = () => {
+        if (visible) return;
+        tooltip.showPopover();
+        visible = true;
+        const anchor = help.getBoundingClientRect();
+        const bounds = tooltip.getBoundingClientRect();
+        const left = Math.max(8, Math.min(anchor.right - bounds.width, window.innerWidth - bounds.width - 8));
+        const top = anchor.top - bounds.height - 8;
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${Math.max(8, top >= 8 ? top : Math.min(anchor.bottom + 8, window.innerHeight - bounds.height - 8))}px`;
+        window.addEventListener("scroll", hideSource, true);
+        window.addEventListener("resize", hideSource);
+      };
+      help.addEventListener("mouseenter", showSource);
+      help.addEventListener("mouseleave", hideSource);
+      help.addEventListener("focus", showSource);
+      help.addEventListener("blur", hideSource);
+      help.addEventListener("keydown", event => { if (event.key === "Escape") hideSource(); });
+      row.append(choiceDisplay, help);
+      wrapper.append(row, message);
+    } else wrapper.append(choiceDisplay, message);
     if (field.referenceSource && context.container) context.container.referenceLoads.push({ field: field.referenceSource.field, load });
     queueMicrotask(load);
     return wrapper;
@@ -4452,12 +4622,125 @@
     container
       .querySelectorAll("[data-account-detail-panel]")
       .forEach((panel) => {
-        panel.hidden = panel.dataset.accountDetailPanel !== id;
+        panel.hidden = panel.dataset.accountDetailPanel !== id || panel.dataset.showifHidden === "true";
       });
+  }
+  // Keep the original tab buttons and handlers authoritative; overflow entries
+  // delegate to them so schema visibility and class-specific behaviour stay shared.
+  function installRecordTabOverflow() {
+    ["account", "accounting-object", "accounting-dimension"].forEach(prefix => {
+      const bar = $(`${prefix}-form`)?.querySelector(".account-editor-tabs");
+      if (!bar) return;
+      const wrapper = document.createElement("div");
+      wrapper.className = "record-tab-navigation";
+      bar.before(wrapper);
+      wrapper.append(bar);
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "record-tabs-more";
+      more.textContent = "More ▾";
+      more.setAttribute("aria-haspopup", "menu");
+      more.setAttribute("aria-expanded", "false");
+      const menu = document.createElement("div");
+      menu.className = "record-tabs-menu";
+      menu.id = `${prefix}-overflow-tabs`;
+      menu.setAttribute("role", "menu");
+      menu.setAttribute("aria-label", "Additional tabs");
+      menu.hidden = true;
+      more.setAttribute("aria-controls", menu.id);
+      wrapper.append(more, menu);
+      const close = (restoreFocus = false) => {
+        menu.hidden = true;
+        more.setAttribute("aria-expanded", "false");
+        if (restoreFocus) more.focus();
+      };
+      let frame;
+      const update = () => {
+        frame = null;
+        if (!wrapper.clientWidth) return;
+        const tabs = [...bar.children].filter(button => button.matches("button") && !button.hidden);
+        tabs.forEach(button => button.removeAttribute("data-tab-overflow"));
+        more.hidden = false;
+        const gap = parseFloat(getComputedStyle(bar).gap) || 0;
+        const widths = tabs.map(button => button.getBoundingClientRect().width);
+        const total = widths.reduce((sum, width) => sum + width, 0) + Math.max(0, tabs.length - 1) * gap;
+        const overflow = new Set();
+        if (total > wrapper.clientWidth) {
+          let used = 0;
+          const available = Math.max(0, wrapper.clientWidth - more.getBoundingClientRect().width - gap);
+          // Identification and the selected tab remain visible; the rest retain
+          // their configured order both on the bar and in the overflow menu.
+          const priority = tabs.map((button, index) => index).sort((a, b) =>
+            Number(b === 0 || tabs[b].classList.contains("active")) - Number(a === 0 || tabs[a].classList.contains("active")) || a - b);
+          priority.forEach(index => {
+            const cost = widths[index] + (used ? gap : 0);
+            if (used + cost <= available || index === 0) used += cost;
+            else overflow.add(tabs[index]);
+          });
+        }
+        const focusedTab = document.activeElement;
+        if (!menu.hidden) close(true);
+        overflow.forEach(button => button.setAttribute("data-tab-overflow", "true"));
+        menu.replaceChildren();
+        tabs.filter(button => overflow.has(button)).forEach(button => {
+          const item = document.createElement("button");
+          item.type = "button";
+          item.textContent = button.textContent;
+          item.setAttribute("role", "menuitem");
+          if (button.classList.contains("active")) {
+            item.setAttribute("aria-current", "true");
+            item.classList.add("active");
+          }
+          item.addEventListener("click", () => {
+            close();
+            button.click();
+            schedule();
+            requestAnimationFrame(() => button.hasAttribute("data-tab-overflow") ? more.focus() : button.focus());
+          });
+          menu.append(item);
+        });
+        more.hidden = !overflow.size;
+        const selectedOverflow = tabs.find(button => overflow.has(button) && button.classList.contains("active"));
+        more.classList.toggle("active", Boolean(selectedOverflow));
+        more.setAttribute("aria-label", selectedOverflow ? `More tabs, selected: ${selectedOverflow.textContent}` : "More tabs");
+        more.title = selectedOverflow ? `Selected: ${selectedOverflow.textContent}` : "Additional tabs";
+        if (!overflow.size) close();
+        if (overflow.has(focusedTab)) more.focus();
+      };
+      const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+      more.addEventListener("click", () => {
+        menu.hidden = !menu.hidden;
+        more.setAttribute("aria-expanded", String(!menu.hidden));
+        if (!menu.hidden) menu.querySelector("button")?.focus();
+      });
+      wrapper.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !menu.hidden) { event.preventDefault(); close(true); }
+        if (event.target === more && ["ArrowDown", "ArrowUp"].includes(event.key)) {
+          event.preventDefault();
+          menu.hidden = false;
+          more.setAttribute("aria-expanded", "true");
+          const items = [...menu.children];
+          (event.key === "ArrowUp" ? items.at(-1) : items[0])?.focus();
+        } else if (menu.contains(event.target) && ["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+          event.preventDefault();
+          const items = [...menu.children];
+          const index = items.indexOf(event.target);
+          const next = event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : (index + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+          items[next]?.focus();
+        }
+      });
+      wrapper.addEventListener("focusout", event => { if (!wrapper.contains(event.relatedTarget)) close(); });
+      document.addEventListener("click", event => { if (!wrapper.contains(event.target)) close(); });
+      new ResizeObserver(schedule).observe(wrapper);
+      new MutationObserver(schedule).observe(bar, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["hidden", "class", "aria-selected"] });
+      document.fonts?.ready.then(schedule);
+      schedule();
+    });
   }
   function showAccountFixedTab(id) {
     showAccountEditorTab(id);
   }
+  const recordEditorLayouts = new Map();
   function showAccountingEditorTab(prefix, id) {
     const form = $(`${prefix}-form`);
     form.querySelectorAll(".account-editor-tabs button").forEach((button) => {
@@ -4473,6 +4756,8 @@
     if (id === "resources") loadResourceAssignmentEditor(prefix).catch((error) => alert(error.message));
     if (id === "documents" && prefix === "accounting-object") loadEntityDocuments("accountingObject").catch((error) => alert(error.message));
     if (id === "versions") loadObjectVersions(prefix).catch(error => alert(error.message));
+    if (id === "comments") recordComments.show(prefix);
+    recordEditorLayouts.get(prefix)?.selected(id);
   }
   function showAccountEditorTab(id) {
     const form = $("account-form");
@@ -4490,6 +4775,8 @@
     if (schemaId) showAccountDetailTab($("account-detail-fields"), schemaId);
     if (id === "resources") loadResourceAssignmentEditor("account").catch((error) => alert(error.message));
     if (id === "versions") loadObjectVersions("account").catch(error => alert(error.message));
+    if (id === "comments") recordComments.show("account");
+    recordEditorLayouts.get("account")?.selected(id);
   }
   function renderSchemaDetailFields(containerId, schema, detail = {}) {
     const container = $(containerId);
@@ -4509,6 +4796,24 @@
       container.referenceChangeInstalled = true;
     }
     const context = { container, schema, data: detail };
+    container.visibilityRefresh = null;
+    if (!container.visibilityEventsInstalled) {
+      ["input", "change"].forEach(event => container.addEventListener(event, () => container.visibilityRefresh?.()));
+      container.addEventListener("invalid", event => {
+        const wrapper = event.target.closest(".detail-field, .schema-grid");
+        if (!wrapper?.hidden && !event.target.closest('[data-showif-hidden="true"]')) return;
+        event.preventDefault();
+        const name = event.target.dataset.detailField;
+        const grid = event.target.closest("[data-detail-grid]");
+        const activeSchema = container.visibilitySchema;
+        const definition = grid ? activeSchema.properties?.[grid.dataset.detailGrid]?.rowSchema?.properties?.[name] : activeSchema.properties?.[name];
+        const panel = event.target.closest("[data-account-detail-panel]");
+        const tab = panel && schemaTabs(activeSchema, schemaFields(activeSchema)).find(tab => tab.id === panel.dataset.accountDetailPanel);
+        alert(`${definition?.title || name}${tab ? ` (${tab.label})` : ""} requires attention but is hidden by showif. ${event.target.validationMessage}`);
+      }, true);
+      container.visibilityEventsInstalled = true;
+    }
+    container.visibilitySchema = schema;
     if (!fields.length) {
       const label = document.createElement("label");
       label.className = "full";
@@ -4578,11 +4883,104 @@
     if (tabs.length > 1 && !accountTabs) detailLayout.append(tabBar);
     detailLayout.append(fieldPane);
     container.append(detailLayout);
+    container.visibilityRefresh = () => {
+      const data = collectSchemaDetail(containerId, schema);
+      const visible = (condition, row, rowSchema) => SchemaVisibility.evaluate(condition, data, row, row ? "row" : "object", schema, rowSchema);
+      tabs.forEach(tab => {
+        const panel = [...container.querySelectorAll("[data-account-detail-panel]")].find(item => item.dataset.accountDetailPanel === tab.id);
+        const button = [...(accountTabs || container).querySelectorAll("[data-account-detail-tab]")].find(item => item.dataset.accountDetailTab === tab.id);
+        const shown = visible(tab.showif);
+        panel.dataset.showifHidden = String(!shown);
+        if (!shown) panel.hidden = true;
+        if (button) button.hidden = !shown;
+        tab.fields.forEach(name => {
+          const input = [...panel.querySelectorAll("[data-detail-field]")].find(item => item.dataset.detailField === name && !item.closest("[data-detail-grid]"));
+          const grid = [...panel.querySelectorAll("[data-detail-grid]")].find(item => item.dataset.detailGrid === name);
+          const wrapper = grid || input?.closest(".detail-field");
+          if (wrapper) wrapper.hidden = !visible(byName[name].showif);
+        });
+      });
+      container.querySelectorAll("[data-detail-grid]").forEach(grid => {
+        const field = schema.properties[grid.dataset.detailGrid];
+        const columns = schemaFields(field.rowSchema);
+        const rows = [...grid.querySelectorAll(".schema-grid-row")];
+        rows.forEach(row => {
+          const data = {};
+          row.querySelectorAll("[data-detail-field]").forEach(input => { data[input.dataset.detailField] = collectDetailValue(input, field.rowSchema.properties[input.dataset.detailField]); });
+          columns.forEach(([key, column], index) => {
+            const label = row.children[index].firstElementChild;
+            label.hidden = !visible(column.showif, data, field.rowSchema);
+          });
+        });
+        columns.forEach(([key, column], index) => {
+          const shown = rows.length ? rows.some(row => !row.children[index].firstElementChild.hidden) : visible(column.showif, {}, field.rowSchema);
+          grid.querySelector("thead tr").children[index].hidden = !shown;
+          rows.forEach(row => { row.children[index].hidden = !shown; });
+        });
+      });
+      const bar = accountTabs || container;
+      const selected = bar.querySelector("[data-account-detail-tab].active");
+      const first = [...bar.querySelectorAll("[data-account-detail-tab]")].find(button => !button.hidden);
+      if (selected?.hidden || !accountTabs && !selected) {
+        if (first) accountTabs ? selectTab(first.dataset.accountDetailTab) : showAccountDetailTab(container, first.dataset.accountDetailTab);
+        else if (accountTabs) editorPrefix === "account" ? showAccountEditorTab("identification") : showAccountingEditorTab(editorPrefix, "general");
+      } else if (!accountTabs && !bar.querySelector("[data-account-detail-tab]")) {
+        const panel = container.querySelector("[data-account-detail-panel]");
+        panel.hidden = panel.dataset.showifHidden === "true";
+      }
+    };
+    const refreshVisibility = container.visibilityRefresh;
+    container.visibilityRefresh = () => { refreshVisibility(); recordEditorLayouts.get(editorPrefix)?.refresh(); };
+    container.visibilityRefresh();
     syncRequiredMarkers(container);
     if (accountTabs) editorPrefix === "account" ? showAccountEditorTab("identification") : showAccountingEditorTab(editorPrefix, "general");
   }
+  function syncRecordTypeDescription(prefix, type, objectClass) {
+    const form = $(`${prefix}-form`);
+    recordEditorLayouts.get(prefix)?.bind(type);
+    const heading = form?.querySelector("h2");
+    if (!heading) return;
+    let header = form.querySelector(":scope > .record-editor-header");
+    if (!header) {
+      header = document.createElement("header");
+      header.className = "record-editor-header";
+      heading.insertAdjacentElement("beforebegin", header);
+      header.append(heading);
+    }
+    let context = header.querySelector(".record-type-context");
+    if (!context) {
+      context = document.createElement("p");
+      context.className = "record-type-context";
+    }
+    context.textContent = type && objectClass ? objectClass : "";
+    context.hidden = !context.textContent;
+    header.insertBefore(context, heading);
+    header.classList.toggle("record-editor-header--classified", !!context.textContent);
+    if (type && objectClass) {
+      const recordId = $(prefix === "account" ? "account-id" : `${prefix}-id`)?.value;
+      heading.textContent = `${recordId ? "Edit" : "New"} ${type.type_name}`;
+    }
+    let description = header.querySelector(".record-type-description");
+    if (!description) {
+      description = document.createElement("p");
+      description.className = "record-type-description";
+    }
+    header.append(description);
+    description.textContent = type?.type_description || "";
+    description.hidden = !description.textContent.trim();
+    if (prefix === "account" || prefix === "accounting-object") {
+      const kind = prefix === "account" ? "subledger_account" : "accounting_object";
+      const id = $(prefix === "account" ? "account-id" : "accounting-object-id").value;
+      const rows = prefix === "account" ? state.accounts : state.accountingObjects;
+      const row = rows.find(record => (prefix === "account" ? record.account_id || record.subledger_account_id : record.accounting_object_id) === id);
+      objectActions.editor(prefix, row && type && objectClass ? objectActionContext(kind, row) : null);
+    }
+  }
   function renderAccountDetailFields(detail = {}) {
     updateAccountCodeNumbering();
+    const family = $("account-form-family").value || selectedAccountScopeCode || "gl";
+    syncRecordTypeDescription("account", family === "gl" ? null :
+      state.subledgerAccountTypes.find((type) => type.type_code === family), "Sub Ledger");
     renderSchemaDetailFields(
       "account-detail-fields",
       selectedAccountFamilySchema(),
@@ -4643,6 +5041,32 @@
       if (prefix === "account") panel.dataset.accountFixedPanel = "versions";
       else panel.dataset.recordPanel = "versions";
       form.insertBefore(panel, form.querySelector(".account-editor-actions"));
+    }
+  }
+  function installWorkflowHistoryTabs() {
+    for (const prefix of ["account", "accounting-object", "accounting-dimension"]) {
+      const form = $(`${prefix}-form`);
+      const tabs = form?.querySelector(".account-editor-tabs");
+      if (!tabs) continue;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "account-detail-tab";
+      button.textContent = "Workflow History";
+      const panel = $(`${prefix}-workflow-history`) || document.createElement("section");
+      panel.id = `${prefix}-workflow-history`;
+      panel.className = "workflow-panel account-fixed-panel full";
+      panel.hidden = true;
+      if (prefix === "account") {
+        button.dataset.accountFixedTab = "workflow-history";
+        panel.dataset.accountFixedPanel = "workflow-history";
+      } else {
+        button.dataset.recordTab = "workflow-history";
+        panel.dataset.recordPanel = "workflow-history";
+      }
+      button.addEventListener("click", () => showResourceEditorTab(prefix, "workflow-history"));
+      tabs.insertBefore(button, tabs.querySelector('[data-account-fixed-tab="versions"], [data-record-tab="versions"]'));
+      form.insertBefore(panel, form.querySelector(".account-editor-actions"));
+      renderWorkflowHistory(panel.id, null);
     }
   }
   function objectVersionContext(prefix) {
@@ -4714,6 +5138,7 @@
         ["width", "height", "max-height", "left"].forEach((name) => form.style.removeProperty(name));
       };
       const size = (width, height) => {
+        if (window.erpMovablePanels?.resize(form, width, height)) { resized = true; return; }
         const rect = form.getBoundingClientRect();
         const view = form.closest(".view");
         const bounds = view ? view.getBoundingClientRect() : { left: 0, bottom: innerHeight };
@@ -4757,13 +5182,20 @@
     });
   }
   function openAccountEditor(account = {}) {
+    recordComments.reset("account");
     const family = selectedAccountScopeCode || account.scope_code || "gl";
+    objectStatement.editor("account", family !== "gl" && !!account.account_id, account.subledger_account_type_id);
     $("account-form").hidden = false;
     $("account-form").reset();
     $("account-form").querySelector("h2").textContent = `${account.account_id ? "Edit" : "New"} ${labelForFamily(family).toLowerCase()}`;
     showAccountFixedTab("identification");
     $("account-id").value = account.account_id || "";
     $("account-form-family").value = family;
+    $("account-form").querySelector('[data-account-fixed-tab="workflow-history"]').hidden = family === "gl";
+    renderWorkflowFooter("account", family === "gl" ? null : account, (action) =>
+      moveSubledgerWorkflow(account, action).catch((error) => alert(error.message)),
+    );
+    renderWorkflowHistory("account-workflow-history", account);
     $("account-form-family").disabled = true;
     $("account-division").value = account.account_id
       ? account.owner_division_id || ""
@@ -4789,6 +5221,7 @@
       '[data-resource-edit-tab="resources"]',
     ).hidden = false;
     loadEntityDocuments("account").catch((e) => alert(e.message));
+    recordEditorLayouts.get("account")?.reset();
   }
   function addPanelCloseButtons() {
     [
@@ -4807,6 +5240,7 @@
       "financial-format-form",
       "transaction-group-form",
       "workflow-form",
+      "workflow-status-form",
       "role-form",
       "account-form",
       "accounting-object-form",
@@ -4823,14 +5257,47 @@
       const button = document.createElement("button");
       button.type = "button";
       button.className = "panel-close";
-      button.textContent = "x";
+      button.textContent = "\u00d7";
       button.setAttribute("aria-label", "Close panel");
       button.addEventListener("click", () => {
         panel.hidden = true;
       });
       panel.prepend(button);
-      panel.querySelector("[data-panel-cancel]")?.addEventListener("click", () => button.click());
     });
+  }
+  function installSetupDeleteControls() {
+    const definitions = [
+      ['organisation','organisation-form','org-id','Organisation','org-name'],
+      ['division','division-form','division-id','Division','division-name'],
+      ['country','country-form',null,'Country','country-name'],
+      ['currency','currency-form',null,'Currency','currency-name'],
+      ['fiscal_year','fiscal-form','fiscal-year-id','Fiscal year','fiscal-code','fiscal-editor-panel'],
+      ['fiscal_period','fiscal-period-form','fiscal-period-id','Fiscal period','period-code','fiscal-period-panel'],
+      ['tax_type','tax-type-form','tax-type-id','Tax type','tax-type-code'],
+      ['resource_role','resource-role-form','resource-role-id','Resource role','resource-role-name','resource-role-modal'],
+      ['financial_format','financial-format-form','financial-format-id','Financial statement format','financial-format-name'],
+      ['module','module-form','module-id','Module','module-name'],
+      ['gl_account_type','gl-account-type-form','gl-account-type-id','GL account type','gl-account-type-name'],
+      ['subledger_account_type','ledger-family-form','ledger-family-id','Subledger account type','ledger-family-name'],
+      ['accounting_object_type','accounting-object-type-form','accounting-object-type-id','Accounting object type','accounting-object-type-name'],
+      ['accounting_dimension_type','accounting-dimension-type-form','accounting-dimension-type-id','Accounting dimension type','accounting-dimension-type-name'],
+      ['transaction_group','transaction-group-form','transaction-group-id','Transaction group','transaction-group-name'],
+      ['transaction_type','transaction-type-form','transaction-type-id','Transaction type','transaction-type-name'],
+      ['role','role-form','role-id','Permission role','role-name'],
+      ['workflow','workflow-form','workflow-path-id','Workflow','workflow-path-name'],
+      ['workflow_status','workflow-status-form','workflow-status-id','Workflow status','workflow-status-label'],
+    ];
+    for (const [kind,formId,idField,label,nameField,wrapperId] of definitions) {
+      const form=$(formId);
+      window.erpSetupDeletion.install({form,kind,label,api,notify:message=>alert(message),
+        actionContainer:form.querySelector('.transaction-type-editor-actions'),
+        existingButton:kind==='workflow_status'?$('delete-workflow-status'):kind==='financial_format'?$('delete-financial-format'):null,
+        context:()=>({orgId:kind==='organisation'?$('org-id').value:state.orgId}),
+        getRecord:()=>({id:idField?$(idField)?.value:form.dataset.setupDeleteId,name:$(nameField)?.value}),
+        close:()=>{const panel=$(wrapperId||formId);const close=panel.querySelector('.panel-close');if(close)close.click();else panel.hidden=true;},
+        afterDelete:async()=>{const view=form.closest('.view')?.id.replace(/^view-/,'');await load();if(view)await ensureViewData(view);},
+      });
+    }
   }
   function renderDashboard() {
     const org = currentOrg();
@@ -4877,10 +5344,11 @@
     const form = $("organisation-form");
     if (!form || form.dataset.tabsReady) return;
     const tabs = document.createElement("div");
-    tabs.className = "tabs organisation-tabs";
+    tabs.className = "tabs organisation-editor-tabs";
     tabs.setAttribute("role", "tablist");
     const panels = {
       definition: document.createElement("div"),
+      icon: document.createElement("div"),
       ai: document.createElement("div"),
     };
     Object.entries(panels).forEach(([name, panel]) => {
@@ -4891,6 +5359,7 @@
     });
     [
       ["definition", "Organisation Definition"],
+      ["icon", "Icon"],
       ["ai", "AI / OpenAI"],
     ].forEach(([name, label], index) => {
       const button = document.createElement("button");
@@ -4932,6 +5401,7 @@
       }
       try {
         iconMarkup.value = await file.text();
+        dirtyForms.add(form);
         renderOrganisationIconPreview();
       } catch (error) {
         $("org-icon-status").textContent =
@@ -4939,6 +5409,39 @@
       }
     });
     uploadLabel.append(upload);
+    const overrideLabel = document.createElement("label");
+    overrideLabel.className = "check";
+    overrideLabel.innerHTML = '<input type="checkbox" id="org-icon-system-colour" checked> Use system colour';
+    overrideLabel.querySelector("input").addEventListener("change", renderOrganisationIconPreview);
+    const colourLabel = document.createElement("label");
+    colourLabel.id = "org-icon-custom-colour-fields";
+    colourLabel.hidden = true;
+    colourLabel.textContent = "Icon colour";
+    const colourControls = document.createElement("div");
+    colourControls.className = "organisation-icon-colour-controls";
+    colourControls.innerHTML = '<input type="color" id="org-icon-colour" value="#287d94" aria-label="Icon colour"><input id="org-icon-colour-hex" value="#287D94" pattern="#[0-9A-Fa-f]{6}" maxlength="7" aria-label="Icon hex colour">';
+    const chooseColour = document.createElement("button");
+    chooseColour.type = "button";
+    chooseColour.id = "org-icon-choose-colour";
+    chooseColour.className = "secondary";
+    chooseColour.textContent = "Choose colour";
+    chooseColour.addEventListener("click", () => {
+      const picker = $("org-icon-colour");
+      if (typeof picker.showPicker === "function") picker.showPicker();
+      else picker.click();
+    });
+    colourControls.insertBefore(chooseColour, colourControls.querySelector("#org-icon-colour-hex"));
+    colourControls.querySelector('[type="color"]').addEventListener("input", () => {
+      $("org-icon-colour-hex").value = $("org-icon-colour").value.toUpperCase();
+      renderOrganisationIconPreview();
+    });
+    colourControls.querySelector('[type="text"], input:not([type])').addEventListener("input", () => {
+      if (/^#[0-9a-f]{6}$/i.test($("org-icon-colour-hex").value)) {
+        $("org-icon-colour").value = $("org-icon-colour-hex").value;
+        renderOrganisationIconPreview();
+      }
+    });
+    colourLabel.append(colourControls);
     const iconActions = document.createElement("div");
     iconActions.className = "actions";
     const clearIcon = document.createElement("button");
@@ -4946,6 +5449,7 @@
     clearIcon.className = "secondary";
     clearIcon.textContent = "Remove icon";
     clearIcon.addEventListener("click", () => {
+      dirtyForms.add(form);
       iconMarkup.value = "";
       upload.value = "";
       renderOrganisationIconPreview();
@@ -4960,25 +5464,35 @@
     iconStatus.id = "org-icon-status";
     iconStatus.className = "muted";
     iconStatus.setAttribute("aria-live", "polite");
+    const previewRow = document.createElement("div");
+    previewRow.className = "organisation-icon-preview-row";
+    const previewCaption = document.createElement("span");
+    previewCaption.textContent = "Preview";
+    const previewContent = document.createElement("div");
+    previewContent.append(iconPreview, iconStatus);
+    previewRow.append(previewCaption, previewContent);
     iconEditor.append(
       iconMarkupLabel,
       uploadLabel,
+      overrideLabel,
+      colourLabel,
       iconActions,
-      iconPreview,
-      iconStatus,
+      previewRow,
     );
-    panels.definition.append(iconEditor);
+    panels.icon.append(iconEditor);
     panels.ai.append(form.querySelector(".setup-section"));
     const heading = form.querySelector("h2");
     heading.insertAdjacentElement("afterend", tabs);
     tabs.insertAdjacentElement("afterend", panels.definition);
-    panels.definition.insertAdjacentElement("afterend", panels.ai);
+    panels.definition.insertAdjacentElement("afterend", panels.icon);
+    panels.icon.insertAdjacentElement("afterend", panels.ai);
     form.addEventListener(
       "invalid",
       (event) => {
         if (panels.definition.contains(event.target))
           showOrganisationTab("definition");
         else if (panels.ai.contains(event.target)) showOrganisationTab("ai");
+        else if (panels.icon.contains(event.target)) showOrganisationTab("icon");
       },
       true,
     );
@@ -4987,11 +5501,17 @@
   function renderOrganisationIconPreview() {
     const preview = $("org-icon-preview");
     if (!preview) return;
+    const override = !$("org-icon-system-colour").checked;
+    $("org-icon-custom-colour-fields").hidden = !override;
+    $("org-icon-colour").disabled = !override;
+    $("org-icon-colour-hex").disabled = !override;
+    $("org-icon-choose-colour").disabled = !override;
+    const colour = override ? $("org-icon-colour").value : null;
     preview.replaceChildren();
     const value = $("org-icon-svg")?.value || "";
     if (!value.trim()) {
       preview.append(
-        organisationIconElement(null, "organisation-icon-preview-mark"),
+        organisationIconElement(null, "organisation-icon-preview-mark", colour),
       );
       $("org-icon-status").textContent = "No custom icon selected.";
       return;
@@ -5002,7 +5522,7 @@
         "SVG preview unavailable. Use supported SVG shapes and attributes.";
       return;
     }
-    const icon = organisationIconElement(svg, "organisation-icon-preview-mark");
+    const icon = organisationIconElement(svg, "organisation-icon-preview-mark", colour);
     preview.append(icon);
     $("org-icon-status").textContent = "SVG preview ready.";
   }
@@ -5064,11 +5584,16 @@
         $("organisation-form").hidden = false;
         showOrganisationTab("definition");
         $("org-id").value = r.organisation_id;
+        dirtyForms.delete($("organisation-form"));
+        syncOrganisationCopyAction();
         $("org-code").value = r.organisation_code;
         $("org-name").value = r.organisation_name;
         $("org-currency").value = r.base_currency_code;
         $("org-template").checked = r.is_template;
         $("org-icon-svg").value = r.organisation_icon_svg || "";
+        $("org-icon-system-colour").checked = !r.organisation_icon_colour;
+        $("org-icon-colour").value = r.organisation_icon_colour || "#287d94";
+        $("org-icon-colour-hex").value = $("org-icon-colour").value.toUpperCase();
         renderOrganisationIconPreview();
         const source =
           boot.organisations.find(
@@ -5098,7 +5623,7 @@
           (r) => `${"  ".repeat(Number(r.depth) || 0)}${r.division_code}`,
         ],
         ["Name", (r) => r.division_name],
-        ["Status", (r) => pretty(r.workflow_status)],
+        ["Status", (r) => workflowStatusButton({row:r,onMove:action=>moveJournalWorkflow(r,action).catch(e=>alert(e.message))})],
       ],
       rows,
       (r) => {
@@ -5124,7 +5649,7 @@
   async function deleteFiscalRecord(kind, record) {
     const code = kind === "year" ? record.fiscal_year_code : record.period_code;
     const suffix = kind === "year" ? " and all its periods" : "";
-    if (!window.confirm(`Delete ${code}${suffix}? This cannot be undone. Records referenced by transactions cannot be deleted.`)) return;
+    if (!window.confirm(`Permanently delete ${code}${suffix}? This destroys the saved data and cannot be undone. Records referenced by transactions cannot be deleted.`)) return;
     const orgId = state.orgId;
     try {
       await api(`fiscal/delete-${kind}`, { method: "POST", body: JSON.stringify({ organisation_id: orgId, [`fiscal_${kind}_id`]: record[`fiscal_${kind}_id`] }) });
@@ -5179,6 +5704,7 @@
       (r) => {
         $("country-form").hidden = false;
         $("country-code").value = r.country_code;
+        $("country-form").dataset.setupDeleteId = r.country_code;
         $("country-alpha3").value = r.alpha3_code || "";
         $("country-numeric").value = r.numeric_code || "";
         $("country-name").value = r.country_name;
@@ -5209,6 +5735,7 @@
       (r) => {
         $("currency-form").hidden = false;
         $("currency-code").value = r.currency_code;
+        $("currency-form").dataset.setupDeleteId = r.currency_code;
         $("currency-name").value = r.currency_name;
         $("currency-decimals").value = r.decimal_places;
         fillCurrencyFormat(r);
@@ -5235,31 +5762,21 @@
     const term = searchTerm("tax-type-search");
     const rows = (state.taxTypes || []).filter((row) => rowMatches(row, term));
     const target = $("tax-type-list");
-    if (!rows.length) {
-      target.innerHTML = '<p class="empty">No tax types match the search.</p>';
-      return;
-    }
-    const el = document.createElement("table");
-    el.className = "tax-type-table";
-    el.innerHTML =
-      "<thead><tr><th>Code</th><th>Description</th><th>Direction</th><th>Current Rate</th><th>Active</th></tr></thead>";
-    const body = document.createElement("tbody");
-    rows.forEach((type) => {
-      const row = document.createElement("tr");
-      row.className = "click-row";
-      const current = ratesForTaxType(type.tax_type_id).find(
+    table(target, [
+      ["Code", type => type.tax_type_code],
+      ["Description", type => type.tax_type_description],
+      ["Direction", type => taxDirectionLabel(type.tax_direction)],
+      ["Current rate", type => {
+        const current = ratesForTaxType(type.tax_type_id).find(
         (rate) =>
           rate.is_active !== false &&
           dateOnly(rate.valid_from) <= today() &&
           (!rate.valid_to || dateOnly(rate.valid_to) >= today()),
       );
-      row.innerHTML = `<td>${type.tax_type_code}</td><td>${type.tax_type_description}</td><td>${taxDirectionLabel(type.tax_direction)}</td><td>${current ? `${Number(current.tax_rate).toFixed(2)}%` : ""}</td><td>${type.is_active ? "Yes" : "No"}</td>`;
-      row.addEventListener("click", () => openTaxTypeEditor(type));
-      body.append(row);
-    });
-    el.append(body);
-    target.innerHTML = "";
-    target.append(el);
+        return current ? `${Number(current.tax_rate).toFixed(2)}%` : "";
+      }],
+      ["Active", type => type.is_active ? "Yes" : "No"],
+    ], rows, openTaxTypeEditor);
   }
   function renderTaxRateLines(rates = []) {
     const target = $("tax-rate-lines");
@@ -5283,10 +5800,10 @@
     row.querySelector("button").addEventListener("click", async () => {
       const id = row.dataset.taxRateId;
       if (id) {
-        if (!window.confirm("Delete this tax rate?")) return;
-        await api("tax-types/delete-rate", {
+        if (!window.confirm(window.erpSetupDeletion.confirmation("tax rate", `${rate.tax_rate}% from ${dateOnly(rate.valid_from)}`))) return;
+        await api("setup/delete-entry", {
           method: "POST",
-          body: JSON.stringify({ tax_rate_id: id }),
+          body: JSON.stringify({ organisation_id: state.orgId, kind: "tax_rate", id, confirm_permanent_delete: true }),
         });
         await ensureTaxTypes(true);
         renderTaxTypes();
@@ -5506,6 +6023,8 @@
     $("ledger-family-description").value = type.type_description || "";
     $("ledger-family-workflow-path").value =
       type.workflow_path_id || state.workflowPaths[0]?.workflow_path_id || "";
+    $("ledger-family-default-editor-layout").value = window.erpRecordEditorLayout.defaultLayout(type);
+    $("ledger-family-default-grid-view").value = type.default_grid_view || "columnar";
     $("ledger-family-legal-entity").checked = !!type.requires_legal_entity;
     $("ledger-family-schema").value = JSON.stringify(
       type.schema_json || {},
@@ -5799,6 +6318,58 @@
     $("fiscal-form").addEventListener("submit", event => saveFiscalRecord("year", event));
     $("fiscal-period-form").addEventListener("submit", event => saveFiscalRecord("period", event));
   }
+  function syncObjectGridContext(count, view) {
+    const contexts = [
+      { view: "accounts", prefix: "account", objectClass: "Sub Ledger",
+        type: state.subledgerAccountTypes.find((type) => type.type_code === selectedAccountScopeCode),
+        title: labelForFamily(selectedAccountScopeCode || "gl"),
+        enabled: selectedAccountScopeCode !== "gl" && !!selectedAccountScopeCode },
+      { view: "accountingobjects", prefix: "accounting-object", objectClass: "Accounting Object",
+        type: accountingMasterContextType("object"), title: "Accounting Objects", enabled: true },
+      { view: "accountingdimensions", prefix: "accounting-dimension", objectClass: "Accounting Dimension",
+        type: state.accountingDimensionTypes.find((type) => type.accounting_dimension_type_id ===
+          ($("accounting-dimension-type-select").value || selectedAccountingDimensionTypeId)),
+        title: "Accounting Dimensions", enabled: true },
+      { view: "journals", prefix: "journal", objectClass: "Transaction Type",
+        type: state.transactionTypes.find((type) => type.transaction_type_id === selectedTransactionTypeId),
+        title: "Transactions", enabled: true },
+    ];
+    const context = contexts.find((item) => !$(`view-${item.view}`).hidden && item.enabled);
+    const classLabel = $("page-object-class");
+    if (classLabel) {
+      classLabel.textContent = context?.objectClass || "";
+      classLabel.hidden = !context;
+    }
+    if (!context) return;
+    const title = context.type?.type_name || context.title;
+    const capturing = context.view === "journals" && !$("journal-form").hidden;
+    $("page-title").textContent = capturing ? "Transaction Capture" : title;
+    const description = $("page-subtitle");
+    description.textContent = capturing ? "" : context.type?.type_description || "";
+    description.hidden = !description.textContent.trim();
+    const heading = $(`${context.prefix}-grid-title`);
+    heading.textContent = title;
+    heading.hidden = true;
+    const toolbar = heading.closest(".panel-head");
+    let recordCount = toolbar.querySelector(".object-grid-count");
+    if (!recordCount) {
+      recordCount = document.createElement("span");
+      recordCount.className = "object-grid-count";
+      recordCount.setAttribute("aria-live", "polite");
+      toolbar.prepend(recordCount);
+    }
+    if (count !== undefined && (!view || view === context.view))
+      recordCount.textContent = `${count} ${count === 1 ? "record" : "records"}`;
+    const add = $(`add-${context.prefix}`);
+    add.textContent = `+ Add ${context.type?.type_name || context.objectClass}`;
+    add.classList.add("object-grid-add");
+    add.setAttribute("aria-label", add.textContent.slice(2));
+    const search = $(`${context.prefix}-search`);
+    if (search) {
+      search.placeholder = "Search by code or name";
+      search.setAttribute("aria-label", `Search ${title} by code or name`);
+    }
+  }
   function renderAccounts() {
     const family = selectedAccountScopeCode || "gl";
     const term = searchTerm("account-search");
@@ -5806,6 +6377,14 @@
       (account) => account.scope_code === family && rowMatches(account, term),
     );
     $("account-grid-title").textContent = labelForFamily(family);
+    $("account-grid-title").hidden = family !== "gl";
+    if (family === "gl") {
+      const add = $("add-account");
+      add.textContent = "+";
+      add.classList.remove("object-grid-add");
+      add.setAttribute("aria-label", "Add GL account");
+    }
+    syncObjectGridContext(rows.length, "accounts");
     const columns =
       family === "gl"
         ? [
@@ -5825,9 +6404,25 @@
             ["Name", (r) => r.account_name],
             ["Legal entity", (r) => r.legal_entity_known_name || ""],
             ["Owner", (r) => r.owner_division_name],
+            ["Status",r=>workflowStatusButton({row:r,onMove:a=>moveSubledgerWorkflow(r,a).catch(e=>alert(e.message))})],
+            ["Actions", r => objectActions.button(objectActionContext("subledger_account", r))],
           ];
-    table($("account-list"), columns, rows, (r) => {
-      openAccountEditor(r);
+    window.erpObjectGridViews.render({
+      target: $("account-list"),
+      toolbar: $("account-grid-title").closest(".panel-head"),
+      enabled: family !== "gl",
+      contextKey: `${state.orgId}:${family}`,
+      defaultView: state.subledgerAccountTypes.find(type => type.type_code === family)?.default_grid_view,
+      columns, rows, table, onOpen: openAccountEditor,
+      code: row => row.account_code, name: row => row.account_name,
+      workflowButton: row => workflowStatusButton({row,
+        onMove: action => moveSubledgerWorkflow(row, action).catch(e => alert(e.message))}),
+      actionButton: family !== "gl" ? row => objectActions.button(objectActionContext("subledger_account", row)) : null,
+      statuses: state.workflowStatuses, steps: state.workflowSteps,
+      workflowPath: row => state.subledgerAccountTypes.find(type =>
+        type.subledger_account_type_id === row.subledger_account_type_id ||
+        type.type_code === row.scope_code)?.workflow_path_id,
+      beforeChange: () => { closeWorkflowMenu(); objectActions.close(); },
     });
   }
   function addLegalIdentification(row = {}) {
@@ -5964,6 +6559,7 @@
       .filter((row) => row.to_legal_entity_id || row.relationship_type);
   }
   function resetLegalEntityForm() {
+    recordComments.reset("legal-entity");
     selectedLegalEntity = null;
     state.legalEntityDetail = null;
     $("legal-entity-form").hidden = false;
@@ -5978,6 +6574,7 @@
     loadEntityDocuments("legalEntity").catch((e) => alert(e.message));
   }
   async function openLegalEntityEditor(entity) {
+    recordComments.reset("legal-entity");
     selectedLegalEntity = entity.legal_entity_id;
     $("legal-entity-form").hidden = false;
     showLegalEntityTab("details");
@@ -6044,7 +6641,7 @@
         ["Known name", (r) => r.known_name],
         ["Legal name", (r) => r.legal_name],
         ["Type", (r) => pretty(r.entity_type)],
-        ["Status", (r) => pretty(r.workflow_status)],
+        ["Status", (r) => workflowStatusButton({row:r,onMove:action=>moveJournalWorkflow(r,action).catch(e=>alert(e.message))})],
         ["Accounts", (r) => r.account_count || 0],
         ["Balance", (r) => Number(r.total_balance || 0).toFixed(2)],
       ],
@@ -6134,6 +6731,8 @@
       kind === "object"
         ? "accounting-object-type"
         : "accounting-dimension-type";
+    $(`${prefix}-default-editor-layout`).value = window.erpRecordEditorLayout.defaultLayout(row);
+    $(`${prefix}-default-grid-view`).value = row.default_grid_view || "columnar";
     $(`${prefix}-form`).hidden = false;
     showSetupTypeTab(prefix, "definition");
     loadCodeNumberingFields(prefix, row);
@@ -6232,15 +6831,39 @@
       },
     };
   }
-  function fillAccountingMasterTypes(kind) {
+  function fillAccountingMasterTypes(kind, recordId) {
     const config = accountingMasterConfig(kind);
-    option(
-      $(`${config.prefix}-type`),
-      state[config.typesKey].filter((type) => type.is_active !== false),
-      config.typeId,
-      (type) => `${type.type_code} - ${type.type_name}`,
-      "Select type",
+    if (config.isObject) {
+      const type = accountingMasterContextType(kind);
+      $("accounting-object-type").value = type?.[config.typeId] || "";
+      $("accounting-object-form-title").textContent =
+        `${(recordId === undefined ? config.selected() : recordId) ? "Edit" : "New"} ${type?.type_name || "accounting object"}`;
+      return;
+    }
+    // Dimension record types are fixed on opening/resetting the editor.
+  }
+  function accountingMasterContextType(kind) {
+    const config = accountingMasterConfig(kind);
+    return state[config.typesKey].find(
+      (type) => type[config.typeId] === config.selectedType() && type.is_active !== false,
     );
+  }
+  function syncAccountingMasterContext(kind) {
+    const config = accountingMasterConfig(kind);
+    if (!config.isObject) return;
+    const type = accountingMasterContextType(kind);
+    const title = type?.type_name || config.title;
+    $("accounting-object-grid-title").textContent = title;
+    if (!$("view-accountingobjects").hidden) $("page-title").textContent = title;
+    $("accounting-object-search").placeholder = type
+      ? `Search ${type.type_name}` : "Search accounting objects";
+    $("add-accounting-object").disabled = !type;
+    const message = $("accounting-object-context-message");
+    message.hidden = !!type;
+    message.textContent = config.selectedType()
+      ? "The selected accounting object type is unavailable in this organisation. Choose a type from the menu."
+      : "Choose an accounting object type from the menu.";
+    if (!type) $("accounting-object-form").hidden = true;
   }
   function accountingObjectParentLabel(row) {
     if (!row) return "";
@@ -6308,6 +6931,9 @@
   function renderAccountingMasterDetailFields(kind, detail = {}) {
     updateAccountingCodeNumbering(kind);
     const config = accountingMasterConfig(kind);
+    syncRecordTypeDescription(config.prefix, state[config.typesKey].find(
+      (type) => type[config.typeId] === $(`${config.prefix}-type`).value,
+    ), config.isObject ? "Accounting Object" : "Accounting Dimension");
     renderSchemaDetailFields(
       `${config.prefix}-detail-fields`,
       selectedAccountingMasterSchema(kind),
@@ -6571,15 +7197,21 @@
   }
   function openAccountingMasterRecord(kind, row = {}) {
     const config = accountingMasterConfig(kind);
+    if (config.isObject && (!accountingMasterContextType(kind) ||
+        (row[config.typeId] && row[config.typeId] !== config.selectedType()))) return;
+    recordComments.reset(config.prefix);
     const id = row[config.recordId] || "";
-    $(`${config.prefix}-form`).querySelector("h2").textContent = `${id ? "Edit" : "New"} accounting ${config.isObject ? "object" : "dimension"}`;
+    objectStatement.editor(config.prefix, !!id);
+    if (config.isObject) fillAccountingMasterTypes(kind, id);
+    else $(`${config.prefix}-form`).querySelector("h2").textContent = `${id ? "Edit" : "New"} accounting dimension`;
     config.setSelected(id || null);
     resourceAssignmentEditors.delete(config.prefix);
     showResourceEditorTab(config.prefix, "details");
     $(`${config.prefix}-form`).hidden = false;
     $(`${config.prefix}-id`).value = id;
     $(`${config.prefix}-type`).value =
-      row[config.typeId] || $(`${config.prefix}-type-select`).value || "";
+      row[config.typeId] || (config.isObject ? config.selectedType() :
+        $(`${config.prefix}-type-select`).value) || "";
     $(`${config.prefix}-division`).value =
       id ? row.owner_division_id || "" : defaultOwnerDivision(`${config.prefix}-division`);
     if (config.isObject) {
@@ -6611,37 +7243,39 @@
       dateOnly(row.valid_from) || today();
     $(`${config.prefix}-valid-to`).value = dateOnly(row.valid_to);
     renderAccountingMasterDetailFields(kind, row.additional_data || {});
+    recordEditorLayouts.get(config.prefix)?.reset();
     if (config.isObject) {
       $("accounting-object-document-file").value = "";
       loadEntityDocuments("accountingObject").catch((error) => alert(error.message));
     }
-    const type = state[config.typesKey].find(
-      (type) => type[config.typeId] === row[config.typeId],
-    );
-    renderWorkflowHeader(`${config.prefix}-workflow-header`, row, (step) =>
+    renderWorkflowFooter(config.prefix, row, (step) =>
       config.isObject
         ? moveAccountingObjectWorkflow(row, step).catch((e) => alert(e.message))
-        : null,
+        : moveDimensionWorkflow(row,step).catch(e=>alert(e.message)),
     );
-    renderWorkflowProgress(`${config.prefix}-workflow-progress`, type, row);
     renderWorkflowHistory(`${config.prefix}-workflow-history`, row);
   }
   function renderAccountingMaster(kind) {
     const config = accountingMasterConfig(kind);
     fillAccountingMasterTypes(kind);
-    const typeSelect = $(`${config.prefix}-type-select`);
-    const selectedType = typeSelect.value || config.selectedType();
-    option(
-      typeSelect,
-      state[config.typesKey].filter((type) => type.is_active !== false),
-      config.typeId,
-      (type) => `${type.type_code} - ${type.type_name}`,
-      "Select type",
-    );
-    if (selectedType) typeSelect.value = selectedType;
-    if (!typeSelect.value && state[config.typesKey][0])
-      typeSelect.value = state[config.typesKey][0][config.typeId];
+    syncAccountingMasterContext(kind);
+    if (!config.isObject) {
+      const typeSelect = $(`${config.prefix}-type-select`);
+      const selectedType = typeSelect.value || config.selectedType();
+      option(
+        typeSelect,
+        state[config.typesKey].filter((type) => type.is_active !== false),
+        config.typeId,
+        (type) => `${type.type_code} - ${type.type_name}`,
+        "Select type",
+      );
+      if (selectedType) typeSelect.value = selectedType;
+      if (!typeSelect.value && state[config.typesKey][0])
+        typeSelect.value = state[config.typesKey][0][config.typeId];
+    }
     const rows = state[config.recordsKey].filter((row) =>
+      (!config.isObject || (accountingMasterContextType(kind) &&
+        row[config.typeId] === config.selectedType())) &&
       rowMatches(row, searchTerm(`${config.prefix}-search`)),
     );
     const columns = config.isObject
@@ -6672,27 +7306,45 @@
           ],
           ["Valid from", (r) => dateOnly(r.valid_from)],
           ["Valid to", (r) => dateOnly(r.valid_to)],
+          ["Actions", r => objectActions.button(objectActionContext("accounting_object", r))],
         ]
       : [
           ["Code", (r) => r[config.code]],
           ["Name", (r) => r[config.name]],
           ["Type", (r) => r.type_name],
+          ["Status",r=>workflowStatusButton({row:r,onMove:a=>moveDimensionWorkflow(r,a).catch(e=>alert(e.message))})],
           ["Owner", (r) => r.owner_division_name],
           ["Valid from", (r) => dateOnly(r.valid_from)],
           ["Valid to", (r) => dateOnly(r.valid_to)],
         ];
-    table($(`${config.prefix}-list`), columns, rows, (row) =>
-      openAccountingMasterRecord(kind, row),
-    );
+    window.erpObjectGridViews.render({
+      target: $(`${config.prefix}-list`),
+      toolbar: $(`${config.prefix}-grid-title`).closest(".panel-head"),
+      columns, rows, table,
+      contextKey: `${state.orgId}:${config.selectedType()}`,
+      defaultView: state[config.typesKey].find(type => type[config.typeId] === config.selectedType())?.default_grid_view,
+      onOpen: row => openAccountingMasterRecord(kind, row),
+      actionButton: config.isObject ? row => objectActions.button(objectActionContext("accounting_object", row)) : null,
+      code: row => row[config.code], name: row => row[config.name],
+      workflowButton: row => workflowStatusButton({row, onMove: action =>
+        (config.isObject ? moveAccountingObjectWorkflow(row, action) :
+          moveDimensionWorkflow(row, action)).catch(e => alert(e.message))}),
+      statuses: state.workflowStatuses, steps: state.workflowSteps,
+      workflowPath: row => state[config.typesKey].find(type =>
+        type[config.typeId] === row[config.typeId])?.workflow_path_id,
+      beforeChange: () => { closeWorkflowMenu(); objectActions.close(); },
+    });
+    syncObjectGridContext(rows.length, config.viewId);
   }
   async function loadAccountingMasterRecords(kind) {
     const config = accountingMasterConfig(kind);
-    const typeId =
+    const organisationId = state.orgId;
+    const typeId = config.isObject ? accountingMasterContextType(kind)?.[config.typeId] :
       $(`${config.prefix}-type-select`)?.value ||
       state[config.typesKey][0]?.[config.typeId];
     if (!typeId) {
       state[config.recordsKey] = [];
-      config.setSelectedType("");
+      if (!config.isObject) config.setSelectedType("");
       renderAccountingMaster(kind);
       return;
     }
@@ -6700,6 +7352,7 @@
     const records = await api(
       `${config.endpoint}/list?organisation_id=${state.orgId}&${config.typeId}=${encodeURIComponent(typeId)}`,
     );
+    if (state.orgId !== organisationId || config.selectedType() !== typeId) return;
     state[config.recordsKey] = records.records || [];
     renderAccountingMaster(kind);
     highlightDynamicMenu();
@@ -6718,18 +7371,26 @@
     $("journal-grid-title").textContent = selectedTransactionTypeId
       ? labelForTransactionType(selectedTransactionTypeId)
       : "Transactions";
-    table(
-      $("journal-list"),
-      [
+    syncObjectGridContext(rows.length, "journals");
+    const columns = [
         ["Date/time", (r) => journalDateTime(r)],
         ["Number", (r) => r.journal_number || "(draft)"],
         ["Description", (r) => r.description],
-        ["Status", (r) => pretty(r.workflow_status)],
+        ["Status", (r) => workflowStatusButton({row:r,onMove:action=>moveJournalWorkflow(r,action).catch(e=>alert(e.message))})],
         ["Debits", (r) => formatOrgMoney(r.debit_total)],
         ["Credits", (r) => formatOrgMoney(r.credit_total)],
-      ],
-      rows,
-      async (r) => {
+      ];
+    window.erpObjectGridViews.render({
+      target: $("journal-list"), toolbar: $("journal-grid-title").closest(".panel-head"),
+      columns, rows, table,
+      contextKey: `${state.orgId}:${selectedTransactionTypeId || "all"}`,
+      defaultView: state.transactionTypes.find(type => type.transaction_type_id === selectedTransactionTypeId)?.default_grid_view,
+      code: row => row.journal_number || "(draft)", name: row => row.description || "",
+      statuses: state.workflowStatuses, steps: state.workflowSteps,
+      workflowPath: row => state.transactionTypes.find(type => type.transaction_type_id === row.transaction_type_id)?.workflow_path_id,
+      workflowButton: row => workflowStatusButton({row, onMove: action => moveJournalWorkflow(row, action).catch(e => alert(e.message))}),
+      beforeChange: closeWorkflowMenu,
+      onOpen: async (r) => {
         const d = await api(
           `journals/detail?journal_id=${encodeURIComponent(r.journal_id)}`,
         );
@@ -6737,7 +7398,7 @@
         trialBalanceReturn = null;
         await displayJournalDetail(d);
       },
-    );
+    });
   }
   function syncTrialBalanceRangeControls() {
     const dates = $("trial-range-mode").value === "dates";
@@ -6940,7 +7601,9 @@
     $("journal-date").value = dateOnly(row.journal_date);
     $("journal-description").value = row.description;
     renderJournalLines(detail.lines);
-    setJournalEditable(row.workflow_status === "draft");
+    setJournalEditable(!row.posted_at&&!['deleted','archived'].includes(row.workflow_status));
+    $("journal-type").disabled=true;
+    renderJournalWorkflowActions(row);
     loadEntityDocuments("journal").catch((error) => alert(error.message));
   }
   async function openTrialBalanceTransaction(row) {
@@ -7019,6 +7682,7 @@
   }
   async function renderReport() {
     if ($("view-reports").hidden) return;
+    if (selectedReport === "object_statement") return;
     await ensureCurrencies();
     if (selectedReport === "trial_balance") return renderTrialBalance();
     const yearId = $("report-year").value || state.years[0]?.fiscal_year_id;
@@ -7115,6 +7779,15 @@
     $("report-result").innerHTML = "";
     $("report-result").append(tableEl);
   }
+  async function moveJournalWorkflow(row,actionId){
+    await api("journals/workflow",{method:"POST",body:JSON.stringify({organisation_id:state.orgId,journal_id:row.journal_id,workflow_next_id:actionId})});
+    await loadJournalsForTransactionType(row.transaction_type_id);renderJournals();invalidateDashboard();
+    if($("journal-id").value===row.journal_id)await displayJournalDetail(await api(`journals/detail?journal_id=${encodeURIComponent(row.journal_id)}&organisation_id=${state.orgId}`));
+  }
+  function renderJournalWorkflowActions(row){
+    const target=$("journal-workflow-actions");if(!target)return;target.replaceChildren();
+    (row.available_workflow_steps||[]).forEach(action=>{const b=document.createElement("button");b.type="button";b.className="secondary";b.textContent=action.action_label;b.onclick=()=>moveJournalWorkflow(row,action.workflow_next_id).catch(e=>alert(e.message));target.append(b);});
+  }
   function setJournalEditable(editable) {
     [
       "journal-type",
@@ -7135,15 +7808,8 @@
         control.disabled = !editable || control.dataset.locked === "true";
       });
   }
-  function defaultJournalLinesForType(typeId) {
-    const definitions = state.lineDefinitions
-      .filter(
-        (line) =>
-          line.transaction_type_id === typeId &&
-          ["required", "generated"].includes(line.occurrence),
-      )
-      .sort((a, b) => Number(a.line_order || 0) - Number(b.line_order || 0));
-    const lines = definitions.map((definition) => ({
+  function defaultJournalLineForDefinition(definition) {
+    return {
       transaction_line_definition_id: definition.transaction_line_definition_id,
       division_id: $("journal-division").value || "",
       gl_account_id: definition.gl_account_id || "",
@@ -7168,7 +7834,13 @@
         })),
       debit_amount: "",
       credit_amount: "",
-    }));
+    };
+  }
+  function defaultJournalLinesForType(typeId) {
+    const definitions = state.lineDefinitions
+      .filter(line => line.transaction_type_id === typeId && ["required", "generated"].includes(line.occurrence))
+      .sort((a, b) => Number(a.line_order || 0) - Number(b.line_order || 0));
+    const lines = definitions.map(defaultJournalLineForDefinition);
     if (!typeId) while (lines.length < 2) lines.push({});
     return lines;
   }
@@ -7225,7 +7897,7 @@
         key,
         api(
           `${endpoint}/list?organisation_id=${state.orgId}&${idField}=${encodeURIComponent(typeId)}`,
-        ).then((result) => result.records || []),
+        ).then((result) => (result.records || []).filter(r=>r.enabled_for_use!==false)),
       );
     }
     return classificationValueCache.get(key);
@@ -7252,9 +7924,21 @@
   }
   function syncTransactionDescription(type) {
     const subtitle = $("page-subtitle");
-    if (!subtitle) return;
-    subtitle.textContent = type?.type_description || "";
-    subtitle.hidden = !subtitle.textContent.trim();
+    const captureTitle = $("journal-capture-title");
+    const captureDescription = $("journal-capture-description");
+    const capturing = $("view-journals")?.hidden === false && $("journal-form")?.hidden === false;
+    if (captureTitle) captureTitle.textContent = type?.type_name || "Transaction Capture";
+    if (captureDescription) {
+      captureDescription.textContent = type?.type_description || "";
+      captureDescription.hidden = !captureDescription.textContent.trim();
+    }
+    if (subtitle) {
+      subtitle.textContent = capturing ? "" : type?.type_description || "";
+      subtitle.hidden = !subtitle.textContent.trim();
+    }
+    if (capturing) $("page-title").textContent = "Transaction Capture";
+    else if ($("view-journals")?.hidden === false && type)
+      $("page-title").textContent = type.type_name;
   }
   function syncJournalCaptureRules() {
     const typeId = $("journal-type").value;
@@ -7492,210 +8176,279 @@
       (row) => selectTransactionType(row).catch((e) => alert(e.message)),
     );
   }
-  function selectWorkflowPath(path) {
+  function installWorkflowSetup() {
+    if ($("view-workflows")) return;
+    const section=document.createElement("section");
+    section.id="view-workflows";section.className="view";section.hidden=true;section.dataset.organisationSetup="true";
+    section.innerHTML='<div class="split workflow-setup"><div class="panel"><div class="panel-head"><h2>Workflows</h2><button type="button" id="add-workflow" class="add-record-button" aria-label="Add workflow">+</button></div><input id="workflow-search" class="grid-search" placeholder="Search workflows"><div id="workflow-list"></div></div><form id="workflow-form" class="panel form erp-field-rows organisation-setup-editor" hidden><div class="panel-head"><h2>Workflow</h2></div><input id="workflow-path-id" type="hidden"><label>Name<input id="workflow-path-name" required></label><label><span class="account-field-caption">Active</span><span class="check"><input id="workflow-path-active" type="checkbox" aria-label="Active workflow" checked></span></label><div class="panel-head"><h2>Current statuses</h2><button id="add-workflow-step" type="button" class="add-record-button" aria-label="Add current status">+</button></div><div id="workflow-step-lines" class="workflow-rows-scroll"></div><div class="actions"><button type="submit">Save Workflow</button></div></form></div>';
+    $("view-setup").insertAdjacentElement("beforebegin",section);
+    $("add-workflow").onclick=newWorkflowPath;
+    $("workflow-search").oninput=renderWorkflows;
+    $("add-workflow-step").onclick=()=>addWorkflowStepLine({sort_order:(collectWorkflowSteps().length+1)*10,actions:[],expanded:true});
+    $("workflow-form").addEventListener("submit",async event=>{
+      event.preventDefault();
+      try {
+        await api("setup/workflows",{method:"POST",body:JSON.stringify({organisation_id:state.orgId,workflow_path_id:$("workflow-path-id").value,path_name:$("workflow-path-name").value,is_active:$("workflow-path-active").checked,steps:collectWorkflowSteps()})});
+        $("workflow-form").hidden=true;await loadMenuData(true);renderWorkflows();
+      }catch(error){alert(error.message);}
+    });
+    const statuses=document.createElement("section");statuses.id="view-workflowstatuses";statuses.className="view";statuses.hidden=true;statuses.dataset.organisationSetup="true";
+    statuses.innerHTML='<div class="split"><div class="panel"><div class="panel-head"><h2>Workflow Status</h2><button id="add-workflow-status" type="button" class="add-record-button" aria-label="Add workflow status">+</button></div><input id="workflow-status-search" class="grid-search" placeholder="Search workflow statuses" aria-label="Search workflow statuses"><div id="workflow-status-list"></div></div><form id="workflow-status-form" class="panel form organisation-setup-editor erp-field-rows" hidden><h2>Workflow Status</h2><input id="workflow-status-id" type="hidden"><label>Code<input id="workflow-status-code" required pattern="[a-z][a-z0-9_]*"></label><label>Label<input id="workflow-status-label" required></label><label>Description<textarea id="workflow-status-description"></textarea></label><label class="check"><input id="workflow-status-enabled" type="checkbox">Enabled for Use</label><label class="check"><input id="workflow-status-displayed" type="checkbox" checked>Displayed</label><label>Colour<input id="workflow-status-colour" type="color" value="#2563eb"></label><div class="actions"><button type="button" id="delete-workflow-status" class="secondary">Delete</button><button type="submit">Save Status</button></div></form></div>';
+    section.insertAdjacentElement("afterend",statuses);
+    $("workflow-status-search").oninput=renderWorkflowStatuses;
+    $("add-workflow-status").onclick=()=>selectWorkflowStatus({});
+    $("workflow-status-form").onsubmit=async event=>{event.preventDefault();try{await api("setup/workflow-statuses",{method:"POST",body:JSON.stringify({organisation_id:state.orgId,workflow_status_id:$("workflow-status-id").value,status_code:$("workflow-status-code").value,status_label:$("workflow-status-label").value,description:$("workflow-status-description").value,colour:$("workflow-status-colour").value,enabled_for_use:$("workflow-status-enabled").checked,displayed:$("workflow-status-displayed").checked})});$("workflow-status-form").hidden=true;await loadMenuData(true);}catch(error){alert(error.message);}};
+    $("delete-workflow-status").onclick=async()=>{if(!confirm("Delete this workflow status? Referenced statuses cannot be deleted."))return;try{await api("setup/workflow-statuses",{method:"DELETE",body:JSON.stringify({organisation_id:state.orgId,workflow_status_id:$("workflow-status-id").value})});$("workflow-status-form").hidden=true;await loadMenuData(true);}catch(error){alert(error.message);}};
+  }
+  function selectWorkflowStatus(status){
+    $("workflow-status-form").hidden=false;
+    $("workflow-status-id").value=status.workflow_status_id||"";
+    $("workflow-status-code").value=status.status_code||"";
+    $("workflow-status-code").readOnly=!!status.workflow_status_id;
+    $("workflow-status-label").value=status.status_label||"";
+    $("workflow-status-description").value=status.description||"";
+    $("workflow-status-enabled").checked=status.enabled_for_use===true;
+    $("workflow-status-displayed").checked=status.displayed!==false;
+    $("workflow-status-colour").value=status.colour||"#2563eb";
+    $("delete-workflow-status").hidden=!status.workflow_status_id;
+  }
+  function workflowStatusPreviewButton(status) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "workflow-status-button";
+    button.style.setProperty("--workflow-colour", status.colour || "#667085");
+    const label = document.createElement("span");
+    label.className = "workflow-status-label";
+    label.textContent = status.status_label;
+    button.append(label);
+    button.title = status.status_label;
+    button.setAttribute("aria-label", `Edit ${status.status_label} workflow status`);
+    // The standard grid row opens the editor, including clicks on this preview.
+    return button;
+  }
+  function renderWorkflowStatuses(){
+    if(!$("workflow-status-list"))return;
+    table($("workflow-status-list"),[["Code",r=>r.status_code],["Label",r=>r.status_label],["Description",r=>r.description],["Enabled for Use",r=>r.enabled_for_use ? "Yes" : "No"],["Displayed",r=>r.displayed!==false ? "Yes" : "No"],["Colour",r=>workflowStatusPreviewButton(r)]],state.workflowStatuses.filter(r=>rowMatches(r,searchTerm("workflow-status-search"))),selectWorkflowStatus);
+  }
+  let workflowStatusEditorSequence = 0;
+  async function selectWorkflowPath(path) {
+    try {await ensurePermissions();} catch(error) {alert(error.message);return false;}
     $("workflow-form").hidden = false;
     $("workflow-path-id").value = path.workflow_path_id || "";
     $("workflow-path-name").value = path.path_name || "";
     $("workflow-path-active").checked = path.is_active !== false;
-    $("workflow-path-meta").textContent = path.is_seeded ? "Seeded" : "Custom";
-    const steps = workflowStepsForPath(path.workflow_path_id);
-    renderWorkflowStepLines(
-      steps.length
-        ? steps
-        : [
-            {
-              step_code: "draft",
-              step_label: "Draft",
-              colour: "#475467",
-              sort_order: 10,
-            },
-          ],
-    );
-    renderWorkflowNextLines(
-      state.workflowNext.filter(
-        (row) => row.workflow_path_id === path.workflow_path_id,
-      ),
-    );
-    syncWorkflowInitialOptions(path.initial_step_code);
+    const steps = workflowStepsForPath(path.workflow_path_id).map(step => ({
+      ...step,
+      expanded: false,
+      actions: state.workflowNext.filter(action => action.workflow_path_id === path.workflow_path_id &&
+        action.current_step_code === step.step_code).sort((a,b) => Number(a.sort_order)-Number(b.sort_order))
+    }));
+    renderWorkflowStepLines(steps);
+    return true;
   }
-  function newWorkflowPath() {
-    $("workflow-form").hidden = false;
-    $("workflow-form").reset();
-    $("workflow-path-id").value = "";
-    $("workflow-path-meta").textContent = "New";
-    $("workflow-path-active").checked = true;
-    renderWorkflowStepLines([
-      {
-        step_code: "draft",
-        step_label: "Draft",
-        colour: "#475467",
-        sort_order: 10,
-      },
-    ]);
-    renderWorkflowNextLines([]);
-    syncWorkflowInitialOptions("draft");
+  async function newWorkflowPath() {
+    if(!await selectWorkflowPath({}))return;
+    addWorkflowStepLine({is_initial:true,sort_order:10,actions:[],expanded:true});
   }
   function renderWorkflows() {
-    const term = searchTerm("workflow-search");
-    const paths = state.workflowPaths.filter((row) => rowMatches(row, term));
-    table(
-      $("workflow-list"),
-      [
-        ["Name", (r) => r.path_name],
-        [
-          "Initial step",
-          (r) =>
-            workflowStepPreviewNode(
-              workflowStepsForPath(r.workflow_path_id).find(
-                (step) => step.step_code === r.initial_step_code,
-              ) || {
-                step_code: r.initial_step_code,
-                step_label: pretty(r.initial_step_code),
-              },
-            ),
-        ],
-        ["Steps", (r) => workflowStepsForPath(r.workflow_path_id).length],
-        [
-          "Next",
-          (r) =>
-            state.workflowNext.filter(
-              (next) => next.workflow_path_id === r.workflow_path_id,
-            ).length,
-        ],
-        ["Active", (r) => (r.is_active ? "Yes" : "No")],
-      ],
-      paths,
-      selectWorkflowPath,
-    );
-  }
-  function syncWorkflowInitialOptions(selected = "") {
-    const select = $("workflow-initial-step");
-    if (!select) return;
-    const steps = [
-      ...document.querySelectorAll(
-        ".workflow-step-line:not(.workflow-step-line-head)",
-      ),
-    ].map((row) => ({
-      step_code: row.querySelector(".workflow-step-code").value,
-      step_label: row.querySelector(".workflow-step-label").value,
-    }));
-    option(
-      select,
-      steps.filter((step) => step.step_code && step.step_label),
-      "step_code",
-      (step) => step.step_label,
-      "Select initial step",
-    );
-    select.value = selected || steps[0]?.step_code || "";
-    document
-      .querySelectorAll(".workflow-next-current,.workflow-next-next")
-      .forEach((nextSelect) => {
-        const value = nextSelect.value;
-        option(
-          nextSelect,
-          steps.filter((step) => step.step_code && step.step_label),
-          "step_code",
-          (step) => step.step_label,
-          "Select step",
-        );
-        nextSelect.value = value;
-      });
-  }
-  function renderWorkflowStepLines(lines = []) {
-    $("workflow-step-lines").innerHTML =
-      '<div class="workflow-step-line-grid"><div class="workflow-step-line workflow-step-line-head"><span>Preview</span><span>Code</span><span>Label</span><span>Colour</span><span>Sort</span><span></span></div></div>';
-    lines.forEach((line) => addWorkflowStepLine(line));
+    table($("workflow-list"), [
+      ["Name", row => row.path_name],
+      ["Initial status", row => workflowStepPreviewNode(workflowStepsForPath(row.workflow_path_id)
+        .find(step => step.is_initial) || {step_label:"Not configured"})],
+      ["Statuses", row => workflowStepsForPath(row.workflow_path_id).length],
+      ["Actions", row => state.workflowNext.filter(action => action.workflow_path_id === row.workflow_path_id).length],
+      ["Active", row => row.is_active ? "Yes" : "No"]
+    ], state.workflowPaths.filter(row => rowMatches(row,searchTerm("workflow-search"))),selectWorkflowPath);
   }
   function workflowStepPreviewNode(step) {
-    const preview = document.createElement("span");
-    preview.className = "workflow-step-preview";
-    preview.style.setProperty("--workflow-colour", step.colour || "#667085");
-    preview.append(workflowDot(step.colour));
+    const node = document.createElement("span");
+    node.className = "workflow-step-preview";
+    node.append(workflowDot(step.colour));
     const label = document.createElement("span");
     label.textContent = step.step_label || pretty(step.step_code);
-    preview.append(label);
-    return preview;
+    node.append(label);
+    return node;
   }
-  function updateWorkflowStepPreview(row) {
-    const preview = row.querySelector(".workflow-step-preview-cell");
-    if (!preview) return;
-    preview.innerHTML = "";
-    preview.append(
-      workflowStepPreviewNode({
-        step_code: row.querySelector(".workflow-step-code")?.value,
-        step_label: row.querySelector(".workflow-step-label")?.value,
-        colour: row.querySelector(".workflow-step-colour")?.value,
-      }),
-    );
+  function workflowStatusGroups() {
+    return [...$("workflow-step-lines").querySelectorAll(".workflow-status-group")];
   }
-  function addWorkflowStepLine(line = {}) {
-    const grid = $("workflow-step-lines").querySelector(
-      ".workflow-step-line-grid",
-    );
-    const row = document.createElement("div");
-    row.className = "workflow-step-line";
-    row.innerHTML =
-      '<div class="workflow-step-preview-cell"></div><input class="workflow-step-code" required><input class="workflow-step-label" required><input class="workflow-step-colour" type="color" aria-label="Step colour"><input class="workflow-step-sort" type="number"><button type="button" class="secondary compact-remove" aria-label="Remove workflow step" title="Remove">x</button>';
-    grid.append(row);
-    row.querySelector(".workflow-step-code").value = line.step_code || "";
-    row.querySelector(".workflow-step-label").value =
-      line.step_label || line.step_name || "";
-    row.querySelector(".workflow-step-colour").value =
-      line.colour || line.color || "#667085";
-    row.querySelector(".workflow-step-sort").value = line.sort_order || "";
-    updateWorkflowStepPreview(row);
-    row.querySelectorAll("input").forEach((input) =>
-      input.addEventListener("input", () => {
-        updateWorkflowStepPreview(row);
-        syncWorkflowInitialOptions($("workflow-initial-step").value);
-      }),
-    );
-    row.querySelector("button").addEventListener("click", () => {
-      row.remove();
-      syncWorkflowInitialOptions($("workflow-initial-step").value);
-    });
-  }
-  function renderWorkflowNextLines(lines = []) {
-    $("workflow-next-lines").innerHTML =
-      '<div class="workflow-next-line-grid"><div class="workflow-next-line workflow-next-line-head"><span>Current step</span><span></span><span>Allowed next step</span><span></span></div></div>';
-    lines.forEach((line) => addWorkflowNextLine(line));
-  }
-  function addWorkflowNextLine(line = {}) {
-    const grid = $("workflow-next-lines").querySelector(
-      ".workflow-next-line-grid",
-    );
-    const row = document.createElement("div");
-    row.className = "workflow-next-line";
-    row.innerHTML =
-      '<select class="workflow-next-current"></select><span class="workflow-next-arrow" aria-hidden="true"></span><select class="workflow-next-next"></select><button type="button" class="secondary compact-remove" aria-label="Remove next step" title="Remove">x</button>';
-    grid.append(row);
-    syncWorkflowInitialOptions($("workflow-initial-step")?.value);
-    row.querySelector(".workflow-next-current").value =
-      line.current_step_code || "";
-    row.querySelector(".workflow-next-next").value = line.next_step_code || "";
-    row.querySelector("button").addEventListener("click", () => row.remove());
+  function renderWorkflowStepLines(steps) {
+    $("workflow-step-lines").innerHTML = '<div class="workflow-current-status-grid"><div class="workflow-status-row workflow-status-head"><span></span><span>Current status</span><span>Code / Label / Colour</span><span>Initial</span><span>Enabled for use</span><span>Sort</span><span></span></div></div>';
+    steps.forEach(addWorkflowStepLine);
+    refreshWorkflowTargets();
   }
   function collectWorkflowSteps() {
-    return [
-      ...document.querySelectorAll(
-        ".workflow-step-line:not(.workflow-step-line-head)",
-      ),
-    ].map((row) => ({
-      step_code: row.querySelector(".workflow-step-code").value,
-      step_label: row.querySelector(".workflow-step-label").value,
-      colour: row.querySelector(".workflow-step-colour").value,
-      sort_order: row.querySelector(".workflow-step-sort").value,
+    return workflowStatusGroups().map(group => ({
+      step_code:group.querySelector(".workflow-status-select").value,
+      is_initial:group.querySelector(".workflow-initial").checked,
+      enabled_for_use:group.querySelector(".workflow-enabled").checked,
+      sort_order:Number(group.querySelector(".workflow-status-sort").value),
+      actions:[...group.querySelectorAll(".workflow-action-row:not(.workflow-action-head)")].map(row => ({
+        action_label:row.querySelector(".workflow-action-label").value,
+        next_step_code:row.querySelector(".workflow-target").value,
+        sort_order:Number(row.querySelector(".workflow-action-sort").value),
+        role_ids:[...row.querySelectorAll(".workflow-action-role:checked")].map(input=>input.value)
+      }))
     }));
   }
-  function collectWorkflowNext() {
-    return [
-      ...document.querySelectorAll(
-        ".workflow-next-line:not(.workflow-next-line-head)",
-      ),
-    ].map((row) => ({
-      current_step_code: row.querySelector(".workflow-next-current").value,
-      next_step_code: row.querySelector(".workflow-next-next").value,
-    }));
+  function refreshWorkflowTargets() {
+    const codes = new Set(workflowStatusGroups().map(group => group.querySelector(".workflow-status-select").value));
+    const statuses = state.workflowStatuses.filter(status => codes.has(status.status_code));
+    $("workflow-step-lines").querySelectorAll(".workflow-target").forEach(select => {
+      const value = select.value || select.dataset.targetCode || "";
+      option(select,statuses,"status_code",status => status.status_label,"Select status");
+      select.value = value;
+      select.dataset.targetCode = value;
+    });
+  }
+  function setWorkflowActionsExpanded(group, expanded) {
+    const panel = group.querySelector(".workflow-status-actions");
+    panel.hidden = !expanded;
+    const button = group.querySelector(".workflow-status-expand");
+    button.textContent = expanded ? "−" : "+";
+    button.setAttribute("aria-expanded",String(expanded));
+  }
+  function updateWorkflowStatusPreview(group) {
+    const code = group.querySelector(".workflow-status-select").value;
+    const status = state.workflowStatuses.find(item => item.status_code === code);
+    const preview = group.querySelector(".workflow-status-preview");
+    preview.replaceChildren();
+    if (status) preview.append(workflowStepPreviewNode({step_code:code,step_label:code+" / "+status.status_label,colour:status.colour}));
+    group.querySelector(".workflow-status-actions-title").textContent = `${status?.status_label || "Status"} · Actions`;
+    group.querySelector(".workflow-status-expand").setAttribute("aria-label",`Expand or collapse ${status?.status_label || "current status"} actions`);
+  }
+  function updateWorkflowActionsEmpty(group) {
+    group.querySelector(".workflow-actions-empty").hidden = !!group.querySelector(".workflow-action-row:not(.workflow-action-head)");
+  }
+  let activeCheckboxPopover = null;
+  function attachCheckboxPopover(picker, summary, panel, search) {
+    panel.setAttribute("popover", "auto");
+    const position = () => {
+      const rect = summary.getBoundingClientRect();
+      const gap = 4, edge = 12;
+      const viewportWidth = document.documentElement.clientWidth;
+      const viewportHeight = document.documentElement.clientHeight;
+      const width = Math.min(Math.max(rect.width, 280), viewportWidth - edge * 2);
+      panel.style.width = width + "px";
+      panel.style.left = Math.max(edge, Math.min(rect.left, viewportWidth - width - edge)) + "px";
+      const below = viewportHeight - rect.bottom - edge - gap;
+      const above = rect.top - edge - gap;
+      const useBelow = below >= 290 || below >= above;
+      panel.style.maxHeight = Math.max(0, useBelow ? below : above) + "px";
+      const height = panel.getBoundingClientRect().height;
+      panel.style.top = (useBelow ? rect.bottom + gap : Math.max(edge, rect.top - height - gap)) + "px";
+    };
+    picker.addEventListener("toggle", () => {
+      if (picker.open) {
+        if (activeCheckboxPopover && activeCheckboxPopover.panel !== panel) activeCheckboxPopover.close();
+        search.value = ""; search.dispatchEvent(new Event("input"));
+        panel.showPopover(); position(); search.focus({preventScroll:true});
+        activeCheckboxPopover = {panel, close: () => {picker.open = false; panel.hidePopover();}};
+      } else {
+        panel.hidePopover();
+        if (activeCheckboxPopover?.panel === panel) activeCheckboxPopover = null;
+      }
+    });
+    panel.addEventListener("toggle", event => {
+      if (event.newState === "closed") {
+        picker.open = false;
+        if (activeCheckboxPopover?.panel === panel) activeCheckboxPopover = null;
+      }
+    });
+  }
+  document.addEventListener("scroll", event => {
+    if (activeCheckboxPopover && !activeCheckboxPopover.panel.contains(event.target)) activeCheckboxPopover.close();
+  }, true);
+  window.addEventListener("resize", () => activeCheckboxPopover?.close());
+  function renderWorkflowActionRoles(row,selectedIds) {
+    const target=row.querySelector(".workflow-action-roles");
+    const picker=document.createElement("details");picker.className="workflow-role-picker";
+    const summary=document.createElement("summary");summary.setAttribute("aria-label","Assign permission roles to this action");
+    const panel=document.createElement("div");panel.className="checkbox-picker-popover";
+    const search=document.createElement("input");search.type="search";search.placeholder="Search roles";search.setAttribute("aria-label","Search roles");
+    const options=document.createElement("div");options.className="workflow-role-options";
+    const empty=document.createElement("p");empty.className="muted";empty.textContent="No matching roles";empty.hidden=true;
+    search.addEventListener("input",()=>{
+      const query=search.value.trim().toLocaleLowerCase();
+      const labels=[...options.querySelectorAll("label")];
+      labels.forEach(label=>{label.hidden=!label.textContent.toLocaleLowerCase().includes(query);});
+      empty.hidden=labels.some(label=>!label.hidden);
+    });
+    panel.append(search,options,empty);
+    const names=document.createElement("div");names.className="muted workflow-role-summary";
+    const update=()=>{
+      const selected=[...options.querySelectorAll("input:checked")];
+      summary.textContent=selected.length?`${selected.length} role${selected.length===1?"":"s"} selected`:"Select roles";
+      names.textContent=selected.map(input=>input.dataset.roleName).join(", ")||"No roles assigned";
+    };
+    state.roles.forEach(role=>{
+      const label=document.createElement("label");label.className="check";
+      const input=document.createElement("input");input.type="checkbox";input.className="workflow-action-role";
+      input.value=role.role_id;input.dataset.roleName=role.role_name+(role.is_active===false?" (inactive)":"");
+      input.checked=selectedIds.includes(role.role_id);input.disabled=role.is_active===false&&!input.checked;
+      input.onchange=update;label.append(input,document.createTextNode(input.dataset.roleName));options.append(label);
+    });
+    picker.append(summary,panel);target.append(picker,names);attachCheckboxPopover(picker,summary,panel,search);update();
+  }
+  function addWorkflowActionLine(group, action = {}) {
+    const row = document.createElement("div");
+    row.className = "workflow-action-row";
+    row.innerHTML = '<input class="workflow-action-label" aria-label="Next Action"><select class="workflow-target" aria-label="Target status"></select><div class="workflow-action-roles"></div><input type="number" step="1" class="workflow-action-sort" aria-label="Action sort"><button type="button" class="secondary compact-remove" aria-label="Delete action">x</button>';
+    group.querySelector(".workflow-action-grid").append(row);
+    row.querySelector(".workflow-action-label").value = action.action_label || "";
+    row.querySelector(".workflow-action-sort").value = action.sort_order ??
+      group.querySelectorAll(".workflow-action-row:not(.workflow-action-head)").length*10;
+    const target = row.querySelector(".workflow-target");
+    target.dataset.targetCode = action.next_step_code || "";
+    target.onchange = () => {target.dataset.targetCode=target.value;};
+    row.querySelector("button").onclick = () => {row.remove();updateWorkflowActionsEmpty(group);};
+    renderWorkflowActionRoles(row,action.role_ids||[]);
+    refreshWorkflowTargets();
+    updateWorkflowActionsEmpty(group);
+  }
+  function addWorkflowStepLine(step = {}) {
+    const group = document.createElement("div");
+    group.className = "workflow-status-group";
+    const panelId = `workflow-actions-${++workflowStatusEditorSequence}`;
+    group.innerHTML = `<div class="workflow-status-row"><button type="button" class="secondary compact-remove workflow-status-expand" aria-controls="${panelId}" aria-expanded="false">+</button><select class="workflow-status-select" required aria-label="Current status"></select><span class="workflow-status-preview"></span><label class="check"><input type="checkbox" class="workflow-initial" aria-label="Initial status"></label><label class="check"><input type="checkbox" class="workflow-enabled" aria-label="Enabled for use"></label><input type="number" step="1" class="workflow-status-sort" aria-label="Current status sort"><button type="button" class="secondary compact-remove workflow-status-delete" aria-label="Delete current status">x</button></div><div class="workflow-status-actions" id="${panelId}" hidden><div class="panel-head"><h3 class="workflow-status-actions-title"></h3><button type="button" class="add-record-button workflow-action-add" aria-label="Add action">+</button></div><div class="workflow-action-grid"><div class="workflow-action-row workflow-action-head"><span>Next Action</span><span>Target status</span><span>Permission roles</span><span>Sort</span><span></span></div></div><p class="muted workflow-actions-empty">No actions. This is a terminal status.</p></div>`;
+    $("workflow-step-lines").querySelector(".workflow-current-status-grid").append(group);
+    const current = group.querySelector(".workflow-status-select");
+    option(current,state.workflowStatuses,"status_code",status => status.status_label,"Select status");
+    current.value = step.step_code || "";
+    let previousCode = current.value;
+    group.querySelector(".workflow-initial").checked = !!step.is_initial;
+    group.querySelector(".workflow-enabled").checked = step.enabled_for_use ?? state.workflowStatuses.find(s => s.status_code === current.value)?.enabled_for_use ?? false;
+    group.querySelector(".workflow-status-sort").value = step.sort_order ?? 0;
+    const referenced = () => previousCode && workflowStatusGroups().some(other => other !== group &&
+      [...other.querySelectorAll(".workflow-target")].some(target => target.value === previousCode));
+    current.onchange = () => {
+      if (referenced() || workflowStatusGroups().some(other => other !== group &&
+        current.value && other.querySelector(".workflow-status-select").value === current.value)) {
+        current.value = previousCode;
+        alert("A current status must be unique. Remove incoming actions before changing a referenced status.");
+        return;
+      }
+      group.querySelector(".workflow-enabled").checked = state.workflowStatuses.find(s => s.status_code === current.value)?.enabled_for_use === true;
+      previousCode = current.value;
+      updateWorkflowStatusPreview(group);
+      refreshWorkflowTargets();
+    };
+    group.querySelector(".workflow-initial").onchange = event => {
+      if (event.target.checked) workflowStatusGroups().filter(other => other !== group)
+        .forEach(other => {other.querySelector(".workflow-initial").checked=false;});
+    };
+    group.querySelector(".workflow-status-expand").onclick = () =>
+      setWorkflowActionsExpanded(group,group.querySelector(".workflow-status-actions").hidden);
+    group.querySelector(".workflow-action-add").onclick = () => addWorkflowActionLine(group);
+    group.querySelector(".workflow-status-delete").onclick = () => {
+      if (referenced()) return alert("Remove incoming actions before deleting their target status.");
+      group.remove();refreshWorkflowTargets();
+    };
+    updateWorkflowStatusPreview(group);
+    (step.actions || []).forEach(action => addWorkflowActionLine(group,action));
+    updateWorkflowActionsEmpty(group);
+    setWorkflowActionsExpanded(group,!!step.expanded);
+    refreshWorkflowTargets();
   }
   function resourceLabel(permission) {
     if (permission.resource_kind === "report") return permission.report_name || permission.resource_code;
@@ -7808,6 +8561,8 @@
     $("transaction-type-group").value = type.transaction_group_id;
     $("transaction-type-code").value = type.type_code;
     $("transaction-type-name").value = type.type_name;
+    $("transaction-type-default-grid-view").value = type.default_grid_view || "columnar";
+    fillWorkflowPathSelect("transaction-type-workflow-path", type.workflow_path_id);
     $("transaction-type-description").value = type.type_description || "";
     $("transaction-type-sort").value = type.sort_order || 0;
     $("transaction-type-financial").checked = type.is_financial !== false;
@@ -8430,16 +9185,11 @@
       }));
   }
   function workflowPermissionOptionsFor(kind, resourceCode) {
-    if (kind === "transaction")
-      return transactionWorkflowOptions.map((value) => ({
-        value,
-        label:
-          value === "*"
-            ? "All workflow statuses"
-            : value === "view"
-              ? "View"
-              : pretty(value),
-      }));
+    if (kind === "transaction") {
+      const type=state.transactionTypes.find(t=>t.transaction_type_id===resourceCode);
+      const statuses=type?workflowStepsForPath(type.workflow_path_id).map(s=>({value:s.step_code,label:s.step_label})):state.workflowStatuses.map(s=>({value:s.status_code,label:s.status_label}));
+      return [{value:"view",label:"View"},{value:"*",label:"All workflow statuses"},...statuses];
+    }
     if (resourceCode === "*")
       return [
         { value: "view", label: "View" },
@@ -8653,8 +9403,12 @@
     row.querySelector("button").addEventListener("click", () => row.remove());
   }
   function resetOrgLoadedState() {
+    $("accounting-object-form").hidden = true;
+    selectedAccountingObject = null;
     exchangeRateEditor.reset();
     reportBuilder.reset();
+    objectStatement.reset();
+    objectActions.reset();
     state.reportDefinitions = [];
     ++trialReportSequence;
     ++trialDetailSequence;
@@ -8713,6 +9467,7 @@
     state.workflowPaths = [];
     state.workflowSteps = [];
     state.workflowNext = [];
+    state.workflowStatuses = [];
     state.subledgerAccountTypes = [];
     state.glAccountTypes = [];
     state.accounts = [];
@@ -8749,11 +9504,15 @@
   async function loadMenuData(force = false) {
     if (!state.orgId || (loadedSlices.menu && !force)) return;
     const orgId = state.orgId;
-    const [menu, objectTypes, dimensionTypes, navigation, favourites] = await Promise.all([
+    // Recovery actions must remain reachable when a pending schema update prevents setup reads.
+    const navigation=await api(`navigation/menu?organisation_id=${orgId}`);
+    if(state.orgId!==orgId)return;
+    state.navigation=navigation;
+    buildAlternativeMenus();
+    const [menu, objectTypes, dimensionTypes, favourites] = await Promise.all([
       api(`setup/menu?organisation_id=${state.orgId}`),
       api(`accounting-objects/types?organisation_id=${state.orgId}`),
       api(`accounting-dimensions/types?organisation_id=${state.orgId}`),
-      api(`navigation/menu?organisation_id=${state.orgId}`),
       api(`navigation/favourites?organisation_id=${orgId}`),
     ]);
     if (state.orgId !== orgId) return;
@@ -8766,6 +9525,8 @@
     state.workflowPaths = menu.workflow_paths || [];
     state.workflowSteps = menu.workflow_steps || [];
     state.workflowNext = menu.workflow_next || [];
+    state.workflowStatuses = menu.workflow_statuses || [];
+    renderWorkflowStatuses();
     state.resourceRoles = menu.resource_roles || [];
     state.resourceRoleMappings = menu.resource_role_mappings || [];
     state.accountingObjectTypes = objectTypes.types || [];
@@ -8782,6 +9543,7 @@
       "master-workflow-path",
       "accounting-object-type-workflow-path",
       "accounting-dimension-type-workflow-path",
+      "transaction-type-workflow-path",
     ].forEach((id) => fillWorkflowPathSelect(id));
     [
       "ledger-family-modules",
@@ -8916,6 +9678,7 @@
   }
   async function ensureViewData(view) {
     if (!state.orgId) return;
+    if (["ledgerfamilies", "accountingobjecttypes", "accountingdimensiontypes", "accountingobjects", "accountingdimensions"].includes(view)) await ensureCurrencies();
     if (view === "reportdefinitions") {
       await reportBuilder.setup();
     } else if (view === "customreports") {
@@ -8976,6 +9739,9 @@
         ensureAccountingDimensionTypes(),
       ]);
       renderTransactionTypes();
+    } else if (view === "workflowstatuses") {
+      await loadMenuData();
+      renderWorkflowStatuses();
     } else if (view === "workflows") {
       await loadMenuData();
       renderWorkflows();
@@ -9235,7 +10001,7 @@
   async function initialiseTemplateOrganisation() {
     if (
       !window.confirm(
-        "Create TEMPLATE ORG or reset its seeded definitions to match the template JSON? Existing example records will be preserved.",
+        "Create TEMPLATE ORG or delete ALL its setup and business data, including examples, documents and history, then rebuild its definitions from the template JSON? This cannot be undone. Other organisations are unaffected.",
       )
     )
       return;
@@ -9251,7 +10017,7 @@
     show("organisations");
     $("init-template-result").hidden = false;
     $("init-template-result").textContent =
-      "TEMPLATE ORG definitions reset from JSON. Security Administrator access has been assigned to your user.";
+      "TEMPLATE ORG rebuilt from JSON. Previous setup and business data have been deleted. Use Initialise Template Org Example Data to add examples. Security Administrator access has been assigned to your user.";
   }
   async function initialiseTemplateOrganisationExamples() {
     if (!window.confirm("Add JSON example data to TEMPLATE ORG? Existing records will be preserved.")) return;
@@ -9384,6 +10150,7 @@
     $("org-delete-panel").hidden = true;
     $("organisation-form").reset();
     $("org-id").value = "";
+    syncOrganisationCopyAction();
     $("org-icon-svg").value = "";
     renderOrganisationIconPreview();
     resetOrgOpenAIFields();
@@ -9405,6 +10172,7 @@
         base_currency_code: $("org-currency").value,
         is_template: $("org-template").checked,
         organisation_icon_svg: $("org-icon-svg").value.trim() || null,
+        organisation_icon_colour: $("org-icon-system-colour").checked ? null : $("org-icon-colour-hex").value,
       }),
     });
     if (r.organisation?.organisation_id)
@@ -9431,8 +10199,58 @@
   function selectedOrganisationId() {
     return $("org-id").value || state.orgId || "";
   }
-  function openOrgCopyPanel() {
-    const targetId = selectedOrganisationId();
+  function syncOrganisationCopyAction() {
+    $("open-org-copy").disabled = !$("org-id").value;
+    $("open-org-copy").title = $("org-id").value ? "Copy setup data into this organisation" : "Save the organisation before copying data";
+  }
+  function resolveUnsavedEditorChanges() {
+    return new Promise((resolve) => {
+      const opener = document.activeElement;
+      const dialog = document.createElement("dialog");
+      dialog.className = "editor-unsaved-dialog";
+      const heading = document.createElement("h2");
+      heading.id = "editor-unsaved-title";
+      heading.textContent = "Unsaved changes";
+      dialog.setAttribute("aria-labelledby", heading.id);
+      const message = document.createElement("p");
+      message.textContent = "Resolve your organisation changes before opening Copy Data.";
+      const actions = document.createElement("div");
+      actions.className = "actions";
+      const finish = (choice) => {
+        dialog.close(); dialog.remove(); opener?.focus(); resolve(choice);
+      };
+      [["Keep editing", "keep", "secondary"], ["Discard and continue", "discard", "secondary"], ["Save and continue", "save", ""]].forEach(([label, choice, className]) => {
+        const button = document.createElement("button");
+        button.type = "button"; button.textContent = label; button.className = className;
+        button.addEventListener("click", () => finish(choice)); actions.append(button);
+      });
+      dialog.addEventListener("cancel", (event) => { event.preventDefault(); finish("keep"); });
+      dialog.append(heading, message, actions); document.body.append(dialog); dialog.showModal();
+    });
+  }
+  async function openOrgCopyPanel() {
+    const targetId = $("org-id").value;
+    if (!targetId) return;
+    const form = $("organisation-form");
+    if (dirtyForms.has(form)) {
+      const choice = await resolveUnsavedEditorChanges();
+      if (choice === "keep") return;
+      if (choice === "save") {
+        if (!form.reportValidity()) return;
+        try {
+          $("open-org-copy").disabled = true;
+          await saveOrganisationForm();
+        } catch (error) {
+          alert(error.message); return;
+        } finally {
+          syncOrganisationCopyAction();
+        }
+      } else {
+        form.reset();
+      }
+      dirtyForms.delete(form);
+    }
+    form.hidden = true;
     const template =
       boot.organisations.find(
         (o) => o.is_template && o.organisation_id !== targetId,
@@ -9442,6 +10260,7 @@
     $("org-copy-result").hidden = true;
     $("org-copy-source").value = template?.organisation_id || "";
     $("org-copy-target").value = targetId;
+    $("org-copy-source").focus();
   }
   function ensureDeleteTransactionsOption() {
     if (document.getElementById("delete-transactions")) return;
@@ -9797,9 +10616,10 @@
     $(`${config.prefix}-form`).reset();
     $(`${config.prefix}-id`).value = "";
     $(`${config.prefix}-type`).value =
-      $(`${config.prefix}-type-select`).value ||
-      state[config.typesKey][0]?.[config.typeId] ||
-      "";
+      config.isObject ? accountingMasterContextType(kind)?.[config.typeId] || "" :
+        $(`${config.prefix}-type-select`).value ||
+        state[config.typesKey][0]?.[config.typeId] || "";
+    if (config.isObject) fillAccountingMasterTypes(kind, null);
     $(`${config.prefix}-division`).value =
       defaultOwnerDivision(`${config.prefix}-division`);
     if (config.isObject) {
@@ -9817,8 +10637,7 @@
       $("accounting-object-document-file").value = "";
       loadEntityDocuments("accountingObject").catch((error) => alert(error.message));
     }
-    renderWorkflowHeader(`${config.prefix}-workflow-header`, null);
-    renderWorkflowProgress(`${config.prefix}-workflow-progress`, null, null);
+    renderWorkflowFooter(config.prefix, null);
     renderWorkflowHistory(`${config.prefix}-workflow-history`, null);
     config.setSelected(null);
   }
@@ -9831,6 +10650,7 @@
       renderAccountingMasterDetailFields(kind, {}),
     );
     $(`add-${config.prefix}`)?.addEventListener("click", () => {
+      if (config.isObject && !accountingMasterContextType(kind)) return;
       $(`${config.prefix}-form`).hidden = false;
       resetAccountingMasterForm(kind);
     });
@@ -9839,6 +10659,8 @@
     );
     $(`${config.prefix}-form`)?.addEventListener("submit", async (e) => {
       e.preventDefault();
+      if (config.isObject && !accountingMasterContextType(kind))
+        return alert("Choose an available accounting object type from the menu.");
       let additionalData;
       try {
         additionalData = collectAccountingMasterDetail(kind);
@@ -9865,7 +10687,7 @@
         body.parent_accounting_object_id = $("accounting-object-parent").value;
       }
       body[config.recordId] = $(`${config.prefix}-id`).value;
-      body[config.typeId] = $(`${config.prefix}-type`).value;
+      body[config.typeId] = config.isObject ? config.selectedType() : $(`${config.prefix}-type`).value;
       body[config.code] = $(`${config.prefix}-code`).value;
       body[config.name] = $(`${config.prefix}-name`).value;
       const resourceAssignments = collectResourceAssignments(config.prefix);
@@ -9881,11 +10703,17 @@
         alert(error.message);
         return;
       }
+      if (config.isObject && (state.orgId !== body.organisation_id ||
+          config.selectedType() !== body[config.typeId])) return;
       config.setSelected(saved.record?.[config.recordId] || config.selected());
       $(`${config.prefix}-id`).value = config.selected() || "";
       if (config.isObject) await loadEntityDocuments("accountingObject");
-      $(`${config.prefix}-type-select`).value = body[config.typeId];
+      if (!config.isObject) $(`${config.prefix}-type-select`).value = body[config.typeId];
       await loadAccountingMasterRecords(kind);
+      if (config.isObject) {
+        const record = state[config.recordsKey].find(row => row[config.recordId] === config.selected());
+        if (record) objectActions.editor(config.prefix, objectActionContext("accounting_object", record));
+      }
       alert(
         `${config.isObject ? "Accounting object" : "Accounting dimension"} saved.`,
       );
@@ -9968,17 +10796,19 @@
   $("journal-date").value = today();
   option($("journal-period"), [], null, null);
   $("add-journal-line").addEventListener("click", () => addJournalLine());
-  function openNewJournal() {
+  function openNewJournal(options = {}) {
     $("journal-form").hidden = false;
     $("journal-form").reset();
     showSetupTypeTab("journal", "transaction");
     $("journal-id").value = "";
     selectedJournal = null;
     $("journal-type").value = selectedTransactionTypeId || "";
+    if (options.sourceDivisionId) $("journal-division").value = options.sourceDivisionId;
     $("journal-date").value = today();
     syncJournalPeriodToDate();
     renderJournalLines(defaultJournalLinesForType($("journal-type").value));
     setJournalEditable(true);
+    $("journal-workflow-actions")?.replaceChildren();
     loadEntityDocuments("journal").catch((e) => alert(e.message));
   }
   $("add-journal").addEventListener("click", openNewJournal);
@@ -10131,29 +10961,6 @@
       saveButton.disabled = false;
     }
   });
-  document.querySelectorAll("[data-journal-action]").forEach((b) =>
-    b.addEventListener("click", async () => {
-      try {
-        if (!$("journal-id").value)
-          return alert("Select or save a journal first");
-        await api("journals/workflow", {
-          method: "POST",
-          body: JSON.stringify({
-            journal_id: $("journal-id").value,
-            action: b.dataset.journalAction,
-          }),
-        });
-        await loadJournalsForTransactionType(
-          $("journal-type").value || selectedTransactionTypeId,
-        );
-        renderJournals();
-        invalidateDashboard();
-        alert(`${pretty(b.dataset.journalAction)} complete.`);
-      } catch (error) {
-        alert(error.message);
-      }
-    }),
-  );
   $("account-legal-entity").addEventListener("change", defaultSubledgerNameFromLegalEntity);
   $("currency-form").addEventListener("input", updateCurrencyFormatPreview);
   $("currency-form").addEventListener("change", updateCurrencyFormatPreview);
@@ -10178,12 +10985,14 @@
     }
   });
   function openNewCurrency() {
+    delete $("currency-form").dataset.setupDeleteId;
     $("currency-form").hidden = false;
     $("currency-form").reset();
     $("currency-decimals").value = 2;
     fillCurrencyFormat();
   }
   function openNewCountry() {
+    delete $("country-form").dataset.setupDeleteId;
     $("country-form").hidden = false;
     $("country-form").reset();
     $("country-currency").value = "";
@@ -10253,22 +11062,6 @@
       closeResourceRoleEditor();
       return;
     }
-    if (event.key !== "Tab") return;
-    const focusable = [
-      ...modal.querySelectorAll(
-        'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[href],[tabindex]:not([tabindex="-1"])',
-      ),
-    ].filter((element) => !element.hidden);
-    if (!focusable.length) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
   });
   $("resource-role-search").addEventListener("input", renderResourceRoles);
   $("resource-role-form").addEventListener("submit", async (event) => {
@@ -10294,9 +11087,6 @@
   );
   $("new-resource").addEventListener("click", () =>
     openResourceEditor({ is_active: true }),
-  );
-  $("cancel-resource").addEventListener("click", () =>
-    $("resource-form").querySelector(".panel-close").click(),
   );
   $("manage-role-resources").addEventListener("click", () => {
     show("resources");
@@ -10447,11 +11237,12 @@
           type_name: $("ledger-family-name").value,
           type_description: $("ledger-family-description").value,
           workflow_path_id: $("ledger-family-workflow-path").value,
+          default_grid_view: $("ledger-family-default-grid-view").value,
           module_ids: selectedModuleIds("ledger-family-modules"),
           resource_role_mappings: collectResourceRoleMappings("ledger-family"),
           requires_legal_entity: $("ledger-family-legal-entity").checked,
           schema_json: $("ledger-family-schema").value,
-          ui_schema_json: $("ledger-family-form").dataset.legacyUiSchema || "{}",
+          ui_schema_json: window.erpRecordEditorLayout.collectUiSchema($("ledger-family-form"), $("ledger-family-default-editor-layout").value),
           is_active: $("ledger-family-active").checked,
         code_numbering: collectCodeNumberingFields("ledger-family"),
         }),
@@ -10486,12 +11277,13 @@
         type_name: $("accounting-object-type-name").value,
         type_description: $("accounting-object-type-description").value,
         workflow_path_id: $("accounting-object-type-workflow-path").value,
+        default_grid_view: $("accounting-object-type-default-grid-view").value,
         module_ids: selectedModuleIds("accounting-object-type-modules"),
         resource_role_mappings: collectResourceRoleMappings(
           "accounting-object-type",
         ),
         schema_json: $("accounting-object-type-schema").value,
-        ui_schema_json: $("accounting-object-type-form").dataset.legacyUiSchema || "{}",
+        ui_schema_json: window.erpRecordEditorLayout.collectUiSchema($("accounting-object-type-form"), $("accounting-object-type-default-editor-layout").value),
         is_active: $("accounting-object-type-active").checked,
         code_numbering: collectCodeNumberingFields("accounting-object-type"),
       }),
@@ -10525,12 +11317,13 @@
         type_name: $("accounting-dimension-type-name").value,
         type_description: $("accounting-dimension-type-description").value,
         workflow_path_id: $("accounting-dimension-type-workflow-path").value,
+        default_grid_view: $("accounting-dimension-type-default-grid-view").value,
         module_ids: selectedModuleIds("accounting-dimension-type-modules"),
         resource_role_mappings: collectResourceRoleMappings(
           "accounting-dimension-type",
         ),
         schema_json: $("accounting-dimension-type-schema").value,
-        ui_schema_json: $("accounting-dimension-type-form").dataset.legacyUiSchema || "{}",
+        ui_schema_json: window.erpRecordEditorLayout.collectUiSchema($("accounting-dimension-type-form"), $("accounting-dimension-type-default-editor-layout").value),
         is_active: $("accounting-dimension-type-active").checked,
         code_numbering: collectCodeNumberingFields("accounting-dimension-type"),
       }),
@@ -10711,6 +11504,8 @@
         transaction_group_id: $("transaction-type-group").value,
         type_code: $("transaction-type-code").value,
         type_name: $("transaction-type-name").value,
+        workflow_path_id: $("transaction-type-workflow-path").value,
+        default_grid_view: $("transaction-type-default-grid-view").value,
         type_description: $("transaction-type-description").value,
         module_ids: moduleIds,
         is_financial: financial,
@@ -10842,6 +11637,7 @@
   installSchemaUiTester();
   installResourceAssignmentTabs();
   installObjectVersionTabs();
+  installWorkflowHistoryTabs();
   installResizableObjectEditors();
   installTransactionTypeEditorUi();
   installOrganisationTabs();
@@ -10857,7 +11653,18 @@
     });
   });
   setupLegalEntityTabs();
+  installRecordCommentTabs();
+  installRecordTabOverflow();
+  for (const prefix of ["account", "accounting-object", "accounting-dimension"]) {
+    recordEditorLayouts.set(prefix, window.erpRecordEditorLayout.install({
+      form: $(`${prefix}-form`), prefix,
+      selectTab: id => prefix === "account" ? showAccountEditorTab(id) : showAccountingEditorTab(prefix, id),
+    }));
+  }
   addPanelCloseButtons();
+  installOrganisationSetupUi();
+  installSetupDeleteControls();
+  window.erpMovablePanels.install();
   syncRequiredMarkers();
   initSidebarResize();
   initSidebarCollapse();

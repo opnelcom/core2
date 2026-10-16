@@ -778,7 +778,6 @@ button:hover{background:var(--brand-dark);border-color:var(--brand-dark)}
   max-width:none;
   margin:0;
 }
-.landing-shell.erp-open .landing-content{padding-top:0}
 .content-heading{
   display:flex;
   justify-content:space-between;
@@ -995,10 +994,46 @@ button:hover{background:var(--brand-dark);border-color:var(--brand-dark)}
   border-radius:8px;
   background:color-mix(in srgb,var(--panel) 88%,white 12%);
 }
-.tenant-home-item.current{
-  border-color:var(--brand);
-  outline:2px solid color-mix(in srgb,var(--brand) 32%,transparent);
-  outline-offset:-2px;
+.current-tenant-banner{
+  display:flex;
+  align-items:center;
+  gap:16px;
+  min-width:0;
+  padding:16px 20px;
+  border:1px solid var(--brand);
+  border-radius:8px;
+  color:var(--theme-ink,var(--ink));
+}
+.tenant-icon-current{
+  width:48px;
+  height:48px;
+  padding:6px;
+  border-radius:8px;
+  background:color-mix(in srgb,var(--panel) 88%,var(--brand) 12%);
+  flex-shrink:0;
+}
+.tenant-home-list{
+  grid-template-columns:repeat(auto-fill,minmax(min(180px,100%),1fr));
+  gap:10px;
+}
+.tenant-home-list .tenant-home-item{
+  min-height:56px;
+  padding:10px;
+  gap:10px;
+  align-items:center;
+}
+.tenant-home-item .tenant-icon-tile{
+  width:32px;
+  height:32px;
+  padding:4px;
+}
+.tenant-home-item .application-home-copy strong{
+  font-size:.88rem;
+}
+.tenant-home-item .application-home-copy,
+.current-tenant-banner .application-home-copy{
+  min-width:0;
+  overflow-wrap:anywhere;
 }
 .application-home-item{
   display:grid;
@@ -1025,6 +1060,20 @@ button:hover{background:var(--brand-dark);border-color:var(--brand-dark)}
   box-shadow:var(--theme-application-card-hover-shadow,
     0 3px 4px rgba(0,0,0,.38),
     0 20px 28px -9px color-mix(in srgb,var(--theme-brand,var(--brand)) 28%,rgba(0,0,0,.8))) !important;
+}
+#landing-home{
+  --home-tile-background:color-mix(in srgb,var(--theme-panel,var(--panel)) 45%,transparent);
+  --home-tile-hover-background:color-mix(in srgb,var(--theme-panel,var(--panel)) 55%,transparent);
+  --home-tile-backdrop:blur(3px);
+}
+#landing-home .current-tenant-banner,
+#landing-home .application-home-item{
+  background:var(--home-tile-background);
+  backdrop-filter:var(--home-tile-backdrop);
+}
+#landing-home .application-home-item:hover{
+  background:var(--home-tile-hover-background);
+  backdrop-filter:var(--home-tile-backdrop);
 }
 .application-home-copy{
   display:grid;
@@ -1074,11 +1123,6 @@ button:hover{background:var(--brand-dark);border-color:var(--brand-dark)}
   gap:14px;
 }
 .application-workspace[hidden]{display:none}
-.application-workspace.application-erp{
-  grid-template-rows:minmax(540px,calc(100vh - 104px));
-  gap:0;
-}
-.application-workspace.application-erp .workspace-toolbar{display:none}
 .workspace-toolbar{
   display:grid;
   grid-template-columns:1fr;

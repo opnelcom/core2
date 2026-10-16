@@ -17,7 +17,7 @@ module.exports=async ctx=>{
           JOIN erp_accounting_dimension_type t ON t.accounting_dimension_type_id=d.accounting_dimension_type_id
           JOIN erp_division div ON div.division_id=d.owner_division_id
           WHERE d.tenant_id=$1 AND d.organisation_id=$2 AND d.accounting_dimension_type_id=$3
-          AND d.workflow_status <> 'deleted'
+          
           AND ($6::uuid IS NULL OR EXISTS (
             WITH RECURSIVE selected_scope AS (
               SELECT division_id FROM erp_division WHERE tenant_id=$1 AND organisation_id=$2 AND division_id=$6::uuid
@@ -50,5 +50,6 @@ module.exports=async ctx=>{
           ORDER BY d.dimension_name`,
     values:[access.tenantId,orgId,typeId,access.auth.email,isAdministrator(access),activeDivisionId,includeChildren]
   });
+  await require('../_shared/erp/workflow-presentation').decorateWorkflowRecords(ctx,access,r.rows,{kind:'accounting_dimension',typeTable:'erp_accounting_dimension_type',typeIdColumn:'accounting_dimension_type_id'});
   return {records:r.rows};
 };

@@ -97,10 +97,13 @@ window.createReportBuilder = ({api, context, table, notify, saved, fillModuleSel
     $('custom-report-previous').disabled=offset===0;$('custom-report-next').disabled=r.next_offset===null;$('custom-report-export').disabled=false;
   }
   async function exportFile(){if(!runBody)return;const token=epoch,r=await api('reports/run',{method:'POST',body:JSON.stringify({...runBody,export:'xlsx'})});if(token!==epoch)return;const bytes=Uint8Array.from(atob(r.data_base64),c=>c.charCodeAt(0)),url=URL.createObjectURL(new Blob([bytes],{type:r.content_type}));const a=document.createElement('a');a.href=url;a.download=r.filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);$('custom-report-status').textContent=`Exported ${r.row_count} rows from a new live run at ${new Date(r.run_at).toLocaleString()}.`;}
+  window.erpSetupDeletion.install({form:$('report-definition-form'),kind:'report',label:'Report definition',api,context,notify,
+    getRecord:()=>({id:editing?.report_id,name:editing?.report_name}),close:closeEditor,
+    afterDelete:async()=>{editing=null;await saved();await setup();},
+  });
   $('new-report-definition').addEventListener('click',()=>edit());
   $('report-design-dataset').addEventListener('change',()=>{['columns','filters','sort'].forEach(k=>$(`report-design-${k}`).replaceChildren());columnRow();});
   $('report-add-column').addEventListener('click',()=>columnRow());$('report-add-filter').addEventListener('click',()=>filterRow());$('report-add-sort').addEventListener('click',()=>sortRow());
-  $('cancel-report-definition').addEventListener('click',()=>{closeEditor();});
   $('report-definition-form').addEventListener('submit',safe(async e=>{e.preventDefault();const token=epoch,c=context();await api('report-definitions/save',{method:'POST',body:JSON.stringify({organisation_id:c.orgId,report_id:editing?.report_id||null,definition_version:editing?.definition_version,report_code:$('report-design-code').value.trim(),report_name:$('report-design-name').value.trim(),description:$('report-design-description').value,module_ids:selectedModuleIds('report-design-modules'),is_active:$('report-design-active').checked,definition_json:collect()})});if(token!==epoch)return;await saved();await setup();}));
   $('custom-report-choice').addEventListener('change',choose);$('custom-report-form').addEventListener('submit',safe(async e=>{e.preventDefault();await run();}));
   $('custom-report-next').addEventListener('click',safe(()=>run(result?.next_offset,true)));$('custom-report-previous').addEventListener('click',safe(()=>run(Math.max(0,offset-100),true)));$('custom-report-export').addEventListener('click',safe(exportFile));

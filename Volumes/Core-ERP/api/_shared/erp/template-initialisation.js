@@ -4,6 +4,7 @@ const {seedRecordExamples} = require("./seed-record-examples");
 const {seedLineClassifications} = require("./seed-line-classifications");
 const {randomUUID}=require('node:crypto');
 const {createTransactionPlan}=require('./transaction-plan');
+const {resetTemplateData,templateResetTables}=require('./template-reset');
 
 // Reusable ERP workflow. Its planning adapter submits ordinary SQL to Broker.
 async function executeTemplateInitialisation(client, options) {
@@ -33,31 +34,15 @@ async function executeTemplateInitialisation(client, options) {
     await seedLineClassifications(ctx, access, id, {lineClassificationSeeds:defaults.exampleDataBindings || []});
     return [{rows:[{organisation:existing.rows[0], examples}],rowCount:1}];
   }
+  if (existing.rows.length) await resetTemplateData(client,access.tenantId,existing.rows[0].organisation_id);
   const result = await client.query(`INSERT INTO erp_organisation(tenant_id,organisation_code,organisation_name,is_template,base_currency_code,workflow_status,created_by_email,updated_by_email,approved_by_email,approved_at)
     VALUES($1,$2,$3,true,$4,'approved',$5,$5,$5,now())
-    ON CONFLICT(tenant_id,organisation_code) WHERE workflow_status<>'deleted' DO UPDATE SET organisation_name=excluded.organisation_name,is_template=true,base_currency_code=excluded.base_currency_code,workflow_status='approved',updated_by_email=$5,updated_at=now() RETURNING *`,
+    ON CONFLICT(tenant_id,organisation_code) WHERE workflow_status<>'deleted' DO UPDATE SET organisation_name=excluded.organisation_name,is_template=true,base_currency_code=excluded.base_currency_code,workflow_status='approved',organisation_icon_svg=NULL,organisation_icon_colour=NULL,effective_from=CURRENT_DATE,effective_to=NULL,additional_data='{}'::jsonb,archived_at=NULL,deleted_at=NULL,approved_by_email=$5,approved_at=now(),updated_by_email=$5,updated_at=now() RETURNING *`,
     [access.tenantId,organisation.code,organisation.name,organisation.baseCurrencyCode,access.auth.email]);
   const row=result.rows[0], id=row.organisation_id, values=[access.tenantId,id];
   await client.query(`INSERT INTO erp_division(tenant_id,organisation_id,division_code,division_name,workflow_status,created_by_email,updated_by_email)
     VALUES($1,$2,$3,$4,'approved',$5,$5) ON CONFLICT(tenant_id,organisation_id,division_code) WHERE workflow_status<>'deleted' DO UPDATE SET division_name=excluded.division_name,workflow_status='approved'`,
     [...values,organisation.rootDivision.code,organisation.rootDivision.name,access.auth.email]);
-  // Reset links for JSON-defined entries while keeping IDs and business records.
-  for (const [kind, seeds] of [["accounting_object",defaults.accountingObjectTypeSeeds],["accounting_dimension",defaults.accountingDimensionTypeSeeds],["subledger_account",defaults.ledgerFamilies]]) {
-    await client.query(`DELETE FROM erp_${kind}_type_module m USING erp_${kind}_type t WHERE m.${kind}_type_id=t.${kind}_type_id AND t.tenant_id=$1 AND t.organisation_id=$2 AND t.type_code=ANY($3::text[])`,[...values,seeds.map(r=>r[0])]);
-  }
-  for (const [link, table, key, code, codes] of [
-    ["erp_transaction_type_module","erp_transaction_type","transaction_type_id","type_code",defaults.transactionTypes.map(r=>r[0])],
-    ["erp_role_module","erp_role","role_id","role_code",defaults.roleSeeds.map(r=>r[0])],
-    ["erp_resource_role_module","erp_resource_role","resource_role_id","role_code",defaults.resourceRoleSeeds.map(r=>r[0])],
-    ["erp_role_permission","erp_role","role_id","role_code",defaults.roleSeeds.map(r=>r[0])],
-  ]) await client.query(`DELETE FROM ${link} m USING ${table} t WHERE m.${key}=t.${key} AND t.tenant_id=$1 AND t.organisation_id=$2 AND t.${code}=ANY($3::text[])`,[...values,codes]);
-  for (const kind of ["object","dimension"]) await client.query(`DELETE FROM erp_transaction_line_definition_${kind}_type c USING erp_transaction_line_definition l,erp_transaction_type t WHERE c.transaction_line_definition_id=l.transaction_line_definition_id AND l.transaction_type_id=t.transaction_type_id AND t.tenant_id=$1 AND t.organisation_id=$2 AND t.type_code=ANY($3::text[])`,[...values,defaults.transactionTypes.map(r=>r[0])]);
-  await client.query("DELETE FROM erp_workflow_next WHERE tenant_id=$1 AND organisation_id=$2 AND workflow_path_id IN (SELECT workflow_path_id FROM erp_workflow_path WHERE tenant_id=$1 AND organisation_id=$2 AND path_name=$3)",[...values,defaults.workflowDefaults.name]);
-  for(const [kind,seeds]of [['gl_account',defaults.glAccountTypeSeeds],['subledger_account',defaults.ledgerFamilies],['accounting_object',defaults.accountingObjectTypeSeeds],['accounting_dimension',defaults.accountingDimensionTypeSeeds]]){
-    const codes=seeds.map(row=>row[0]);
-    await client.query(`DELETE FROM erp_object_type_resource_role m USING erp_${kind}_type t WHERE m.object_kind=$3 AND m.object_type_id=t.${kind}_type_id AND t.tenant_id=$1 AND t.organisation_id=$2 AND t.type_code=ANY($4::text[])`,[...values,kind,codes]);
-    await client.query(`UPDATE erp_${kind}_type SET code_numbering=$4::jsonb,code_number_next=NULL WHERE tenant_id=$1 AND organisation_id=$2 AND type_code=ANY($3::text[])`,[...values,codes,JSON.stringify(defaults.codeNumberingDefaults)]);
-  }
   await seedOrganisationDefaults(ctx, access, id);
   await client.query(`INSERT INTO erp_user_role(tenant_id,organisation_id,role_id,email,valid_from,valid_to)
     SELECT $1,$2,role_id,lower($3),CURRENT_DATE,NULL FROM erp_role WHERE tenant_id=$1 AND organisation_id=$2 AND role_code='security_administrator' AND is_admin=true
@@ -67,21 +52,47 @@ async function executeTemplateInitialisation(client, options) {
 async function initialiseTemplate(ctx,options){
   const plan=createTransactionPlan(ctx,['erp_organisation','erp_user_role','erp_role']);
   let plannedOrganisation=null;
+  let resetOrganisationId=null;
+  const seededCatalogues=new Map();
   const client={planning:true,query:async(text,values=[])=>{
-    if(plannedOrganisation && /^\s*SELECT is_template FROM erp_organisation/i.test(text))
+    if(plannedOrganisation && values[0]===options.access.tenantId && values[1]===plannedOrganisation.organisation_id && /^\s*SELECT is_template FROM erp_organisation/i.test(text))
       return {rows:[{is_template:true}],rowCount:1};
     const modifying=/\b(?:INSERT INTO|UPDATE\s+erp_[a-z_]+|DELETE FROM)\b/i.test(text);
-    if(!modifying)return plan.client.query(text,values);
+    if(!modifying){
+      if(plannedOrganisation && values[0]===options.access.tenantId && values[1]===plannedOrganisation.organisation_id){
+        if(/^SELECT organisation_id FROM erp_organisation WHERE/.test(text))
+          return {rows:[plannedOrganisation],rowCount:1};
+        const catalogue=text.match(/^SELECT (?:type_code,type_name,schema_json|module_code) FROM (erp_[a-z_]+)/);
+        if(catalogue && seededCatalogues.has(catalogue[1])){
+          const rows=seededCatalogues.get(catalogue[1]);
+          return {rows,rowCount:rows.length};
+        }
+      }
+      // Planning reads precede the final transaction. Once reset is queued,
+      // old template rows must not be reused as identities for new seed rows.
+      if(resetOrganisationId && values[0]===options.access.tenantId && values[1]===resetOrganisationId &&
+        templateResetTables.some(table=>new RegExp(`\\b${table}\\b`).test(text)))
+        return {rows:[],rowCount:0};
+      return plan.client.query(text,values);
+    }
+    const resetTable=text.match(/^DELETE FROM (erp_[a-z_]+) WHERE tenant_id=\$1 AND organisation_id=\$2$/);
+    if(resetTable && templateResetTables.includes(resetTable[1])) resetOrganisationId=values[1];
+    const seededTable=text.match(/^\s*(?:WITH[\s\S]*?)?INSERT INTO (erp_module|erp_subledger_account_type|erp_accounting_object_type|erp_accounting_dimension_type)\(/);
+    if(seededTable && /jsonb_to_recordset\(\$3::jsonb\)/.test(text)){
+      seededCatalogues.set(seededTable[1],JSON.parse(values[2]).map(row=>({
+        ...row,type_code:row.type_code||row.ledger_family_code,type_name:row.type_name||row.family_name
+      })));
+    }
     if(!/\bRETURNING\b/i.test(text))return plan.write({text,values});
-    // Identity allocation is ERP logic. Existing IDs are preserved; new IDs are
-    // allocated before submission so subsequent statements need no Broker callback.
+    // Keep the organisation identity; allocate fresh definition identities after
+    // reset so subsequent statements need no Broker callback.
     const match=text.match(/^\s*INSERT INTO (erp_organisation|erp_tax_type|erp_financial_statement_format|erp_financial_statement_line)\(/i);
     if(!match)return plan.write({text,values},{rows:[],rowCount:0});
     const table=match[1],identity={erp_organisation:'organisation_id',erp_tax_type:'tax_type_id',erp_financial_statement_format:'financial_statement_format_id',erp_financial_statement_line:'financial_statement_line_id'}[table];
     let previous=null;
     if(table==='erp_organisation'){
       previous=(await plan.client.query("SELECT * FROM erp_organisation WHERE tenant_id=$1 AND organisation_code=$2 AND workflow_status<>'deleted'",values.slice(0,2))).rows[0];
-    }else if(table!=='erp_financial_statement_line'){
+    }else if(table!=='erp_financial_statement_line' && !resetOrganisationId){
       const code=table==='erp_tax_type'?'tax_type_code':'format_code';
       previous=(await plan.client.query(`SELECT ${identity} FROM ${table} WHERE tenant_id=$1 AND organisation_id=$2 AND ${code}=$3`,values.slice(0,3))).rows[0];
     }

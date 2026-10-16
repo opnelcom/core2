@@ -122,10 +122,10 @@ async function financialStatement(ctx,access){
               JOIN erp_fiscal_period fp ON fp.fiscal_period_id=j.fiscal_period_id
               WHERE j.tenant_id=$1
                 AND j.organisation_id=$2
-                AND j.workflow_status IN ('approved','reversed')
+                AND j.posted_at IS NOT NULL
                 AND ${dateCondition}
                 AND ($6::uuid IS NULL OR l.division_id IN (SELECT division_id FROM selected_division))
-                AND ${transactionVisibilitySql({tenant:'$1',organisation:'$2',division:'l.division_id',transactionType:'j.transaction_type_id',status:"'approved'",email:'$7',administrator:'$9'})}
+                AND ${transactionVisibilitySql({tenant:'$1',organisation:'$2',division:'l.division_id',transactionType:'j.transaction_type_id',status:"CASE WHEN j.workflow_status='reversed' THEN 'approved' ELSE j.workflow_status END",email:'$7',administrator:'$9'})}
             )
             SELECT m.financial_statement_line_id,
                    ${accountAmountSql(statementType)} amount
@@ -190,9 +190,9 @@ async function ledgerBalances(ctx,access){
             WHERE j.tenant_id=$1
               AND j.organisation_id=$2
               AND fp.fiscal_year_id=$3
-              AND j.workflow_status IN ('approved','reversed')
+              AND j.posted_at IS NOT NULL
               AND ($4::uuid IS NULL OR l.division_id IN (SELECT division_id FROM selected_division))
-              AND ${transactionVisibilitySql({tenant:'$1',organisation:'$2',division:'l.division_id',transactionType:'j.transaction_type_id',status:"'approved'",email:'$5',administrator:'$7'})}
+              AND ${transactionVisibilitySql({tenant:'$1',organisation:'$2',division:'l.division_id',transactionType:'j.transaction_type_id',status:"CASE WHEN j.workflow_status='reversed' THEN 'approved' ELSE j.workflow_status END",email:'$5',administrator:'$7'})}
           )
           SELECT a.account_code,
                  a.account_name,

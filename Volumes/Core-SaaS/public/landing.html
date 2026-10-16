@@ -78,13 +78,17 @@
             </div>
             <p id="landing-context" class="session-user"></p>
           </div>
-          <section class="home-collection" aria-labelledby="tenant-home-heading">
-            <h2 id="tenant-home-heading" class="home-collection-heading">Tenants</h2>
-            <div id="tenant-home-list" class="application-home-list tenant-home-list"></div>
+          <section class="home-collection" aria-labelledby="current-tenant-heading">
+            <h2 id="current-tenant-heading" class="home-collection-heading">Current tenant</h2>
+            <div id="current-tenant-banner" class="current-tenant-banner" aria-live="polite"></div>
           </section>
           <section class="home-collection" aria-labelledby="application-home-heading">
             <h2 id="application-home-heading" class="home-collection-heading">Applications</h2>
             <div id="application-home-list" class="application-home-list"></div>
+          </section>
+          <section class="home-collection" aria-labelledby="tenant-home-heading">
+            <h2 id="tenant-home-heading" class="home-collection-heading">Switch Tenant</h2>
+            <div id="tenant-home-list" class="application-home-list tenant-home-list"></div>
           </section>
         </div>
 

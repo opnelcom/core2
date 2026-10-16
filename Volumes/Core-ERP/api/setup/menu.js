@@ -14,6 +14,7 @@ module.exports = async (ctx) => {
     workflowPaths,
     workflowSteps,
     workflowNext,
+    workflowStatuses,
   ] = await Promise.all([
     ctx.broker("core_erp", "query", {
       text: `SELECT type.*,COALESCE((SELECT array_agg(link.module_id) FROM erp_subledger_account_type_module link WHERE link.subledger_account_type_id=type.subledger_account_type_id),'{}'::uuid[]) module_ids
@@ -50,9 +51,10 @@ module.exports = async (ctx) => {
       values: [access.tenantId, orgId],
     }),
     ctx.broker("core_erp", "query", {
-      text: `SELECT * FROM erp_workflow_next WHERE tenant_id=$1 AND organisation_id=$2 ORDER BY workflow_path_id,current_step_code,next_step_code`,
+      text: `SELECT n.*,COALESCE((SELECT array_agg(link.role_id ORDER BY link.role_id) FROM erp_workflow_action_role link WHERE link.tenant_id=n.tenant_id AND link.organisation_id=n.organisation_id AND link.workflow_next_id=n.workflow_next_id),'{}'::uuid[]) role_ids FROM erp_workflow_next n WHERE n.tenant_id=$1 AND n.organisation_id=$2 ORDER BY workflow_path_id,current_step_code,sort_order,action_label`,
       values: [access.tenantId, orgId],
     }),
+    ctx.broker("core_erp", "query", {text:`SELECT * FROM erp_workflow_status WHERE tenant_id=$1 AND organisation_id=$2 ORDER BY status_label`,values:[access.tenantId,orgId]}),
   ]);
   let resourceRoles = { rows: [] };
   let resourceRoleMappings = { rows: [] };
@@ -91,6 +93,7 @@ module.exports = async (ctx) => {
     workflow_paths: workflowPaths.rows,
     workflow_steps: workflowSteps.rows,
     workflow_next: workflowNext.rows,
+    workflow_statuses: workflowStatuses.rows,
     resource_roles: resourceRoles.rows,
     resource_role_mappings: resourceRoleMappings.rows,
   };

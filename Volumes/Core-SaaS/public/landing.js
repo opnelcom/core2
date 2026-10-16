@@ -295,36 +295,42 @@ function renderTenantHomeList(){
   const list=$('tenant-home-list');
   if(!list)return;
   list.innerHTML='';
-  if(!currentTenants.length){
+  const currentTenantId=$('tenants').value;
+  const currentTenant=currentTenants.find(tenant=>tenant.tenant_id===currentTenantId);
+  const banner=$('current-tenant-banner');
+  banner.replaceChildren();
+  if(currentTenant){
+    banner.append(createTenantIcon(currentTenant,'tenant-icon-current'));
+    const copy=document.createElement('span');
+    copy.className='application-home-copy';
+    const title=document.createElement('strong');
+    title.textContent=currentTenant.tenant_name||'Tenant';
+    const detail=document.createElement('small');
+    detail.textContent=currentTenant.tenant_type==='personal_tenant'?'Personal workspace':'Shared workspace';
+    copy.append(title,detail);
+    banner.append(copy);
+  }else{
+    banner.textContent='No tenant selected.';
+  }
+  const availableTenants=currentTenants.filter(tenant=>tenant.tenant_id!==currentTenantId);
+  if(!availableTenants.length){
     const empty=document.createElement('p');
     empty.className='empty-state';
-    empty.textContent='No tenants are available.';
+    empty.textContent=currentTenants.length?'No other tenants are available.':'No tenants are available.';
     list.append(empty);
     return;
   }
-  const currentTenantId=$('tenants').value;
-  currentTenants.forEach(tenant=>{
+  availableTenants.forEach(tenant=>{
     const button=document.createElement('button');
-    const selected=tenant.tenant_id===currentTenantId;
     button.type='button';
     button.className='application-home-item tenant-home-item';
-    button.classList.toggle('current',selected);
-    button.setAttribute('aria-pressed',selected?'true':'false');
     button.addEventListener('click',()=>selectTenant(tenant.tenant_id));
     button.append(createTenantIcon(tenant,'tenant-icon-tile'));
     const copy=document.createElement('span');
     copy.className='application-home-copy';
     const title=document.createElement('strong');
     title.textContent=tenant.tenant_name||'Tenant';
-    const description=document.createElement('span');
-    description.className='tenant-home-description';
-    description.textContent=tenant.tenant_description||'';
-    const detail=document.createElement('small');
-    const type=tenant.tenant_type==='personal_tenant'?'Personal workspace':'Shared workspace';
-    detail.textContent=selected?`${type} - Current tenant`:type;
     copy.append(title);
-    if(description.textContent)copy.append(description);
-    copy.append(detail);
     button.append(copy);
     list.append(button);
   });

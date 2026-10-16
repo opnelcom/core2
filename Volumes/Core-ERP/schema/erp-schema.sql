@@ -75,6 +75,7 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       organisation_code text NOT NULL,
       organisation_name text NOT NULL,
       organisation_icon_svg text,
+      organisation_icon_colour text CHECK (organisation_icon_colour ~ '^#[0-9A-Fa-f]{6}$'),
       is_template boolean NOT NULL DEFAULT false,
       base_currency_code text NOT NULL DEFAULT 'ZAR',
       workflow_status text NOT NULL DEFAULT 'draft' CHECK(workflow_status IN('draft','submitted','approved','rejected','blocked','archived','deleted')),
@@ -91,6 +92,7 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       updated_at timestamptz NOT NULL DEFAULT now()
     );
     ALTER TABLE erp_organisation ADD COLUMN IF NOT EXISTS organisation_icon_svg text;
+    ALTER TABLE erp_organisation ADD COLUMN IF NOT EXISTS organisation_icon_colour text CHECK (organisation_icon_colour ~ '^#[0-9A-Fa-f]{6}$');
     CREATE UNIQUE INDEX IF NOT EXISTS erp_organisation_live_code_idx ON erp_organisation(tenant_id,organisation_code) WHERE workflow_status <> 'deleted';
 
     CREATE TABLE IF NOT EXISTS erp_division(
@@ -368,7 +370,7 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       legal_entity_id uuid REFERENCES erp_legal_entity(legal_entity_id),
       account_code text NOT NULL,
       account_name text NOT NULL,
-      workflow_status text NOT NULL DEFAULT 'draft' CHECK(workflow_status IN('draft','submitted','approved','rejected','blocked','archived','deleted')),
+      workflow_status text NOT NULL DEFAULT 'draft',
       valid_from date NOT NULL DEFAULT CURRENT_DATE,
       valid_to date,
       additional_data jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -409,7 +411,7 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       parent_accounting_object_id uuid REFERENCES erp_accounting_object(accounting_object_id),
       object_code text NOT NULL,
       object_name text NOT NULL,
-      workflow_status text NOT NULL DEFAULT 'draft' CHECK(workflow_status IN('draft','submitted','approved','rejected','blocked','archived','deleted')),
+      workflow_status text NOT NULL DEFAULT 'draft',
       valid_from date NOT NULL DEFAULT CURRENT_DATE,
       valid_to date,
       additional_data jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -452,7 +454,7 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       accounting_dimension_type_id uuid NOT NULL REFERENCES erp_accounting_dimension_type(accounting_dimension_type_id),
       dimension_code text NOT NULL,
       dimension_name text NOT NULL,
-      workflow_status text NOT NULL DEFAULT 'draft' CHECK(workflow_status IN('draft','submitted','approved','rejected','blocked','archived','deleted')),
+      workflow_status text NOT NULL DEFAULT 'draft',
       valid_from date NOT NULL DEFAULT CURRENT_DATE,
       valid_to date,
       additional_data jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -514,7 +516,7 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
     DECLARE constraint_name text;
     DECLARE table_name text;
     BEGIN
-      FOREACH table_name IN ARRAY ARRAY['erp_accounting_object'] LOOP
+      FOREACH table_name IN ARRAY ARRAY['erp_subledger_account','erp_accounting_object','erp_accounting_dimension'] LOOP
         SELECT conname INTO constraint_name
         FROM pg_constraint
         WHERE conrelid=table_name::regclass
@@ -532,7 +534,6 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       tenant_id uuid NOT NULL,
       organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
       path_name text NOT NULL,
-      initial_step_code text NOT NULL,
       is_active boolean NOT NULL DEFAULT true,
       is_seeded boolean NOT NULL DEFAULT false,
       created_at timestamptz NOT NULL DEFAULT now(),
@@ -540,30 +541,100 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       UNIQUE(tenant_id,organisation_id,path_name)
     );
 
-    CREATE TABLE IF NOT EXISTS erp_workflow_step(
-      workflow_step_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    CREATE TABLE IF NOT EXISTS erp_workflow_status(
+      workflow_status_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       tenant_id uuid NOT NULL,
       organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
-      workflow_path_id uuid NOT NULL REFERENCES erp_workflow_path(workflow_path_id) ON DELETE CASCADE,
+      status_code text NOT NULL CHECK(status_code ~ '^[a-z][a-z0-9_]*$'),
+      status_label text NOT NULL,
+      description text NOT NULL DEFAULT '',
+      colour text NOT NULL CHECK(colour ~ '^#[0-9a-fA-F]{6}$'),
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE(tenant_id,organisation_id,status_code)
+    );
+    ALTER TABLE erp_workflow_status ADD COLUMN IF NOT EXISTS enabled_for_use boolean NOT NULL DEFAULT false;
+    ALTER TABLE erp_workflow_status ADD COLUMN IF NOT EXISTS displayed boolean NOT NULL DEFAULT true;
+    -- Replace the former per-workflow status definitions once in this test schema.
+    DO $$ BEGIN
+    IF EXISTS(SELECT 1 FROM pg_class WHERE oid=to_regclass('erp_workflow_step') AND relkind='r') THEN
+      DROP TABLE erp_workflow_next;
+      DROP TABLE erp_workflow_step;
+    END IF;
+    END $$;
+    CREATE UNIQUE INDEX IF NOT EXISTS erp_workflow_path_scope_idx ON erp_workflow_path(tenant_id,organisation_id,workflow_path_id);
+    CREATE TABLE IF NOT EXISTS erp_workflow_path_status(
+      workflow_step_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL,
+      workflow_path_id uuid NOT NULL,
       step_code text NOT NULL,
-      step_label text NOT NULL,
-      colour text NOT NULL DEFAULT '#667085',
+      is_initial boolean NOT NULL DEFAULT false,
+      enabled_for_use boolean NOT NULL DEFAULT false,
       sort_order integer NOT NULL DEFAULT 0,
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now(),
-      UNIQUE(workflow_path_id,step_code)
+      FOREIGN KEY(tenant_id,organisation_id,workflow_path_id) REFERENCES erp_workflow_path(tenant_id,organisation_id,workflow_path_id) ON DELETE CASCADE,
+      FOREIGN KEY(tenant_id,organisation_id,step_code) REFERENCES erp_workflow_status(tenant_id,organisation_id,status_code),
+      UNIQUE(tenant_id,organisation_id,workflow_path_id,step_code)
     );
+    -- Initialise Schema applies the structural change to existing test databases as well.
+    DROP VIEW IF EXISTS erp_workflow_step;
+    ALTER TABLE erp_workflow_path_status ADD COLUMN IF NOT EXISTS is_initial boolean NOT NULL DEFAULT false;
+    DO $$ BEGIN
+      IF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema='public'
+                AND table_name='erp_workflow_path' AND column_name='initial_step_code') THEN
+        UPDATE erp_workflow_path_status membership SET is_initial=(membership.step_code=path.initial_step_code)
+          FROM erp_workflow_path path WHERE path.workflow_path_id=membership.workflow_path_id
+          AND path.tenant_id=membership.tenant_id AND path.organisation_id=membership.organisation_id;
+        ALTER TABLE erp_workflow_path DROP COLUMN initial_step_code;
+      END IF;
+    END $$;
+    CREATE UNIQUE INDEX IF NOT EXISTS erp_workflow_one_initial_status_idx
+      ON erp_workflow_path_status(tenant_id,organisation_id,workflow_path_id) WHERE is_initial=true;
+    CREATE OR REPLACE VIEW erp_workflow_step AS
+      SELECT p.*,s.status_label step_label,s.colour,s.description
+      FROM erp_workflow_path_status p
+      JOIN erp_workflow_status s USING(tenant_id,organisation_id)
+      WHERE s.status_code=p.step_code;
+
+    -- Deferred checks allow an atomic replacement of statuses and actions, but no empty initial state at commit.
+    CREATE OR REPLACE FUNCTION erp_check_workflow_initial_status() RETURNS trigger LANGUAGE plpgsql AS $$
+    DECLARE affected_path uuid; previous_path uuid; next_path uuid;
+    BEGIN
+      IF TG_OP <> 'INSERT' THEN previous_path := OLD.workflow_path_id; END IF;
+      IF TG_OP <> 'DELETE' THEN next_path := NEW.workflow_path_id; END IF;
+      FOR affected_path IN SELECT DISTINCT value FROM unnest(ARRAY[previous_path,next_path]) AS candidate(value) WHERE value IS NOT NULL LOOP
+        IF EXISTS(SELECT 1 FROM erp_workflow_path WHERE workflow_path_id=affected_path)
+          AND (SELECT count(*) FROM erp_workflow_path_status WHERE workflow_path_id=affected_path AND is_initial=true) <> 1 THEN
+          RAISE EXCEPTION 'A workflow must have exactly one initial status' USING ERRCODE='23514';
+        END IF;
+      END LOOP;
+      RETURN NULL;
+    END $$;
+    DROP TRIGGER IF EXISTS erp_workflow_initial_status_membership ON erp_workflow_path_status;
+    CREATE CONSTRAINT TRIGGER erp_workflow_initial_status_membership
+      AFTER INSERT OR UPDATE OR DELETE ON erp_workflow_path_status
+      DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION erp_check_workflow_initial_status();
+    DROP TRIGGER IF EXISTS erp_workflow_initial_status_path ON erp_workflow_path;
+    CREATE CONSTRAINT TRIGGER erp_workflow_initial_status_path
+      AFTER INSERT OR UPDATE ON erp_workflow_path
+      DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION erp_check_workflow_initial_status();
 
     CREATE TABLE IF NOT EXISTS erp_workflow_next(
       workflow_next_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       tenant_id uuid NOT NULL,
-      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
-      workflow_path_id uuid NOT NULL REFERENCES erp_workflow_path(workflow_path_id) ON DELETE CASCADE,
+      organisation_id uuid NOT NULL,
+      workflow_path_id uuid NOT NULL,
       current_step_code text NOT NULL,
       next_step_code text NOT NULL,
+      action_label text NOT NULL CHECK(length(trim(action_label))>0),
+      sort_order integer NOT NULL DEFAULT 0,
       created_at timestamptz NOT NULL DEFAULT now(),
-      UNIQUE(workflow_path_id,current_step_code,next_step_code)
+      FOREIGN KEY(tenant_id,organisation_id,workflow_path_id,current_step_code) REFERENCES erp_workflow_path_status(tenant_id,organisation_id,workflow_path_id,step_code),
+      FOREIGN KEY(tenant_id,organisation_id,workflow_path_id,next_step_code) REFERENCES erp_workflow_path_status(tenant_id,organisation_id,workflow_path_id,step_code)
     );
+    CREATE UNIQUE INDEX IF NOT EXISTS erp_workflow_action_name_idx ON erp_workflow_next(workflow_path_id,current_step_code,lower(action_label));
 
     CREATE TABLE IF NOT EXISTS erp_workflow_history(
       workflow_history_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -577,6 +648,7 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       comment text,
       created_at timestamptz NOT NULL DEFAULT now()
     );
+    ALTER TABLE erp_workflow_history ADD COLUMN IF NOT EXISTS action_label text;
     CREATE INDEX IF NOT EXISTS erp_workflow_history_object_idx ON erp_workflow_history(tenant_id,organisation_id,object_type,object_id,created_at DESC);
 
     CREATE TABLE IF NOT EXISTS erp_transaction_group(
@@ -605,6 +677,7 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       UNIQUE(tenant_id,organisation_id,type_code)
     );
 
+    ALTER TABLE erp_transaction_type ADD COLUMN IF NOT EXISTS workflow_path_id uuid REFERENCES erp_workflow_path(workflow_path_id);
     DROP TABLE IF EXISTS erp_posting_rule CASCADE;
     CREATE TABLE IF NOT EXISTS erp_transaction_line_definition(
       transaction_line_definition_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -689,7 +762,7 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       journal_number text,
       journal_date date NOT NULL DEFAULT CURRENT_DATE,
       description text NOT NULL DEFAULT '',
-      workflow_status text NOT NULL DEFAULT 'draft' CHECK(workflow_status IN('draft','submitted','approved','rejected','blocked','deleted','reversed')),
+      workflow_status text NOT NULL DEFAULT 'draft',
       currency_code text NOT NULL,
       exchange_rate numeric(18,8) NOT NULL DEFAULT 1,
       reversing_journal_id uuid REFERENCES erp_journal(journal_id),
@@ -715,8 +788,9 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       IF constraint_name IS NOT NULL THEN
         EXECUTE format('ALTER TABLE erp_journal DROP CONSTRAINT %I',constraint_name);
       END IF;
-      ALTER TABLE erp_journal ADD CONSTRAINT erp_journal_workflow_status_check CHECK(workflow_status IN('draft','submitted','approved','rejected','blocked','deleted','reversed'));
+      ALTER TABLE erp_journal ADD COLUMN IF NOT EXISTS posted_at timestamptz;
     END $$;
+    ALTER TABLE erp_journal ADD COLUMN IF NOT EXISTS posted_at timestamptz;
     CREATE INDEX IF NOT EXISTS erp_journal_lookup_idx ON erp_journal(tenant_id,organisation_id,workflow_status,journal_date DESC);
 
     CREATE TABLE IF NOT EXISTS erp_journal_line(
@@ -804,6 +878,19 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       UNIQUE(tenant_id,organisation_id,financial_statement_format_id,gl_account_id)
     );
 
+    CREATE TABLE IF NOT EXISTS erp_record_comment(
+      comment_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id),
+      entity_kind text NOT NULL CHECK(entity_kind IN('legal_entity','gl_account','subledger_account','accounting_object','accounting_dimension')),
+      entity_id uuid NOT NULL,
+      comment_text text NOT NULL CHECK(length(btrim(comment_text))>0),
+      created_by_email text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS erp_record_comment_entity_idx
+      ON erp_record_comment(tenant_id,organisation_id,entity_kind,entity_id,created_at DESC,comment_id DESC);
+
     CREATE TABLE IF NOT EXISTS erp_supporting_document(
       document_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       tenant_id uuid NOT NULL,
@@ -876,6 +963,19 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       UNIQUE(tenant_id,organisation_id,role_code)
     );
     ALTER TABLE erp_role ADD COLUMN IF NOT EXISTS role_description text NOT NULL DEFAULT '';
+
+    CREATE UNIQUE INDEX IF NOT EXISTS erp_role_scope_id_idx ON erp_role(tenant_id,organisation_id,role_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS erp_workflow_action_scope_id_idx ON erp_workflow_next(tenant_id,organisation_id,workflow_next_id);
+    CREATE TABLE IF NOT EXISTS erp_workflow_action_role(
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL,
+      workflow_next_id uuid NOT NULL,
+      role_id uuid NOT NULL,
+      PRIMARY KEY(tenant_id,organisation_id,workflow_next_id,role_id),
+      FOREIGN KEY(tenant_id,organisation_id,workflow_next_id) REFERENCES erp_workflow_next(tenant_id,organisation_id,workflow_next_id) ON DELETE CASCADE,
+      FOREIGN KEY(tenant_id,organisation_id,role_id) REFERENCES erp_role(tenant_id,organisation_id,role_id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS erp_workflow_action_role_role_idx ON erp_workflow_action_role(tenant_id,organisation_id,role_id);
 
     CREATE TABLE IF NOT EXISTS erp_report(
       report_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1150,3 +1250,15 @@ CREATE TABLE IF NOT EXISTS erp_exchange_rate_change (
   CHECK ((revision=1 AND previous_rate IS NULL AND reason IS NULL) OR
          (revision>1 AND previous_rate IS NOT NULL AND reason IS NOT NULL AND length(btrim(reason)) BETWEEN 1 AND 1000))
 );
+
+-- Shared type-level default for object and transaction record grids.
+DO $$
+DECLARE kind text;
+BEGIN
+  FOREACH kind IN ARRAY ARRAY['subledger_account','accounting_object','accounting_dimension','transaction'] LOOP
+    EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS default_grid_view text NOT NULL DEFAULT ''columnar''', 'erp_' || kind || '_type');
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass('erp_' || kind || '_type') AND conname='erp_' || kind || '_default_grid_view_check') THEN
+      EXECUTE format('ALTER TABLE %I ADD CONSTRAINT %I CHECK (default_grid_view IN (''columnar'',''status''))', 'erp_' || kind || '_type', 'erp_' || kind || '_default_grid_view_check');
+    END IF;
+  END LOOP;
+END $$;

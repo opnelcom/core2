@@ -1,78 +1,28 @@
-'use strict';
-const {authTenant,requireAdmin,clean,nullable,normalizeStepCode}=require('../_shared/erp');
-
+"use strict";
+const {randomUUID}=require('crypto');
+const {authTenant,requireAdmin,requireBusinessAccess,nullable}=require('../_shared/erp');
+const {normaliseWorkflow,workflowStatements}=require('../_shared/erp/workflow-configuration');
 module.exports=async ctx=>{
   const access=await authTenant(ctx);
   if(access.status)return ctx.send(access.status,access.body);
   const orgId=ctx.req.method==='GET'?ctx.query.organisation_id:ctx.body.organisation_id;
   if(!orgId)return ctx.send(400,{error:'organisation_id is required'});
   if(ctx.req.method==='GET'){
-    const [paths,steps,next]=await Promise.all([
-      ctx.broker('core_erp','query',{text:`SELECT * FROM erp_workflow_path WHERE tenant_id=$1 AND organisation_id=$2 ORDER BY path_name`,values:[access.tenantId,orgId]}),
-      ctx.broker('core_erp','query',{text:`SELECT * FROM erp_workflow_step WHERE tenant_id=$1 AND organisation_id=$2 ORDER BY workflow_path_id,sort_order,step_label`,values:[access.tenantId,orgId]}),
-      ctx.broker('core_erp','query',{text:`SELECT * FROM erp_workflow_next WHERE tenant_id=$1 AND organisation_id=$2 ORDER BY workflow_path_id,current_step_code,next_step_code`,values:[access.tenantId,orgId]})
-    ]);
-    return {workflow_paths:paths.rows,workflow_steps:steps.rows,workflow_next:next.rows};
+    const denied=await requireBusinessAccess(ctx,access,orgId);
+    if(denied)return ctx.send(denied.status,denied.body);
+    const results=await Promise.all(['path','step','next','status'].map(table=>ctx.broker('core_erp','query',{text:table==='next'?`SELECT n.*,COALESCE((SELECT array_agg(link.role_id ORDER BY link.role_id) FROM erp_workflow_action_role link WHERE link.tenant_id=n.tenant_id AND link.organisation_id=n.organisation_id AND link.workflow_next_id=n.workflow_next_id),'{}'::uuid[]) role_ids FROM erp_workflow_next n WHERE n.tenant_id=$1 AND n.organisation_id=$2`:`SELECT * FROM erp_workflow_${table} WHERE tenant_id=$1 AND organisation_id=$2`,values:[access.tenantId,orgId]})));
+    return Object.fromEntries(['workflow_paths','workflow_steps','workflow_next','workflow_statuses'].map((key,i)=>[key,results[i].rows]));
   }
   if(ctx.req.method!=='POST')return ctx.send(405,{error:'GET or POST required'});
   const denied=requireAdmin(access);
   if(denied)return ctx.send(denied.status,denied.body);
-  const id=nullable(ctx.body.workflow_path_id);
-  const name=clean(ctx.body.path_name);
-  const initialStepCode=normalizeStepCode(ctx.body.initial_step_code);
-  const active=ctx.body.is_active!==false&&ctx.body.is_active!=='false';
-  const steps=(Array.isArray(ctx.body.steps)?ctx.body.steps:[]).map((step,index)=>({
-    step_code:normalizeStepCode(step.step_code),
-    step_label:clean(step.step_label||step.step_name),
-    colour:clean(step.colour||step.color,'#667085'),
-    sort_order:Number.isFinite(Number(step.sort_order))?Number(step.sort_order):(index+1)*10
-  })).filter(step=>step.step_code&&step.step_label);
-  const next=(Array.isArray(ctx.body.next)?ctx.body.next:[]).map(row=>({
-    current_step_code:normalizeStepCode(row.current_step_code),
-    next_step_code:normalizeStepCode(row.next_step_code)
-  })).filter(row=>row.current_step_code&&row.next_step_code);
-  if(!name||!initialStepCode)return ctx.send(400,{error:'Workflow path name and initial step are required'});
-  if(!steps.some(step=>step.step_code===initialStepCode))return ctx.send(400,{error:'Initial step must be one of the workflow steps'});
-  const duplicate=steps.find((step,index)=>steps.findIndex(other=>other.step_code===step.step_code)!==index);
-  if(duplicate)return ctx.send(400,{error:`Workflow step code is duplicated: ${duplicate.step_code}`});
-  const stepCodes=new Set(steps.map(step=>step.step_code));
-  const invalidNext=next.find(row=>!stepCodes.has(row.current_step_code)||!stepCodes.has(row.next_step_code));
-  if(invalidNext)return ctx.send(400,{error:'Every Workflow Next row must reference steps in the same path'});
-  const savePath=id
-    ? await ctx.broker('core_erp','query',{
-        text:`UPDATE erp_workflow_path
-              SET path_name=$3,initial_step_code=$4,is_active=$5,updated_at=now()
-              WHERE tenant_id=$1 AND organisation_id=$2 AND workflow_path_id=$6
-              RETURNING *`,
-        values:[access.tenantId,orgId,name,initialStepCode,active,id]
-      })
-    : await ctx.broker('core_erp','query',{
-        text:`INSERT INTO erp_workflow_path(tenant_id,organisation_id,path_name,initial_step_code,is_active,is_seeded)
-              VALUES($1,$2,$3,$4,$5,false)
-              ON CONFLICT(tenant_id,organisation_id,path_name) DO UPDATE
-              SET initial_step_code=excluded.initial_step_code,is_active=excluded.is_active,updated_at=now()
-              RETURNING *`,
-        values:[access.tenantId,orgId,name,initialStepCode,active]
-      });
-  if(!savePath.rowCount)return ctx.send(404,{error:'Workflow path not found'});
-  const path=savePath.rows[0];
-  const statements=[
-    {text:`DELETE FROM erp_workflow_next WHERE tenant_id=$1 AND organisation_id=$2 AND workflow_path_id=$3`,values:[access.tenantId,orgId,path.workflow_path_id]},
-    {text:`DELETE FROM erp_workflow_step WHERE tenant_id=$1 AND organisation_id=$2 AND workflow_path_id=$3 AND step_code <> ALL($4::text[])`,values:[access.tenantId,orgId,path.workflow_path_id,steps.map(step=>step.step_code)]}
-  ];
-  steps.forEach(step=>statements.push({
-    text:`INSERT INTO erp_workflow_step(tenant_id,organisation_id,workflow_path_id,step_code,step_label,colour,sort_order)
-          VALUES($1,$2,$3,$4,$5,$6,$7)
-          ON CONFLICT(workflow_path_id,step_code) DO UPDATE
-          SET step_label=excluded.step_label,colour=excluded.colour,sort_order=excluded.sort_order,updated_at=now()`,
-    values:[access.tenantId,orgId,path.workflow_path_id,step.step_code,step.step_label,step.colour,step.sort_order]
-  }));
-  next.forEach(row=>statements.push({
-    text:`INSERT INTO erp_workflow_next(tenant_id,organisation_id,workflow_path_id,current_step_code,next_step_code)
-          VALUES($1,$2,$3,$4,$5)
-          ON CONFLICT(workflow_path_id,current_step_code,next_step_code) DO NOTHING`,
-    values:[access.tenantId,orgId,path.workflow_path_id,row.current_step_code,row.next_step_code]
-  }));
-  await ctx.broker('core_erp','transaction',{statements});
-  return {ok:true,workflow_path:path};
+  const statuses=await ctx.broker('core_erp','query',{text:`SELECT * FROM erp_workflow_status WHERE tenant_id=$1 AND organisation_id=$2`,values:[access.tenantId,orgId]});
+  let definition;
+  try{definition=normaliseWorkflow(ctx.body,statuses.rows);}catch(error){return ctx.send(400,{error:error.message});}
+  if(!definition.name)return ctx.send(400,{error:'Workflow name is required'});
+  const invalidRoles=await require('../_shared/erp/workflow-action-roles').validateWorkflowActionRoles(ctx,access,orgId,definition);
+  if(invalidRoles)return ctx.send(invalidRoles.status,invalidRoles.body);
+  const existing=nullable(ctx.body.workflow_path_id),id=existing||randomUUID();
+  const result=await ctx.broker('core_erp','transaction',{statements:workflowStatements(access.tenantId,orgId,id,definition,{existing:!!existing})});
+  return {ok:true,workflow_path:result.results[0].rows[0]};
 };

@@ -36,5 +36,6 @@ module.exports=async ctx=>{
           ORDER BY l.line_number`,
     values:[access.tenantId,id]
   });
+  await require('../_shared/erp/workflow-presentation').decorateWorkflowRecords(ctx,access,journal.rows,{kind:'transaction',typeTable:'erp_transaction_type',typeIdColumn:'transaction_type_id'});
   return {journal:journal.rows[0],lines:lines.rows};
 };

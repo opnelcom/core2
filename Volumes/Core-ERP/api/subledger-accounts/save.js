@@ -5,6 +5,7 @@ const { validateSchemaReferences } = require("../_shared/erp/schema-references")
 const { objectSaveStatements } = require("../_shared/erp/object-versions");
 const {
   authTenant,
+  defaultWorkflowStepCode,
   requireModuleAccess,
   requireResourcePermission,
   prepareResourceAssignments,
@@ -67,7 +68,7 @@ module.exports = async (ctx) => {
     return ctx.send(400, { error: "Additional data must be valid JSON" });
   }
   const errors = validateSchema(type.rows[0].schema_json, data);
-  if (!errors.length) errors.push(...await validateSchemaReferences(ctx, access, orgId, type.rows[0].schema_json, data));
+  if (!errors.length) errors.push(...await validateSchemaReferences(ctx, access, orgId, type.rows[0].schema_json, data, {kind:'subledger_account',id:submittedId}));
   if (errors.length) return ctx.send(400, { error: "Additional data is invalid", errors });
   let effectiveDates = {
     valid_from: ctx.body.valid_from || new Date().toISOString().slice(0, 10),
@@ -79,10 +80,7 @@ module.exports = async (ctx) => {
       values: [access.tenantId, orgId, id],
     });
     if (
-      !current.rowCount ||
-      !["draft", "rejected", "approved", "blocked"].includes(
-        current.rows[0].workflow_status,
-      )
+      !current.rowCount
     )
       return ctx.send(404, {
         error: "Subledger account not found or cannot be edited",
@@ -118,10 +116,11 @@ module.exports = async (ctx) => {
     data,
     access.auth.email,
   ];
+  const initialStep=await defaultWorkflowStepCode(ctx,access,{organisationId:orgId,typeTable:'erp_subledger_account_type',typeIdColumn:'subledger_account_type_id',typeId});
   const text = submittedId
-    ? `UPDATE erp_subledger_account SET owner_division_id=$3,subledger_account_type_id=$4,legal_entity_id=$5,account_code=$6,account_name=$7,additional_data=$8::jsonb,updated_by_email=$9,updated_at=now() WHERE tenant_id=$1 AND organisation_id=$2 AND subledger_account_id=$10 AND workflow_status IN('draft','rejected','approved','blocked')`
-    : `INSERT INTO erp_subledger_account(subledger_account_id,tenant_id,organisation_id,owner_division_id,subledger_account_type_id,legal_entity_id,account_code,account_name,additional_data,workflow_status,created_by_email,updated_by_email,approved_by_email,approved_at) VALUES($10,$1,$2,$3,$4,$5,$6,$7,$8::jsonb,'approved',$9,$9,$9,now())`;
-  const statements = [numberedRecordStatement({ text, values: [...values, id] }, { kind: "subledger_account", typeParameter: 4, codeParameter: 6, idParameter: 10, submittedId })];
+    ? `UPDATE erp_subledger_account SET owner_division_id=$3,subledger_account_type_id=$4,legal_entity_id=$5,account_code=$6,account_name=$7,additional_data=$8::jsonb,updated_by_email=$9,updated_at=now() WHERE tenant_id=$1 AND organisation_id=$2 AND subledger_account_id=$10`
+    : `INSERT INTO erp_subledger_account(subledger_account_id,tenant_id,organisation_id,owner_division_id,subledger_account_type_id,legal_entity_id,account_code,account_name,additional_data,workflow_status,created_by_email,updated_by_email,approved_by_email,approved_at) VALUES($10,$1,$2,$3,$4,$5,$6,$7,$8::jsonb,$11,$9,$9,NULL,NULL)`;
+  const statements = [numberedRecordStatement({ text, values: submittedId ? [...values, id] : [...values, id, initialStep] }, { kind: "subledger_account", typeParameter: 4, codeParameter: 6, idParameter: 10, submittedId })];
   if (resourcePlan.replace) statements.push(...resourcePlan.statements);
   await saveNumberedTransaction(ctx, objectSaveStatements({ statements, submittedId, access, organisationId: orgId, kind: "subledger_account", id, schema: type.rows[0].schema_json, data }));
   const result = await ctx.broker("core_erp", "query", {

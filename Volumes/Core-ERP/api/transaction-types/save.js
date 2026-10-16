@@ -1,6 +1,7 @@
 'use strict';
 const {randomUUID}=require('crypto');
-const {authTenant,requireAdmin,clean,nullable}=require('../_shared/erp');
+const {validateDefaultGridView}=require('../_shared/erp/grid-views');
+const {authTenant,requireAdmin,clean,nullable,validateWorkflowPath}=require('../_shared/erp');
 const {moduleIds,validateModules,replaceLinks}=require('../_shared/erp/modules');
 
 const occurrences=new Set(['required','optional','repeatable','generated']);
@@ -14,6 +15,8 @@ module.exports=async ctx=>{
   if(access.status)return ctx.send(access.status,access.body);
   const denied=requireAdmin(access);
   if(denied)return ctx.send(denied.status,denied.body);
+  const gridView=validateDefaultGridView(ctx.body.default_grid_view);
+  if(gridView.error)return ctx.send(400,{error:gridView.error});
   const orgId=ctx.body.organisation_id;
   const id=nullable(ctx.body.transaction_type_id);
   const groupId=nullable(ctx.body.transaction_group_id);
@@ -24,9 +27,13 @@ module.exports=async ctx=>{
   const allowAdditional=ctx.body.allow_additional_lines!==false&&ctx.body.allow_additional_lines!=='false';
   const sortOrder=Number(ctx.body.sort_order)||0;
   const isActive=ctx.body.is_active!==false&&ctx.body.is_active!=='false';
+  const workflowPathId=nullable(ctx.body.workflow_path_id);
   const lines=Array.isArray(ctx.body.lines)?ctx.body.lines:[];
   const selectedModules=moduleIds(ctx.body);
   if(!orgId||!groupId||!code||!name)return ctx.send(400,{error:'organisation_id, transaction_group_id, type_code, and type_name are required'});
+  if(!workflowPathId)return ctx.send(400,{error:'A transaction workflow is required'});
+  const invalidWorkflow=await validateWorkflowPath(ctx,access,{organisationId:orgId,workflowPathId});
+  if(invalidWorkflow)return ctx.send(invalidWorkflow.status,invalidWorkflow.body);
   const invalidModules=await validateModules(ctx,access,orgId,selectedModules);
   if(invalidModules)return ctx.send(invalidModules.status,invalidModules.body);
   if(isFinancial&&lines.length<2)return ctx.send(400,{error:'Financial transaction types require at least two line definitions'});
@@ -84,10 +91,10 @@ module.exports=async ctx=>{
     if(normalisedLines.some(line=>line.dimensionRequirements.some(requirement=>requirement.value_id&&typeByValue.get(requirement.value_id)!==requirement.type_id)))return ctx.send(400,{error:'Each configured accounting dimension value must belong to its selected type'});
   }
 
-  const typeValues=[access.tenantId,orgId,groupId,code,name,description,isFinancial,allowAdditional,sortOrder,isActive];
+  const typeValues=[access.tenantId,orgId,groupId,code,name,description,isFinancial,allowAdditional,sortOrder,isActive,workflowPathId,gridView.value];
   const saved=id
-    ? await ctx.broker('core_erp','query',{text:`UPDATE erp_transaction_type SET transaction_group_id=$3,type_code=$4,type_name=$5,type_description=$6,is_financial=$7,allow_additional_lines=$8,sort_order=$9,is_active=$10 WHERE tenant_id=$1 AND organisation_id=$2 AND transaction_type_id=$11 RETURNING *`,values:[...typeValues,id]})
-    : await ctx.broker('core_erp','query',{text:`INSERT INTO erp_transaction_type(tenant_id,organisation_id,transaction_group_id,type_code,type_name,type_description,is_financial,allow_additional_lines,sort_order,is_active) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(tenant_id,organisation_id,type_code) DO NOTHING RETURNING *`,values:typeValues});
+    ? await ctx.broker('core_erp','query',{text:`UPDATE erp_transaction_type SET transaction_group_id=$3,type_code=$4,type_name=$5,type_description=$6,is_financial=$7,allow_additional_lines=$8,sort_order=$9,is_active=$10,workflow_path_id=$11,default_grid_view=COALESCE($12,default_grid_view) WHERE tenant_id=$1 AND organisation_id=$2 AND transaction_type_id=$13 RETURNING *`,values:[...typeValues,id]})
+    : await ctx.broker('core_erp','query',{text:`INSERT INTO erp_transaction_type(tenant_id,organisation_id,transaction_group_id,type_code,type_name,type_description,is_financial,allow_additional_lines,sort_order,is_active,workflow_path_id,default_grid_view) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,COALESCE($12,'columnar')) ON CONFLICT(tenant_id,organisation_id,type_code) DO NOTHING RETURNING *`,values:typeValues});
   if(!saved.rows.length)return ctx.send(id?404:409,{error:id?'Transaction type was not found':'A transaction type with this code already exists. Choose a different code.'});
   const typeId=saved.rows[0].transaction_type_id;
   const statements=[{text:`DELETE FROM erp_transaction_line_definition WHERE tenant_id=$1 AND organisation_id=$2 AND transaction_type_id=$3`,values:[access.tenantId,orgId,typeId]}];

@@ -32,7 +32,8 @@ function fixture({ admin = true, permission = null, denied = null } = {}) {
   `);
   if (permission) db.prepare("INSERT INTO erp_role_permission VALUES('role',?,'transaction',?,?,?,?,?)").run(permission.division || "root", permission.code || "*", permission.status || "view", permission.from || "2020-01-01", permission.to || null, permission.children ? 1 : 0);
   function post(id, date, amount, { status = "approved", division = "root", equityDivision = division, reverse = false, type = "deposit", tenant = "tenant", org = "org", period = "oct" } = {}) {
-    db.prepare("INSERT INTO erp_journal VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)").run(id,tenant,org,period,status,type,date,id,"Posting",`${date}T10:00:00`,reverse ? "original" : null,division,"creator@example.test");
+    db.prepare("INSERT INTO erp_journal(journal_id,tenant_id,organisation_id,fiscal_period_id,workflow_status,transaction_type_id,journal_date,journal_number,description,created_at,reversing_journal_id,source_division_id,created_by_email) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)").run(id,tenant,org,period,status,type,date,id,"Posting",`${date}T10:00:00`,reverse ? "original" : null,division,"creator@example.test");
+    if(db.prepare("PRAGMA table_info(erp_journal)").all().some(c=>c.name==='posted_at'))db.prepare("UPDATE erp_journal SET posted_at=? WHERE journal_id=?").run(['approved','reversed','posted'].includes(status)?date:null,id);
     db.prepare("INSERT INTO erp_journal_line(journal_line_id,journal_id,tenant_id,organisation_id,division_id,gl_account_id,debit_amount,credit_amount,line_number,description) VALUES(?,?,?,?,?,?,?,?,?,?)").run(`${id}-1`,id,tenant,org,division,"bank",reverse ? 0 : amount,reverse ? amount : 0,1,"Bank line");
     db.prepare("INSERT INTO erp_journal_line(journal_line_id,journal_id,tenant_id,organisation_id,division_id,gl_account_id,debit_amount,credit_amount,line_number,description) VALUES(?,?,?,?,?,?,?,?,?,?)").run(`${id}-2`,id,tenant,org,equityDivision,"equity",reverse ? amount : 0,reverse ? 0 : amount,2,"Equity line");
   }
@@ -59,8 +60,9 @@ function fixture({ admin = true, permission = null, denied = null } = {}) {
     requireBusinessAccess: async () => denied, requireModuleAccess: async () => denied,
     isAdministrator: (access) => access.setupAdministrator === true,
   };
+  db.exec("ALTER TABLE erp_journal ADD COLUMN posted_at; UPDATE erp_journal SET posted_at='2026-10-03' WHERE workflow_status IN ('approved','reversed','posted')");
   function handler(file) {
-    const context = { module: { exports: {} }, require: (name) => name.endsWith("trial-balance-math") ? math : name.endsWith("/trial-balance") ? helpers : name.endsWith("/transaction-visibility") ? { transactionVisibilitySql } : auth };
+  const context = { module: { exports: {} }, require: (name) => name.includes("workflow-presentation") ? {decorateWorkflowRecords:async()=>{}} : name.endsWith("trial-balance-math") ? math : name.endsWith("/trial-balance") ? helpers : name.endsWith("/transaction-visibility") ? { transactionVisibilitySql } : auth };
     vm.createContext(context);
     vm.runInContext(fs.readFileSync(require.resolve(file), "utf8"), context);
     return context.module.exports;

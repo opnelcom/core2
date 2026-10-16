@@ -43,9 +43,14 @@ async function seedRecordExamples(ctx,access,organisationId,examples){
    statements.push({text:legal?`INSERT INTO erp_legal_entity(legal_entity_id,tenant_id,organisation_id,entity_type,known_name,legal_name,workflow_status,created_by_email,updated_by_email) VALUES($1,$2,$3,$4,$5,$6,'approved',$7,$7)`:`INSERT INTO erp_resource(resource_id,tenant_id,organisation_id,resource_type,resource_code,display_name) VALUES($1,$2,$3,$4,$5,$6)`,values:[p.id,access.tenantId,organisationId,p.type,p.code,p.name,...(legal?[access.auth.email]:[])]});
    continue;
   }
-  const type=await ctx.broker("core_erp","query",{text:`SELECT ${c.typeId} id,schema_json FROM ${c.typeTable} WHERE tenant_id=$1 AND organisation_id=$2 AND type_code=$3`,values:[access.tenantId,organisationId,p.type]});
+  const type=await ctx.broker("core_erp","query",{text:`SELECT ${c.typeId} id,schema_json,workflow_path_id FROM ${c.typeTable} WHERE tenant_id=$1 AND organisation_id=$2 AND type_code=$3`,values:[access.tenantId,organisationId,p.type]});
   if(!type.rows.length)throw Object.assign(new Error(`Missing seed example type ${p.type}`),{seedExample:true});
   const data=p.resolvedData||{},schema=type.rows[0].schema_json,errors=validateSchema(schema,data);
+  const workflowStatus=p.workflowStatus??'active';
+  if(p.workflowStatus!==undefined){
+   const status=await ctx.broker("core_erp","query",{text:`SELECT 1 FROM erp_workflow_step WHERE tenant_id=$1 AND organisation_id=$2 AND workflow_path_id=$3 AND step_code=$4`,values:[access.tenantId,organisationId,type.rows[0].workflow_path_id,workflowStatus]});
+   if(!status.rows.length)errors.push(`Invalid example workflow status ${workflowStatus} for ${p.type}`);
+  }
   for(const {field,value,name} of referenceFields(schema,data)){
    const alternatives=field.target.anyOf||[field.target];
    const target=alternatives.find(t=>field.target.anyOf?value.startsWith(t.class+":"):true);
@@ -61,8 +66,8 @@ async function seedRecordExamples(ctx,access,organisationId,examples){
   // Add examples only when they fit the current definitions. Existing records are preserved.
   if(errors.length)throw Object.assign(new Error(errors.join("; ")),{seedExample:true});
   const insert={text:`INSERT INTO ${c.table}(${c.id},tenant_id,organisation_id,owner_division_id,${c.typeId},${c.code},${c.name},additional_data,workflow_status,created_by_email,updated_by_email)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,'approved',$9,$9)`,values:[p.id,access.tenantId,organisationId,root.rows[0].division_id,type.rows[0].id,p.code,p.name,JSON.stringify(data),access.auth.email]};
-  if(p.legalEntity){const legalId=await resolve(p.legalEntity); insert.text=insert.text.replace('additional_data,workflow_status','additional_data,legal_entity_id,workflow_status').replace("$8::jsonb,'approved'","$8::jsonb,$10,'approved'");insert.values.push(legalId);}
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$10,$9,$9)`,values:[p.id,access.tenantId,organisationId,root.rows[0].division_id,type.rows[0].id,p.code,p.name,JSON.stringify(data),access.auth.email,workflowStatus]};
+  if(p.legalEntity){const legalId=await resolve(p.legalEntity); insert.text=insert.text.replace('additional_data,workflow_status','additional_data,legal_entity_id,workflow_status').replace('$8::jsonb,$10','$8::jsonb,$11,$10');insert.values.push(legalId);}
   statements.push(...objectSaveStatements({statements:[insert],access,organisationId,kind:p.class,id:p.id,schema,data}));
  }
  if(statements.length)await ctx.broker("core_erp","transaction",{statements});
