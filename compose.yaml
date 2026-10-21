@@ -373,7 +373,7 @@ services:
       - "443:3443"
     volumes:
       - ./Volumes/Core-Gateway:/app/content:ro
-      - ./Volumes/Core-Gateway/Logs:/app/logs
+      - ./Volumes/Core-Gateway/Logs:/app/content/logs
     networks: [core-frontend, core-application]
     depends_on:
       core-saas: { condition: service_healthy }

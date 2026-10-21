@@ -1,8 +1,30 @@
 'use strict';
 const http=require('http'),https=require('https'),fs=require('fs'),path=require('path'),crypto=require('crypto');
-const root=process.env.CONTENT_ROOT||'/app/content';
-const logRoot=process.env.LOG_ROOT||'/app/logs';
-function config(){try{return JSON.parse(fs.readFileSync(path.join(root,'config','gateway.json'),'utf8'));}catch{return {routes:[{prefix:'/',target:'http://core-saas:3000'}]};}}
+const root='/app/content';
+const logRoot='/app/content/logs';
+function config(){
+  const file=path.join(root,'config','gateway.json');
+  let c;
+  try{c=JSON.parse(fs.readFileSync(file,'utf8'));}
+  catch(e){throw new Error('Unable to read Gateway configuration '+file+': '+e.message);}
+  if(!c||typeof c!=='object'||Array.isArray(c))throw new Error('Gateway configuration must be an object');
+  const validPort=p=>Number.isInteger(p)&&p>=1&&p<=65535;
+  if(!validPort(c.port))throw new Error('Gateway port must be an integer from 1 to 65535');
+  if(!c.tls||typeof c.tls.enabled!=='boolean')throw new Error('Gateway tls.enabled must be a boolean');
+  if(c.tls.enabled){
+    if(!validPort(c.tls.port))throw new Error('Gateway tls.port must be an integer from 1 to 65535');
+    if(c.tls.port===c.port)throw new Error('Gateway HTTP and HTTPS ports must differ');
+  }
+  if(!Array.isArray(c.routes))throw new Error('Gateway routes must be an array');
+  for(const route of c.routes){
+    if(!route||typeof route.prefix!=='string'||!route.prefix.startsWith('/'))throw new Error('Gateway route prefix must start with /');
+    let target;
+    try{target=new URL(route.target);}catch{throw new Error('Gateway route target must be a valid URL');}
+    if(target.protocol!=='http:')throw new Error('Gateway route target must use http:');
+    if(route.stripPrefix!==undefined&&typeof route.stripPrefix!=='boolean')throw new Error('Gateway route stripPrefix must be a boolean');
+  }
+  return c;
+}
 function dailyLogFile(appName){const safeName=String(appName||'core-gateway').replace(/[^A-Za-z0-9._-]/g,'-');const day=new Date().toISOString().slice(0,10);return `${safeName}-${day}.log`;}
 function writeLog(level,msg,meta={}){const entry={ts:new Date().toISOString(),level,app:'core-gateway',msg,...meta};const line=JSON.stringify(entry);console.log(line);try{fs.mkdirSync(logRoot,{recursive:true});fs.appendFileSync(path.join(logRoot,dailyLogFile('core-gateway')),line+'\n');}catch{}}
 function writeVisitorLog(meta={}){const entry={ts:new Date().toISOString(),app:'core-gateway',event:'visitor-issued',...meta};const line=JSON.stringify(entry);try{fs.mkdirSync(logRoot,{recursive:true});fs.appendFileSync(path.join(logRoot,'core-gateway-visitors.log'),line+'\n');}catch{}}
@@ -19,8 +41,7 @@ function loadTls(c){
   const certFile=contentPath(tls.certFile||tls.cert_file||'certs/fullchain.pem');
   const keyFile=contentPath(tls.keyFile||tls.key_file||'certs/privkey.pem');
   if(!certFile||!keyFile||!fs.existsSync(certFile)||!fs.existsSync(keyFile)){
-    writeLog('warn','TLS certificate files not found',{certFile,keyFile});
-    return null;
+    throw new Error('TLS enabled but certificate or key file is missing: '+certFile+', '+keyFile);
   }
   const options={cert:fs.readFileSync(certFile),key:fs.readFileSync(keyFile)};
   const caFile=contentPath(tls.caFile||tls.ca_file);
@@ -120,7 +141,12 @@ function requestHandler(isTls=false){
   return (req,res)=>{
     const started=Date.now();
     const requestId=req.headers['x-request-id']||crypto.randomUUID();
-    const c=config();
+    let c;
+    try{c=config();}catch(e){
+      writeLog('error','Invalid Gateway configuration',{error:e.message});
+      res.writeHead(503,{'content-type':'application/json'});
+      return res.end(JSON.stringify({error:'Gateway configuration unavailable'}));
+    }
     const incoming=new URL(req.url,'http://localhost');
     if(incoming.pathname==='/health'){
       res.writeHead(200,{'content-type':'application/json'});
@@ -163,12 +189,12 @@ function requestHandler(isTls=false){
 }
 
 const c=config();
-const server=http.createServer(requestHandler(false));
-server.listen(Number(process.env.PORT||c.port||3000),'0.0.0.0',()=>writeLog('info','Core Gateway HTTP listening',{port:Number(process.env.PORT||c.port||3000)}));
-
 const tlsOptions=loadTls(c);
+const server=http.createServer(requestHandler(false));
+server.listen(c.port,'0.0.0.0',()=>writeLog('info','Core Gateway HTTP listening',{port:c.port}));
+
 if(tlsOptions){
-  const httpsPort=Number(process.env.HTTPS_PORT||c.tls?.port||3443);
+  const httpsPort=c.tls.port;
   https.createServer(tlsOptions,requestHandler(true)).listen(httpsPort,'0.0.0.0',()=>{
     httpsActive=true;
     writeLog('info','Core Gateway HTTPS listening',{port:httpsPort});

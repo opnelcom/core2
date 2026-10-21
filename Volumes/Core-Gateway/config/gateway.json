@@ -1,6 +1,9 @@
 {
   "hostname": "joppenheim.org",
+  "port": 3000,
   "tls": {
+    "enabled": true,
+    "port": 3443,
     "certFile": "certs/fullchain.pem",
     "keyFile": "certs/privkey.pem",
     "redirectHttpToHttps": true,
@@ -20,7 +23,11 @@
       "target": "http://core-monitor:3000",
       "stripPrefix": true
     },
-    { "prefix": "/erp", "target": "http://core-erp:3000", "stripPrefix": true },
+    {
+      "prefix": "/erp",
+      "target": "http://core-erp:3000",
+      "stripPrefix": true
+    },
     {
       "prefix": "/objectsphere",
       "target": "http://core-objectsphere:3000",
@@ -46,6 +53,10 @@
       "target": "http://core-database-management:3000",
       "stripPrefix": true
     },
-    { "prefix": "/", "target": "http://core-saas:3000", "stripPrefix": false }
+    {
+      "prefix": "/",
+      "target": "http://core-saas:3000",
+      "stripPrefix": false
+    }
   ]
 }
