@@ -118,3 +118,5 @@ module.exports = async (ctx) => {
     return ctx.send(404, { error: "Accounting dimension not found" });
   return { record: r.rows[0] };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

@@ -28,3 +28,5 @@ module.exports = async (ctx) => {
   ]);
   return { roles: roles.rows, mappings: mappings.rows };
 };
+
+module.exports=require("../../_shared/context").withContext(module.exports);

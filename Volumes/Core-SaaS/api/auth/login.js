@@ -49,3 +49,5 @@ module.exports=async ctx=>{
     session:{max_age_seconds:maxAge,expires_at:expiresAt}
   };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

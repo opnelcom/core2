@@ -72,3 +72,5 @@ module.exports = async (ctx) => {
   ]);
   return { roles: roles.rows, resources: resources.rows, can_manage: true };
 };
+
+module.exports=require("../../_shared/context").withContext(module.exports);

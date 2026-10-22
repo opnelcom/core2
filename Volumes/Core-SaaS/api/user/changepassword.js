@@ -13,3 +13,5 @@ module.exports=async ctx=>{
   await ctx.broker('core_saas','query',{text:`UPDATE core_user SET password_hash=$2,reset_token=NULL,reset_expires_at=NULL,updated_at=now() WHERE user_id=$1`,values:[a.user_id,await hash(newPassword)]});
   return {message:'Password changed'};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

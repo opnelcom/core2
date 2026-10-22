@@ -34,3 +34,5 @@ module.exports=async ctx=>{
   if(r.rowCount!==ids.length)return ctx.send(400,{error:'One or more attributes do not belong to this object type'});
   return {attributes:r.rows};
 };
+
+module.exports=require("../../_shared/context").withContext(module.exports);

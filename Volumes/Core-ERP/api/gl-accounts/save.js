@@ -50,3 +50,5 @@ module.exports=async ctx=>{
   if(!result.rowCount)return ctx.send(404,{error:'GL account not found or cannot be edited'});
   return {gl_account:result.rows[0]};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

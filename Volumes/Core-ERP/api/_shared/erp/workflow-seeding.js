@@ -2,7 +2,7 @@
 const {randomUUID}=require('crypto');
 const {normaliseWorkflow,workflowStatements}=require('./workflow-configuration');
 async function seedWorkflowDefinitions(ctx,access,orgId,{workflowStatuses,workflows}){
-  const statements=workflowStatuses.map(s=>({text:`INSERT INTO erp_workflow_status(tenant_id,organisation_id,status_code,status_label,description,colour,enabled_for_use,displayed) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(tenant_id,organisation_id,status_code) DO UPDATE SET status_label=excluded.status_label,description=excluded.description,colour=excluded.colour,enabled_for_use=excluded.enabled_for_use,displayed=excluded.displayed,updated_at=now()`,values:[access.tenantId,orgId,s.status_code,s.status_label,s.description,s.colour,s.enabled_for_use===true,s.displayed!==false]}));
+  const statements=workflowStatuses.map(s=>({text:`INSERT INTO erp_workflow_status(tenant_id,organisation_id,status_code,status_label,description,colour,enabled_for_use,displayed,transitional) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(tenant_id,organisation_id,status_code) DO UPDATE SET status_label=excluded.status_label,description=excluded.description,colour=excluded.colour,enabled_for_use=excluded.enabled_for_use,displayed=excluded.displayed,transitional=excluded.transitional,updated_at=now()`,values:[access.tenantId,orgId,s.status_code,s.status_label,s.description,s.colour,s.enabled_for_use===true,s.displayed!==false,s.transitional===true]}));
   await ctx.broker('core_erp','transaction',{statements});
   for(const body of workflows){
     const current=await ctx.broker('core_erp','query',{text:`SELECT workflow_path_id FROM erp_workflow_path WHERE tenant_id=$1 AND organisation_id=$2 AND path_name=$3`,values:[access.tenantId,orgId,body.path_name]});

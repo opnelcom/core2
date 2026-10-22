@@ -68,6 +68,7 @@
   let selectedTransactionTypeId = "";
   let selectedReport = "financial_statement";
   let trialBalanceState = null;
+  let financialReportSequence = 0;
   let trialReportSequence = 0;
   let trialDetailSequence = 0;
   let trialBalanceReturn = null;
@@ -368,6 +369,8 @@
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v18M12 3v18M17 3v18M3 7h18M3 12h18M3 17h18"/></svg>',
     transaction:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14l-3-3m3 3-3 3M19 17H5l3 3m-3-3 3-3"/></svg>',
+    transactionGroup:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="1.5" width="21" height="21" rx="2"/><path d="M5 7h14l-3-3m3 3-3 3M19 17H5l3 3m-3-3 3-3"/></svg>',
     report:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h10l4 4v14H5Z"/><path d="M15 3v5h4M8 17v-3m4 3v-6m4 6v-4"/></svg>',
     organisation:
@@ -800,7 +803,7 @@
     saved: async () => { await ensureReportDefinitions(); await loadMenuData(true); },
   });
   const objectStatement = window.createObjectStatement({
-    api, context: () => state, openReport, formatMoney: formatOrgMoney,
+    api, context: () => state, openReport, formatMoney: formatOrgMoney, downloadReportCsv,
     notify: message => alert(message),
     openJournal: async row => {
       const orgId = state.orgId;
@@ -1214,6 +1217,7 @@
     if (wrapper) panel.append(wrapper);
   }
   function showSetupTypeTab(prefix, tab) {
+    if (prefix === "journal" && $("journal-detail-fields")) $("journal-detail-fields").hidden = !tab.startsWith("schema:");
     document
       .querySelectorAll(`[data-setup-type-tab="${prefix}"]`)
       .forEach((button) => {
@@ -1577,6 +1581,7 @@
           label: "Scope",
           controlIds: ["transaction-type-modules"],
         },
+        { name: "design", label: "Design", controlIds: ["transaction-type-schema"] },
         {
           name: "lines",
           label: "Line Definitions",
@@ -1586,7 +1591,7 @@
     });
   }
   function installSchemaDesignEditors() {
-    for (const prefix of ["ledger-family", "accounting-object-type", "accounting-dimension-type"]) {
+    for (const prefix of ["ledger-family", "accounting-object-type", "accounting-dimension-type", "transaction-type"]) {
       const editor = $(`${prefix}-schema`);
       if (!editor) continue;
       editor.placeholder = '{"type":"object","properties":{"amount":{"type":"currency","precision":14,"scale":2,"uiWidth":"medium"}},"required":[]}';
@@ -1998,6 +2003,9 @@
   function parseOrgMoney(value) {
     return CurrencyFormat.parse(value, organisationCurrency());
   }
+  function subledgerBalanceLabel(row) {
+    return `${formatOrgMoney(row.transaction_balance)}${row.balance_restricted ? " (visible transactions only)" : ""}`;
+  }
   function currencyFormSettings() {
     return { currency_code: $("currency-code").value.toUpperCase(), decimal_places: Number($("currency-decimals").value), format_json: {
       symbol: $("currency-symbol").value,
@@ -2369,10 +2377,11 @@
   }
   async function openView(view) {
     if (view === "dashboard") {
+      selectedDashboardModuleId = "";
       show(view);
       collapseDynamicMenus();
       renderDashboard();
-      loadDashboardData().catch((e) => alert(e.message));
+      loadDashboardData(true).catch((e) => alert(e.message));
       return;
     }
     await ensureViewData(view);
@@ -2543,6 +2552,17 @@
     highlightDynamicMenu();
   }
   function bindMenu(menu, kind) {
+    menu.querySelectorAll('[data-resource-transaction-group]').forEach(button => {
+      button.onclick = () => {
+        const expanded = button.getAttribute('aria-expanded') !== 'true';
+        button.setAttribute('aria-expanded', String(expanded));
+        const content = $(button.getAttribute('aria-controls'));
+        if (content) content.hidden = !expanded;
+      };
+    });
+    menu.querySelectorAll("[data-dashboard-module]").forEach(button => {
+      button.onclick = () => openModuleDashboard(button.dataset.dashboardModule).catch(error => alert(error.message));
+    });
     menu.querySelectorAll('[data-defined-report]').forEach(button=>{
       button.onclick=async()=>{try{await openView('customreports');await reportBuilder.runner(button.dataset.definedReport);}catch(error){alert(error.message);}};
     });
@@ -2730,7 +2750,7 @@
         const expanded = expandedTransactionGroups.has(
           group.transaction_group_id,
         );
-        return `<div class="menu-entry-group"><button type="button" class="nav menu-entry menu-entry--group-toggle menu-entry--depth-2" aria-expanded="${expanded ? "true" : "false"}" data-transaction-group="${group.transaction_group_id}" aria-controls="transaction-group-${group.transaction_group_id}">${fixedMenuIconMarkup("transaction", "menu-entry-icon")}<span class="menu-entry-label">${group.group_name}</span></button><div id="transaction-group-${group.transaction_group_id}" class="menu-entry-children" ${expanded ? "" : "hidden"}>${types.map((type) => menuItemMarkup({ label: type.type_name, attributes: `data-transaction-type="${type.transaction_type_id}"`, icon: "transaction", depth: 3 })).join("")}</div></div>`;
+        return `<div class="menu-entry-group"><button type="button" class="nav menu-entry menu-entry--group-toggle menu-entry--transaction-group menu-entry--depth-2" aria-expanded="${expanded ? "true" : "false"}" data-transaction-group="${group.transaction_group_id}" aria-controls="transaction-group-${group.transaction_group_id}">${fixedMenuIconMarkup("transactionGroup", "menu-entry-icon")}<span class="menu-entry-label">${menuAttribute(group.group_name)}</span></button><div id="transaction-group-${group.transaction_group_id}" class="menu-entry-children" ${expanded ? "" : "hidden"}>${types.map((type) => menuItemMarkup({ label: type.type_name, attributes: `data-transaction-type="${type.transaction_type_id}"`, icon: "transaction", depth: 3 })).join("")}</div></div>`;
       })
       .filter(Boolean);
     const technicalEntries = [
@@ -2896,7 +2916,7 @@
         state.navigation.is_administrator||permissions.some(p=>p.resource_kind==='report'&&(p.resource_code===report.report_id||p.resource_code==='*'))))
       .map(report=>menuItemMarkup({label:report.report_name,attributes:`data-defined-report="${report.report_id}"`,icon:'report',depth}));
   }
-  function resourcesForModules(moduleIds, { role = null } = {}) {
+  function resourcesForModules(moduleIds, { role = null, menuScope } = {}) {
     const linked = (row) =>
       (row.module_ids || []).some((id) => moduleIds.has(id));
     const permissions = role
@@ -2972,18 +2992,24 @@
             "accountingDimension",
           ),
         ),
-      ...state.transactionTypes
+      ...[...state.transactionTypes
         .filter(
           (row) =>
             row.is_active !== false && linked(row) && transactionAllowed(row),
         )
-        .map((row) =>
-          resourceMenuItem(
-            row.type_name,
-            `data-transaction-type="${row.transaction_type_id}"`,
-            "transaction",
-          ),
-        ),
+        .reduce((groups, row) => {
+          const group = state.transactionGroups.find(group =>
+            group.transaction_group_id === row.transaction_group_id);
+          if (!group || group.is_active === false) return groups;
+          if (!groups.has(group.transaction_group_id)) groups.set(group.transaction_group_id, { group, types: [] });
+          groups.get(group.transaction_group_id).types.push(row);
+          return groups;
+        }, new Map())
+        .values()]
+        .map(({ group, types }) => {
+          const targetId = `${menuScope}-transaction-group-${group.transaction_group_id}`;
+          return `<div class="menu-entry-group"><button type="button" class="nav menu-entry menu-entry--group-toggle menu-entry--transaction-group menu-entry--depth-2" data-resource-transaction-group="${menuAttribute(group.transaction_group_id)}" aria-expanded="false" aria-controls="${menuAttribute(targetId)}">${fixedMenuIconMarkup("transactionGroup", "menu-entry-icon")}<span class="menu-entry-label">${menuAttribute(group.group_name)}</span></button><div id="${menuAttribute(targetId)}" class="menu-entry-children" hidden>${types.map(type => menuItemMarkup({ label: menuAttribute(type.type_name), attributes: `data-transaction-type="${menuAttribute(type.transaction_type_id)}"`, iconMarkup: resourceIconMarkup("transaction"), depth: 3 })).join("")}</div></div>`;
+        }),
     ];
     items.push(...definedReportMenuItems(role ? {role} : {moduleIds}));
     if (canViewResourceAssignments(role))
@@ -3266,7 +3292,7 @@
       commonWithResources +
       state.navigation.modules
         .map((module) => {
-          const items = resourcesForModules(new Set([module.module_id]));
+          const items = [menuItemMarkup({label: "Dashboard", attributes: `data-dashboard-module="${module.module_id}"`, icon: "dashboard", depth: 2}), ...resourcesForModules(new Set([module.module_id]), { menuScope: `module-${module.module_id}` })];
           return menuGroupMarkup(
             "module",
             module.module_id,
@@ -3281,7 +3307,7 @@
       state.navigation.roles
         .map((role) => {
           const moduleIds = new Set(role.module_ids || []);
-          const items = resourcesForModules(moduleIds, { role });
+          const items = resourcesForModules(moduleIds, { role, menuScope: `role-${role.role_id}` });
           return menuGroupMarkup("role", role.role_id, role.role_name, items, {
             icon: "role",
           });
@@ -3392,6 +3418,7 @@
     $("reports-toggle")?.classList.toggle("active", !$("view-reports").hidden);
   }
   async function openAccountingMaster(kind, typeId = "") {
+    clearDashboardRecordFilters();
     const view =
       kind === "object" ? "accountingobjects" : "accountingdimensions";
     selectedAccountScopeCode = "";
@@ -3420,6 +3447,7 @@
     highlightDynamicMenu();
   }
   async function openLedgerFamily(familyCode) {
+    clearDashboardRecordFilters();
     await Promise.all([
       loadMenuData(),
       ensureDivisions(),
@@ -3448,6 +3476,7 @@
     highlightDynamicMenu();
   }
   async function openTransactionType(typeId) {
+    clearDashboardRecordFilters();
     await Promise.all([
       ensureCurrencies(),
       ensureTransactionSetup(),
@@ -3860,6 +3889,9 @@
   }
   function setRequiredMarker(label, required) {
     if (!label) return;
+    if (label.closest(".journal-header")) {
+      label = label.querySelector(":scope > span:not(.required-marker)") || label;
+    }
     const accountingTypeField = label.matches('.accounting-type-editor > .setup-type-panel[data-panel="definition"] > label');
     const recordField = label.closest(".erp-field-rows, #account-form, #accounting-object-form, #accounting-dimension-form, #report-definition-form") && !label.closest(".schema-grid");
     if (accountingTypeField || (recordField || label.closest(".code-numbering-fields, #account-identification-panel, #account-detail-fields, .accounting-record-general, .accounting-record-editor .account-schema-fields, .schema-design-preview, #resource-form, #module-form, #transaction-type-form") || label.matches("#gl-account-type-form > .setup-type-panel > label")) && !label.classList.contains("check")) {
@@ -4398,7 +4430,19 @@
       });
       select.value = value ?? "";
       applyDetailAttributes(select, field, required);
-      label.append(detailChoiceDisplay(select));
+      const display = detailChoiceDisplay(select);
+      if (field.options?.some(option => option?.showif !== undefined)) {
+        select.refreshConditionalOptions = (object, row, scope, rootSchema, rowSchema) => {
+          const previous = select.value;
+          const available = SchemaVisibility.availableOptions(field, object, row, scope, rootSchema, rowSchema);
+          select.replaceChildren(new Option(required ? "Select option" : "None", ""));
+          available.forEach(item => select.append(detailChoiceOption(typeof item === "object" ? item.code ?? item.value ?? "" : item, typeof item === "object" ? item.description ?? item.label ?? item.name ?? "" : "")));
+          select.value = available.some(item => String(typeof item === "object" ? item.code ?? item.value : item) === previous) ? previous : "";
+          display.refreshChoiceLabel();
+          return previous !== select.value;
+        };
+      }
+      label.append(display);
       return label;
     }
     if (detailFieldType(field) === "boolean") {
@@ -4783,9 +4827,11 @@
     if (!container) return;
     const fields = schemaFields(schema);
     const editorPrefix = containerId.replace(/-detail-fields$/, "");
-    const accountTabs = ["account", "accounting-object", "accounting-dimension"].includes(editorPrefix) ? $(`${editorPrefix}-form`).querySelector(".account-editor-tabs") : null;
-    const selectTab = (id) => editorPrefix === "account" ? showAccountEditorTab(`schema:${id}`) : showAccountingEditorTab(editorPrefix, `schema:${id}`);
-    const resourceTab = accountTabs?.querySelector('[data-account-fixed-tab="resources"], [data-record-tab="resources"]');
+    const journal = editorPrefix === "journal";
+    const accountTabs = journal ? $("journal-transaction-tab").parentElement : ["account", "accounting-object", "accounting-dimension"].includes(editorPrefix) ? $(`${editorPrefix}-form`).querySelector(".account-editor-tabs") : null;
+    const resetTab = () => journal ? showSetupTypeTab("journal", "transaction") : editorPrefix === "account" ? showAccountEditorTab("identification") : showAccountingEditorTab(editorPrefix, "general");
+    const selectTab = (id) => journal ? showJournalSchemaTab(id) : editorPrefix === "account" ? showAccountEditorTab(`schema:${id}`) : showAccountingEditorTab(editorPrefix, `schema:${id}`);
+    const resourceTab = journal ? $("journal-documents-tab") : accountTabs?.querySelector('[data-account-fixed-tab="resources"], [data-record-tab="resources"]');
     accountTabs?.querySelectorAll("[data-account-detail-tab]").forEach((button) => button.remove());
     container.innerHTML = "";
     container.referenceLoads = [];
@@ -4833,7 +4879,7 @@
         accountTabs.insertBefore(button, resourceTab);
       }
       syncRequiredMarkers(container);
-      if (accountTabs) editorPrefix === "account" ? showAccountEditorTab("identification") : showAccountingEditorTab(editorPrefix, "general");
+      if (accountTabs) resetTab();
       return;
     }
     const required = new Set(
@@ -4853,6 +4899,13 @@
         button.type = "button";
         button.className = `account-detail-tab${index ? "" : " active"}`;
         button.dataset.accountDetailTab = tab.id;
+        if (journal) {
+          button.dataset.setupTypeTab = "journal";
+          button.dataset.tab = `schema:${tab.id}`;
+          button.id = `journal-schema-tab-${index}`;
+          button.setAttribute("role", "tab");
+          button.setAttribute("aria-controls", `journal-schema-panel-${index}`);
+        }
         button.textContent = accountTabs && tab.label.toLowerCase() === "general" ? "Type details" : tab.label;
         button.addEventListener("click", () =>
           accountTabs ? selectTab(tab.id) : showAccountDetailTab(container, tab.id),
@@ -4866,6 +4919,7 @@
       const panel = document.createElement("div");
       panel.className = "account-detail-panel";
       panel.dataset.accountDetailPanel = tab.id;
+      if (journal) { panel.id = `journal-schema-panel-${index}`; panel.setAttribute("role", "tabpanel"); panel.setAttribute("aria-labelledby", `journal-schema-tab-${index}`); }
       panel.hidden = index > 0;
       tab.fields.forEach((name) =>
         panel.append(
@@ -4884,6 +4938,20 @@
     detailLayout.append(fieldPane);
     container.append(detailLayout);
     container.visibilityRefresh = () => {
+      // Settle dependent chains when an upstream selection is cleared.
+      for (let pass = 0; pass <= container.querySelectorAll("select[data-detail-field]").length; pass++) {
+        const object = collectSchemaDetail(containerId, schema);
+        let changed = false;
+        container.querySelectorAll("select[data-detail-field]").forEach(select => {
+          if (!select.refreshConditionalOptions) return;
+          const grid = select.closest("[data-detail-grid]");
+          const row = select.closest(".schema-grid-row");
+          const rowSchema = grid ? schema.properties[grid.dataset.detailGrid].rowSchema : undefined;
+          const rowData = row ? Object.fromEntries([...row.querySelectorAll("[data-detail-field]")].map(input => [input.dataset.detailField, collectDetailValue(input, rowSchema.properties[input.dataset.detailField])])) : undefined;
+          changed = select.refreshConditionalOptions(object, rowData, row ? "row" : "object", schema, rowSchema) || changed;
+        });
+        if (!changed) break;
+      }
       const data = collectSchemaDetail(containerId, schema);
       const visible = (condition, row, rowSchema) => SchemaVisibility.evaluate(condition, data, row, row ? "row" : "object", schema, rowSchema);
       tabs.forEach(tab => {
@@ -4923,7 +4991,7 @@
       const first = [...bar.querySelectorAll("[data-account-detail-tab]")].find(button => !button.hidden);
       if (selected?.hidden || !accountTabs && !selected) {
         if (first) accountTabs ? selectTab(first.dataset.accountDetailTab) : showAccountDetailTab(container, first.dataset.accountDetailTab);
-        else if (accountTabs) editorPrefix === "account" ? showAccountEditorTab("identification") : showAccountingEditorTab(editorPrefix, "general");
+        else if (accountTabs) resetTab();
       } else if (!accountTabs && !bar.querySelector("[data-account-detail-tab]")) {
         const panel = container.querySelector("[data-account-detail-panel]");
         panel.hidden = panel.dataset.showifHidden === "true";
@@ -4933,7 +5001,7 @@
     container.visibilityRefresh = () => { refreshVisibility(); recordEditorLayouts.get(editorPrefix)?.refresh(); };
     container.visibilityRefresh();
     syncRequiredMarkers(container);
-    if (accountTabs) editorPrefix === "account" ? showAccountEditorTab("identification") : showAccountingEditorTab(editorPrefix, "general");
+    if (accountTabs) resetTab();
   }
   function syncRecordTypeDescription(prefix, type, objectClass) {
     const form = $(`${prefix}-form`);
@@ -4952,9 +5020,9 @@
       context = document.createElement("p");
       context.className = "record-type-context";
     }
-    context.textContent = type && objectClass ? objectClass : "";
+    context.textContent = type && objectClass ? `${objectClass} / ${type.type_name}` : "";
     context.hidden = !context.textContent;
-    header.insertBefore(context, heading);
+    heading.after(context);
     header.classList.toggle("record-editor-header--classified", !!context.textContent);
     if (type && objectClass) {
       const recordId = $(prefix === "account" ? "account-id" : `${prefix}-id`)?.value;
@@ -5299,30 +5367,60 @@
       });
     }
   }
+  let selectedDashboardModuleId = "";
+  let dashboardRequest = 0;
+  function clearDashboardRecordFilters() {
+    ["account-list", "accounting-object-list", "accounting-dimension-list", "journal-list"].forEach(id => {
+      if ($(id)) window.erpObjectGridViews.setStatusFilter($(id), null);
+    });
+  }
   function renderDashboard() {
-    const org = currentOrg();
-    const summary = state.dashboardSummary;
-    const pending = state.orgId && !loadedSlices.dashboard;
-    const metric = (key, fallback = "-") =>
-      summary ? summary[key] : pending ? "..." : fallback;
-    const cards = [
-      ["Organisations", boot.organisations.length],
-      ["Divisions", metric("divisions")],
-      ["Legal Entities", metric("legal_entities")],
-      ["GL Accounts", metric("gl_accounts")],
-      ["Subledgers", metric("subledgers")],
-      ["Periods", metric("periods")],
-      ["Journals", metric("journals")],
-    ];
-    $("metrics").innerHTML = cards
-      .map(
-        ([k, v]) =>
-          `<article class="metric"><span>${k}</span><strong>${v}</strong></article>`,
-      )
-      .join("");
-    $("org-summary").innerHTML = org
-      ? `<p><b>${org.organisation_name}</b></p><p>Code: ${org.organisation_code}</p><p>Base currency: ${org.base_currency_code}</p><p>Status: ${pretty(org.workflow_status)}</p>`
-      : "";
+    const data = state.orgId ? state.dashboardSummary : {modules: [], total_records: 0};
+    const selected = data?.modules.find(module => module.module_id === selectedDashboardModuleId);
+    if (!$("view-dashboard").hidden) $("page-title").textContent = selected ? selected.module_name + " dashboard" : "Module dashboards";
+    window.erpModuleDashboard.render({
+      formatMoney: formatOrgMoney,
+      target: $("module-dashboard"), data, moduleId: selectedDashboardModuleId,
+      onModule: id => openModuleDashboard(id).catch(error => alert(error.message)),
+      onOverview: () => { selectedDashboardModuleId = ""; renderDashboard(); },
+      onStatus: (type, status) => openDashboardRecords(type, status).catch(error => alert(error.message)),
+      onAccount: (type, account) => openReport('object_statement', {
+        kind: 'subledger_account', typeId: type.type_id, objectId: account.account_id,
+        dateTo: data.as_of, dateFrom: data.as_of.slice(0,8)+'01',
+        divisionId: state.divisionId, includeChildren: state.includeChildren,
+        divisionName: state.divisions.find(division => division.division_id === state.divisionId)?.division_name,
+        autoRun: true,
+      }).catch(error => alert(error.message)),
+    });
+  }
+  async function openModuleDashboard(moduleId) {
+    selectedDashboardModuleId = moduleId;
+    show("dashboard");
+    renderDashboard();
+    await loadDashboardData(true);
+  }
+  async function openDashboardRecords(type, status) {
+    const scope = [state.orgId, state.divisionId, state.includeChildren].join(":");
+    let target, contextKey, refresh, search;
+    if (type.kind === "transaction") {
+      await openTransactionType(type.type_id);
+      target = $("journal-list"); contextKey = state.orgId + ":" + type.type_id; refresh = renderJournals;
+    } else if (type.kind === "subledger_account") {
+      const definition = state.subledgerAccountTypes.find(row => row.subledger_account_type_id === type.type_id);
+      if (!definition) throw new Error("This sub-ledger type is no longer available.");
+      await openLedgerFamily(definition.type_code);
+      target = $("account-list"); contextKey = state.orgId + ":" + definition.type_code; refresh = renderAccounts; search = $("account-search");
+    } else {
+      const kind = type.kind === "accounting_object" ? "object" : "dimension";
+      await openAccountingMaster(kind, type.type_id);
+      const config = accountingMasterConfig(kind);
+      target = $(config.prefix + "-list"); contextKey = state.orgId + ":" + type.type_id;
+      refresh = () => renderAccountingMaster(kind); search = $(config.prefix + "-search");
+    }
+    if (scope !== [state.orgId, state.divisionId, state.includeChildren].join(":")) return;
+    if (search) search.value = "";
+    window.erpObjectGridViews.setStatusFilter(target, {contextKey, status_code: status.status_code, status_label: status.status_label});
+    refresh();
   }
   function resetOrgOpenAIFields() {
     $("org-openai-model").value = "gpt-4.1-mini";
@@ -6340,7 +6438,17 @@
       classLabel.textContent = context?.objectClass || "";
       classLabel.hidden = !context;
     }
-    if (!context) return;
+    if (!context) {
+      document.querySelector(".topbar-actions").append($("refresh"));
+      const accountToolbar = $("account-grid-title").closest(".panel-head");
+      if (accountToolbar.classList.contains("object-grid-toolbar")) {
+        accountToolbar.classList.remove("object-grid-toolbar");
+        accountToolbar.closest(".panel").classList.remove("object-grid-panel");
+        accountToolbar.querySelector(".panel-actions").append($("add-account"));
+        accountToolbar.querySelector(".object-grid-count").hidden = true;
+      }
+      return;
+    }
     const title = context.type?.type_name || context.title;
     const capturing = context.view === "journals" && !$("journal-form").hidden;
     $("page-title").textContent = capturing ? "Transaction Capture" : title;
@@ -6364,10 +6472,29 @@
     add.textContent = `+ Add ${context.type?.type_name || context.objectClass}`;
     add.classList.add("object-grid-add");
     add.setAttribute("aria-label", add.textContent.slice(2));
+    // Reuse the same toolbar layout for record classes and transaction entry.
+    toolbar.classList.add("object-grid-toolbar");
+    toolbar.closest(".panel").classList.add("object-grid-panel");
+    toolbar.prepend(add);
+    add.after(recordCount);
+    recordCount.hidden = false;
+    const tools = toolbar.querySelector(".panel-actions");
+    tools.prepend($("refresh"));
+    const gridView = toolbar.querySelector(".object-grid-view-control");
+    if (gridView) tools.append(gridView);
     const search = $(`${context.prefix}-search`);
     if (search) {
       search.placeholder = "Search by code or name";
       search.setAttribute("aria-label", `Search ${title} by code or name`);
+      let filters = toolbar.parentElement.querySelector(".object-grid-filters");
+      if (!filters) {
+        filters = document.createElement("div");
+        filters.className = "object-grid-filters";
+        search.before(filters);
+        filters.append(search);
+      }
+      const visibility = $(`${context.prefix}-list`).previousElementSibling;
+      if (visibility?.matches("label.check")) filters.append(visibility);
     }
   }
   function renderAccounts() {
@@ -6404,6 +6531,7 @@
             ["Name", (r) => r.account_name],
             ["Legal entity", (r) => r.legal_entity_known_name || ""],
             ["Owner", (r) => r.owner_division_name],
+            ["Balance", subledgerBalanceLabel],
             ["Status",r=>workflowStatusButton({row:r,onMove:a=>moveSubledgerWorkflow(r,a).catch(e=>alert(e.message))})],
             ["Actions", r => objectActions.button(objectActionContext("subledger_account", r))],
           ];
@@ -6413,6 +6541,7 @@
       enabled: family !== "gl",
       contextKey: `${state.orgId}:${family}`,
       defaultView: state.subledgerAccountTypes.find(type => type.type_code === family)?.default_grid_view,
+      tileValue: family !== "gl" ? row => `Balance (${currentOrg()?.base_currency_code || ""}): ${subledgerBalanceLabel(row)}` : null,
       columns, rows, table, onOpen: openAccountEditor,
       code: row => row.account_code, name: row => row.account_name,
       workflowButton: row => workflowStatusButton({row,
@@ -7375,7 +7504,7 @@
     const columns = [
         ["Date/time", (r) => journalDateTime(r)],
         ["Number", (r) => r.journal_number || "(draft)"],
-        ["Description", (r) => r.description],
+        ["Heading", (r) => r.transaction_heading || ""],
         ["Status", (r) => workflowStatusButton({row:r,onMove:action=>moveJournalWorkflow(r,action).catch(e=>alert(e.message))})],
         ["Debits", (r) => formatOrgMoney(r.debit_total)],
         ["Credits", (r) => formatOrgMoney(r.credit_total)],
@@ -7385,7 +7514,9 @@
       columns, rows, table,
       contextKey: `${state.orgId}:${selectedTransactionTypeId || "all"}`,
       defaultView: state.transactionTypes.find(type => type.transaction_type_id === selectedTransactionTypeId)?.default_grid_view,
-      code: row => row.journal_number || "(draft)", name: row => row.description || "",
+      code: row => row.journal_number || "(draft)", name: row => row.transaction_heading || "",
+      tileDescription: row => row.description || "",
+      tileValue: row => `Value (${currentOrg()?.base_currency_code || ""}): ${formatOrgMoney(row.debit_total)}`,
       statuses: state.workflowStatuses, steps: state.workflowSteps,
       workflowPath: row => state.transactionTypes.find(type => type.transaction_type_id === row.transaction_type_id)?.workflow_path_id,
       workflowButton: row => workflowStatusButton({row, onMove: action => moveJournalWorkflow(row, action).catch(e => alert(e.message))}),
@@ -7516,10 +7647,13 @@
   }
   async function toggleTrialBalanceAccount(account) {
     if (trialBalanceState?.detail?.account.gl_account_id === account.gl_account_id) {
-      ++trialDetailSequence;
-      trialBalanceState.detail = null;
-      renderTrialBalanceDetail();
+      closeTrialBalanceDetail();
     } else await openTrialBalanceAccount(account, "movement");
+  }
+  function closeTrialBalanceDetail() {
+    ++trialDetailSequence;
+    if (trialBalanceState) trialBalanceState.detail = null;
+    renderTrialBalanceDetail();
   }
   async function openTrialBalanceAccount(account, section = "movement", offset = 0) {
     if (!trialBalanceState) return;
@@ -7562,6 +7696,18 @@
     parent.querySelector(".trial-account-toggle")?.setAttribute("aria-expanded", "true");
     target.hidden = false;
     target.replaceChildren();
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "panel-close";
+    close.textContent = "\u00d7";
+    close.setAttribute("aria-label", "Close transaction detail");
+    close.title = "Close transaction detail";
+    close.addEventListener("click", () => {
+      const toggle = parent.querySelector(".trial-account-toggle");
+      closeTrialBalanceDetail();
+      toggle?.focus();
+    });
+    target.append(close);
     const heading = document.createElement("h3");
     heading.textContent = `${account.account_code} - ${account.account_name}: ${section === "opening" ? "opening balance history" : "period transactions"}`;
     target.append(heading);
@@ -7573,7 +7719,6 @@
     action("Previous", () => openTrialBalanceAccount(account, section, Math.max(0, offset - 100)).catch((error) => alert(error.message)), offset === 0);
     action("Next", () => openTrialBalanceAccount(account, section, offset + 100).catch((error) => alert(error.message)), offset + result.rows.length >= result.total_count);
     action("Export all detail CSV", () => exportTrialBalanceDetail().catch((error) => alert(error.message)));
-    action("Close detail", () => { ++trialDetailSequence; trialBalanceState.detail = null; renderTrialBalanceDetail(); });
     target.append(actions);
     const description = document.createElement("p");
     description.textContent = `Opening balance: ${formatOrgMoney(result.opening_balance)}. Showing ${result.rows.length ? offset + 1 : 0}-${offset + result.rows.length} of ${result.total_count} lines. Click a line to open its full transaction.`;
@@ -7595,11 +7740,16 @@
     $("journal-form").hidden = false;
     showSetupTypeTab("journal", "transaction");
     $("journal-id").value = row.journal_id;
+    syncJournalNumber(row);
     $("journal-type").value = row.transaction_type_id || "";
     $("journal-period").value = row.fiscal_period_id;
     $("journal-division").value = row.source_division_id;
     $("journal-date").value = dateOnly(row.journal_date);
+    $("journal-heading").value = row.transaction_heading || "";
     $("journal-description").value = row.description;
+    const type = state.transactionTypes.find(type => type.transaction_type_id === row.transaction_type_id);
+    if (type && row.transaction_schema_json) type.schema_json = row.transaction_schema_json;
+    renderJournalSchema(row.additional_data || {});
     renderJournalLines(detail.lines);
     setJournalEditable(!row.posted_at&&!['deleted','archived'].includes(row.workflow_status));
     $("journal-type").disabled=true;
@@ -7681,6 +7831,7 @@
     ], rows);
   }
   async function renderReport() {
+    const financialSequence = ++financialReportSequence;
     if ($("view-reports").hidden) return;
     if (selectedReport === "object_statement") return;
     await ensureCurrencies();
@@ -7695,6 +7846,7 @@
     const params = new URLSearchParams({
       organisation_id: state.orgId,
       report: selectedReport,
+      include_child_divisions: state.includeChildren ? "1" : "0",
     });
     if (selectedReport === "ledger") params.set("fiscal_year_id", yearId);
     if (selectedReport === "financial_statement") {
@@ -7728,6 +7880,7 @@
     }
     if (division) params.set("division_id", division);
     const r = await api(`reports/financial?${params.toString()}`);
+    if (financialSequence !== financialReportSequence || $("view-reports").hidden || params.get("organisation_id") !== state.orgId) return;
     if (selectedReport === "ledger") {
       table(
         $("report-result"),
@@ -7742,9 +7895,10 @@
       );
       return;
     }
-    renderFinancialStatementResult(r.rows || []);
+    if (financialSequence !== financialReportSequence || selectedReport !== "financial_statement" || $("view-reports").hidden || params.get("organisation_id") !== state.orgId) return;
+    renderFinancialStatementResult(r.rows || [], r.summary, params, financialSequence);
   }
-  function renderFinancialStatementResult(rows) {
+  function renderFinancialStatementResult(rows, summary, params, sequence) {
     if (!rows.length) {
       $("report-result").innerHTML =
         '<p class="empty">No statement lines configured for this format.</p>';
@@ -7754,6 +7908,12 @@
     const tableEl = document.createElement("table");
     tableEl.className = "financial-statement-table";
     tableEl.innerHTML = `<thead><tr><th>Line</th><th>Current</th>${hasCompare ? "<th>Comparative</th><th>Variance</th><th>Variance %</th>" : ""}</tr></thead>`;
+    const columns = document.createElement("colgroup");
+    for (const width of (hasCompare ? [40, 15, 15, 15, 15] : [68, 32])) {
+      const col = document.createElement("col"); col.style.width = `${width}%`; columns.append(col);
+    }
+    tableEl.prepend(columns);
+    tableEl.classList.toggle("statement-has-comparison", hasCompare);
     const body = document.createElement("tbody");
     rows.forEach((row) => {
       const tr = document.createElement("tr");
@@ -7772,12 +7932,153 @@
         row.variance_percent === null || row.variance_percent === undefined
           ? ""
           : `${Number(row.variance_percent || 0).toFixed(2)}%`;
-      tr.innerHTML = `<td style="padding-left:${10 + (Number(row.depth) || 0) * 18}px">${row.line_label}</td><td>${amount}</td>${hasCompare ? `<td>${compare}</td><td>${variance}</td><td>${variancePercent}</td>` : ""}`;
+      const label = document.createElement("td");
+      label.style.paddingLeft = `${10 + (Number(row.depth) || 0) * 18}px`;
+      if (row.line_type === "header") label.textContent = row.line_label;
+      else {
+        const toggle = statementDrillButton(row.line_label, () => openStatementLine(row, tr, params, sequence));
+        toggle.classList.add("statement-expand-toggle");
+        toggle.setAttribute("aria-label", row.line_label);
+        toggle.setAttribute("aria-expanded", "false");
+        label.append(toggle);
+      }
+      tr.append(label);
+      const current = document.createElement("td");
+      if (row.line_type === "header") current.textContent = amount;
+      else current.append(statementDrillButton(amount, () => openStatementLine(row, tr, params, sequence)));
+      tr.append(current);
+      if (hasCompare) {
+        const comparative = document.createElement("td");
+        if (row.line_type === "header") comparative.textContent = compare;
+        else comparative.append(statementDrillButton(compare, () => {
+          const comparison = new URLSearchParams(params);
+          comparison.set("period_from_id", params.get("compare_period_from_id"));
+          comparison.set("period_to_id", params.get("compare_period_to_id"));
+          return openStatementLine(row, tr, comparison, sequence, "Comparative");
+        }));
+        tr.append(comparative);
+        for (const value of [variance, variancePercent]) { const td = document.createElement("td"); td.textContent = value; tr.append(td); }
+      }
       body.append(tr);
     });
     tableEl.append(body);
     $("report-result").innerHTML = "";
-    $("report-result").append(tableEl);
+    if (summary) {
+      const header = document.createElement("div");
+      header.className = "financial-statement-summary";
+      for (const [key, title] of [["asset", "Total assets"], ["liability", "Total liabilities"], ["equity", "Total equity"]]) {
+        const card = document.createElement("div");
+        card.className = "financial-statement-summary-card";
+        const caption = document.createElement("span"); caption.textContent = title;
+        const value = document.createElement("strong"); value.textContent = formatOrgMoney(summary[key]);
+        card.append(caption, value); header.append(card);
+      }
+      $("report-result").append(header);
+    }
+    const scroll = document.createElement("div"); scroll.className = "financial-statement-grid";
+    scroll.append(tableEl); $("report-result").append(scroll);
+  }
+  function statementDrillButton(label, action) {
+    const button = document.createElement("button");
+    button.type = "button"; button.className = "trial-amount-link"; button.textContent = label;
+    button.addEventListener("click", () => Promise.resolve(action()).catch(error => alert(error.message)));
+    return button;
+  }
+  // Both statement and account rows use the same compact expansion mechanism.
+  function statementExpansion(parent, column) {
+    const previous = parent.statementExpansion;
+    const controls = [...parent.querySelectorAll(":scope > td > button")];
+    if (previous) {
+      previous.row.remove();
+      parent.statementExpansion = null;
+      controls.forEach(button => button.setAttribute("aria-expanded", "false"));
+      if (previous.column === column) return null;
+    }
+    const row = document.createElement("tr"); row.className = "statement-detail-row";
+    const cell = document.createElement("td"); cell.colSpan = parent.children.length;
+    const target = document.createElement("div"); target.className = "statement-detail";
+    target.setAttribute("aria-live", "polite");
+    cell.append(target); row.append(cell); parent.after(row);
+    parent.statementExpansion = {row, column};
+    controls.forEach(button => button.setAttribute("aria-expanded", "true"));
+    return {row, target};
+  }
+  async function openStatementLine(line, parent, sourceParams, sequence, column = "Current") {
+    const expansion = statementExpansion(parent, column);
+    if (!expansion) return;
+    const {row, target} = expansion;
+    const valid = () => sequence === financialReportSequence && row.isConnected && selectedReport === "financial_statement" && !$("view-reports").hidden && sourceParams.get("organisation_id") === state.orgId;
+    const params = new URLSearchParams(sourceParams); params.set("line_id", line.financial_statement_line_id);
+    target.textContent = "Loading…";
+    let result;
+    try { result = await api(`reports/financial?${params}`); }
+    catch (error) { if (valid()) target.textContent = error.message; return; }
+    if (!valid()) return;
+    target.replaceChildren();
+    const accounts = document.createElement("table"); accounts.className = "statement-account-table";
+    accounts.setAttribute("aria-label", `${line.line_label} — ${column} GL accounts`);
+    const outer = parent.closest("table");
+    accounts.append(outer.querySelector(":scope > colgroup").cloneNode(true));
+    const body = document.createElement("tbody"); accounts.append(body); target.append(accounts);
+    for (const account of result.rows) {
+      const accountRow = document.createElement("tr"); accountRow.className = "statement-gl-row";
+      const name = document.createElement("td"), amount = document.createElement("td");
+      const toggle = statementDrillButton(`${account.account_code} - ${account.account_name}`, async () => {
+        const child = statementExpansion(accountRow, "transactions");
+        if (child) await loadTransactions(account, child);
+      });
+      toggle.classList.add("statement-expand-toggle"); toggle.setAttribute("aria-label", `${account.account_code} - ${account.account_name}`); toggle.setAttribute("aria-expanded", "false");
+      name.append(toggle); amount.textContent = formatOrgMoney(account.amount);
+      name.style.paddingLeft = `${parseFloat(parent.firstElementChild.style.paddingLeft || "10") + 18}px`;
+      accountRow.append(name);
+      const amountColumn = column === "Comparative" ? 2 : 1;
+      for (let index = 1; index < parent.children.length; index++) {
+        accountRow.append(index === amountColumn ? amount : document.createElement("td"));
+      }
+      body.append(accountRow);
+    }
+    if (!result.rows.length) target.textContent = "No contributing postings in this scope.";
+    async function loadTransactions(account, child, offset = 0) {
+      const {row: childRow, target: content} = child;
+      const token = child.request = (child.request || 0) + 1;
+      const current = () => valid() && childRow.isConnected && token === child.request;
+      content.textContent = "Loading…";
+      const query = new URLSearchParams(params); query.set("account_id", account.gl_account_id); query.set("offset", offset);
+      let detail;
+      try { detail = await api(`reports/financial?${query}`); }
+      catch (error) { if (current()) content.textContent = error.message; return; }
+      if (!current()) return;
+      content.replaceChildren();
+      const grid = document.createElement("div"); grid.className = "statement-transaction-grid"; content.append(grid);
+      table(grid, [["Date", item => dateOnly(item.journal_date)], ["Transaction", item => statementDrillButton(item.journal_number || "(unnumbered)", () => journal(item))], ["Transaction heading", item => item.transaction_heading || ""], ["Debit", item => formatOrgMoney(item.debit_amount)], ["Credit", item => formatOrgMoney(item.credit_amount)]], detail.rows);
+      if (!detail.rows.length) { const empty = document.createElement("p"); empty.textContent = "No contributing postings in this scope."; content.append(empty); }
+      const note = document.createElement("p"); note.className = "statement-posting-note";
+      note.textContent = `Showing ${detail.rows.length ? offset + 1 : 0}–${offset + detail.rows.length} of ${detail.total_count} lines. Debits and credits are original postings; statement signs and formula weights apply to the account contribution.`;
+      content.append(note);
+      if (offset || detail.total_count > detail.rows.length) {
+        const actions = document.createElement("div"); actions.className = "actions";
+        for (const [label, next, disabled] of [["Previous", Math.max(0, offset - 100), offset === 0], ["Next", offset + 100, offset + detail.rows.length >= detail.total_count]]) {
+          const button = statementDrillButton(label, () => loadTransactions(account, child, next)); button.disabled = disabled; actions.append(button);
+        }
+        content.append(actions);
+      }
+      let journalRequest = 0;
+      async function journal(item) {
+        const journalToken = ++journalRequest;
+        const data = await api(`journals/detail?organisation_id=${encodeURIComponent(state.orgId)}&journal_id=${encodeURIComponent(item.journal_id)}`);
+        if (!current() || journalToken !== journalRequest) return;
+        content.querySelector(".statement-journal-detail")?.remove();
+        const panel = document.createElement("section"); panel.className = "statement-journal-detail";
+        const close = document.createElement("button"); close.type = "button"; close.className = "panel-close"; close.textContent = "×";
+        close.setAttribute("aria-label", "Close journal detail"); close.addEventListener("click", () => { ++journalRequest; panel.remove(); grid.querySelector("button")?.focus(); });
+        const heading = document.createElement("h3"); heading.textContent = `Journal ${data.journal.journal_number || "(unnumbered)"}`;
+        panel.append(close, heading);
+        const description = document.createElement("p"); description.textContent = `${dateOnly(data.journal.journal_date)} · ${data.journal.transaction_heading || ""}`; panel.append(description);
+        const lines = document.createElement("div"); panel.append(lines);
+        table(lines, [["Account", item => `${item.gl_account_code} - ${item.gl_account_name}`], ["Sub-ledger", item => item.subledger_account_name || ""], ["Division", item => item.division_name], ["Description", item => item.description], ["Debit", item => formatOrgMoney(item.debit_amount)], ["Credit", item => formatOrgMoney(item.credit_amount)]], data.lines);
+        content.append(panel);
+      }
+    }
   }
   async function moveJournalWorkflow(row,actionId){
     await api("journals/workflow",{method:"POST",body:JSON.stringify({organisation_id:state.orgId,journal_id:row.journal_id,workflow_next_id:actionId})});
@@ -7785,8 +8086,40 @@
     if($("journal-id").value===row.journal_id)await displayJournalDetail(await api(`journals/detail?journal_id=${encodeURIComponent(row.journal_id)}&organisation_id=${state.orgId}`));
   }
   function renderJournalWorkflowActions(row){
-    const target=$("journal-workflow-actions");if(!target)return;target.replaceChildren();
-    (row.available_workflow_steps||[]).forEach(action=>{const b=document.createElement("button");b.type="button";b.className="secondary";b.textContent=action.action_label;b.onclick=()=>moveJournalWorkflow(row,action.workflow_next_id).catch(e=>alert(e.message));target.append(b);});
+    const target = $("journal-workflow-actions");
+    if (!target) return;
+    if (activeWorkflowMenu && target.contains(activeWorkflowMenu.button)) closeWorkflowMenu();
+    target.replaceChildren();
+    target.hidden = !row?.journal_id || !row.workflow_status;
+    if (!target.hidden) target.append(workflowStatusButton({
+      row,
+      onMove: action => moveJournalWorkflow(row, action).catch(e => alert(e.message)),
+    }));
+  }
+  function selectedJournalSchema() {
+    return state.transactionTypes.find(type => type.transaction_type_id === $("journal-type").value)?.schema_json || {};
+  }
+  function showJournalSchemaTab(id) {
+    showSetupTypeTab("journal", `schema:${id}`);
+    showAccountDetailTab($("journal-detail-fields"), id);
+  }
+  function renderJournalSchema(data = {}) {
+    let container = $("journal-detail-fields");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "journal-detail-fields";
+      container.className = "account-schema-fields erp-field-rows schema-record-fields";
+      $("journal-transaction-panel").after(container);
+    }
+    const schema = selectedJournalSchema();
+    if (Object.keys(schema.properties || {}).length) renderSchemaDetailFields(container.id, schema, data);
+    else {
+      $("journal-transaction-tab").parentElement.querySelectorAll("[data-account-detail-tab]").forEach(button => button.remove());
+      container.replaceChildren();
+      container.referenceLoads = [];
+      container.visibilityRefresh = null;
+      showSetupTypeTab("journal", "transaction");
+    }
   }
   function setJournalEditable(editable) {
     [
@@ -7795,6 +8128,7 @@
       "journal-division",
       "journal-date",
       "journal-description",
+      "journal-heading",
       "add-journal-line",
       "journal-save",
     ].forEach((id) => {
@@ -7802,7 +8136,7 @@
     });
     document
       .querySelectorAll(
-        ".journal-line input,.journal-line select,.journal-line button",
+        ".journal-line input,.journal-line select,.journal-line button,#journal-detail-fields input,#journal-detail-fields select,#journal-detail-fields textarea,#journal-detail-fields button",
       )
       .forEach((control) => {
         control.disabled = !editable || control.dataset.locked === "true";
@@ -7820,12 +8154,7 @@
           : "",
       description: definition.line_description || "",
       debit_credit: definition.debit_credit || "debit",
-      accounting_objects: (definition.object_requirements || [])
-        .filter((item) => item.accounting_object_id)
-        .map((item) => ({
-          accounting_object_type_id: item.accounting_object_type_id,
-          accounting_object_id: item.accounting_object_id,
-        })),
+      accounting_objects: definition.default_accounting_object_id ? [{accounting_object_type_id: definition.default_accounting_object_type_id, accounting_object_id: definition.default_accounting_object_id}] : [],
       accounting_dimensions: (definition.dimension_requirements || [])
         .filter((item) => item.accounting_dimension_id)
         .map((item) => ({
@@ -7838,13 +8167,14 @@
   }
   function defaultJournalLinesForType(typeId) {
     const definitions = state.lineDefinitions
-      .filter(line => line.transaction_type_id === typeId && ["required", "generated"].includes(line.occurrence))
+      .filter(line => line.transaction_type_id === typeId && ["required", "optional", "generated"].includes(line.occurrence))
       .sort((a, b) => Number(a.line_order || 0) - Number(b.line_order || 0));
     const lines = definitions.map(defaultJournalLineForDefinition);
     if (!typeId) while (lines.length < 2) lines.push({});
     return lines;
   }
   function renderJournalLines(lines = [{}, {}]) {
+    classificationValueCache.clear();
     $("journal-lines").innerHTML =
       '<div class="journal-line-grid"><div class="journal-line journal-line-head"><span>Line definition</span><span>Division</span><span>GL Account</span><span>Subledger</span><span>Description</span><span>DR/CR</span><span>Amount</span><span>Actions</span></div></div>';
     lines.forEach((line) => addJournalLine(line));
@@ -7885,7 +8215,8 @@
   const classificationValueCache = new Map();
   async function classificationValues(kind, typeId) {
     if (!typeId) return [];
-    const key = `${kind}:${typeId}`;
+    const scope = [state.orgId, state.divisionId, state.includeChildren].join(":");
+    const key = `${scope}:${kind}:${typeId}`;
     if (!classificationValueCache.has(key)) {
       const idField =
         kind === "object"
@@ -7897,7 +8228,9 @@
         key,
         api(
           `${endpoint}/list?organisation_id=${state.orgId}&${idField}=${encodeURIComponent(typeId)}`,
-        ).then((result) => (result.records || []).filter(r=>r.enabled_for_use!==false)),
+        ).then((result) => scope === [state.orgId, state.divisionId, state.includeChildren].join(":")
+          ? (result.records || []).filter(r=>r.enabled_for_use!==false) : [])
+          .catch(error => {classificationValueCache.delete(key); throw error;}),
       );
     }
     return classificationValueCache.get(key);
@@ -7917,10 +8250,43 @@
     );
     select.value = selected || "";
   }
+  async function fillPermittedObjectSelect(select, permitted, selected = "") {
+    const request = String(Number(select.dataset.request || 0) + 1);
+    select.dataset.request = request;
+    select.replaceChildren(new Option("Loading objects…", ""));
+    const groups = await Promise.all(permitted.map(async type => ({
+      type, records: await classificationValues("object", type.accounting_object_type_id || type.type_id),
+    })));
+    if (select.dataset.request !== request || !select.isConnected) return;
+    select.replaceChildren(new Option("Select accounting object", ""));
+    for (const {type, records} of groups) {
+      const group = document.createElement("optgroup");
+      const typeId = type.accounting_object_type_id || type.type_id;
+      group.label = type.type_name || state.accountingObjectTypes.find(row => row.accounting_object_type_id === typeId)?.type_name || "Accounting objects";
+      if (!records.length) {
+        const empty = new Option("No available records", "");
+        empty.disabled = true;
+        group.append(empty);
+      }
+      for (const record of records) {
+        const item = new Option(`${record.object_code} - ${record.object_name}`, record.accounting_object_id);
+        item.dataset.typeId = typeId;
+        group.append(item);
+      }
+      select.append(group);
+    }
+    select.value = selected;
+    const syncType = () => {select.dataset.typeId = select.selectedOptions[0]?.dataset.typeId || "";};
+    select.onchange = syncType;
+    syncType();
+  }
   function journalDefinitionFor(id) {
     return state.lineDefinitions.find(
       (item) => item.transaction_line_definition_id === id,
     );
+  }
+  function syncJournalNumber(journal = {}) {
+    $("journal-capture-number").textContent = `Transaction number: ${journal.journal_number || "Not yet assigned"}`;
   }
   function syncTransactionDescription(type) {
     const subtitle = $("page-subtitle");
@@ -7994,13 +8360,18 @@
           select.disabled = true;
         }
       });
-    render(
-      "object",
-      definition.object_requirements,
-      line.accounting_objects,
-      "accounting_object_type_id",
-      "accounting_object_id",
-    );
+    if (definition.object_requirement && definition.object_requirement !== "not_used") {
+      const wrapper = document.createElement("label");
+      wrapper.className = "journal-classification";
+      const caption = document.createElement("span");
+      caption.textContent = "Accounting object" + (definition.object_requirement === "mandatory" ? " *" : "");
+      const select = document.createElement("select");
+      select.dataset.classificationKind = "object";
+      select.required = definition.object_requirement === "mandatory";
+      wrapper.append(caption, select); target.append(wrapper);
+      fillPermittedObjectSelect(select, definition.object_requirements || [], line.accounting_objects?.[0]?.accounting_object_id || definition.default_accounting_object_id || "").catch(error => alert(error.message));
+      if (definition.object_value_behaviour === "fixed") {select.dataset.locked = "true"; select.disabled = true;}
+    }
     render(
       "dimension",
       definition.dimension_requirements,
@@ -8051,7 +8422,7 @@
     row.className = "journal-line";
     row.dataset.subledgerType = line.subledger_account_type_id || "";
     row.innerHTML =
-      '<select class="line-definition"></select><select class="line-division"></select><select class="line-gl"></select><select class="line-sub"></select><input class="line-description" placeholder="Description"><select class="line-drcr"><option value="debit">DR</option><option value="credit">CR</option></select><input class="line-amount" type="text" inputmode="decimal" placeholder="Amount"><button type="button" class="secondary">Remove</button><div class="journal-line-classifications"></div>';
+      '<select class="line-definition"></select><select class="line-division"></select><select class="line-gl"></select><select class="line-sub"></select><input class="line-description" placeholder="Description"><select class="line-drcr"><option value="debit">DR</option><option value="credit">CR</option></select><input class="line-amount" type="text" inputmode="decimal" placeholder="Amount"><button type="button" class="secondary" aria-label="Remove line" title="Remove line">−</button><div class="journal-line-classifications"></div>';
     let grid = $("journal-lines").querySelector(".journal-line-grid");
     if (!grid) {
       $("journal-lines").innerHTML =
@@ -8193,11 +8564,11 @@
       }catch(error){alert(error.message);}
     });
     const statuses=document.createElement("section");statuses.id="view-workflowstatuses";statuses.className="view";statuses.hidden=true;statuses.dataset.organisationSetup="true";
-    statuses.innerHTML='<div class="split"><div class="panel"><div class="panel-head"><h2>Workflow Status</h2><button id="add-workflow-status" type="button" class="add-record-button" aria-label="Add workflow status">+</button></div><input id="workflow-status-search" class="grid-search" placeholder="Search workflow statuses" aria-label="Search workflow statuses"><div id="workflow-status-list"></div></div><form id="workflow-status-form" class="panel form organisation-setup-editor erp-field-rows" hidden><h2>Workflow Status</h2><input id="workflow-status-id" type="hidden"><label>Code<input id="workflow-status-code" required pattern="[a-z][a-z0-9_]*"></label><label>Label<input id="workflow-status-label" required></label><label>Description<textarea id="workflow-status-description"></textarea></label><label class="check"><input id="workflow-status-enabled" type="checkbox">Enabled for Use</label><label class="check"><input id="workflow-status-displayed" type="checkbox" checked>Displayed</label><label>Colour<input id="workflow-status-colour" type="color" value="#2563eb"></label><div class="actions"><button type="button" id="delete-workflow-status" class="secondary">Delete</button><button type="submit">Save Status</button></div></form></div>';
+    statuses.innerHTML='<div class="split"><div class="panel"><div class="panel-head"><h2>Workflow Status</h2><button id="add-workflow-status" type="button" class="add-record-button" aria-label="Add workflow status">+</button></div><input id="workflow-status-search" class="grid-search" placeholder="Search workflow statuses" aria-label="Search workflow statuses"><div id="workflow-status-list"></div></div><form id="workflow-status-form" class="panel form organisation-setup-editor erp-field-rows" hidden><h2>Workflow Status</h2><input id="workflow-status-id" type="hidden"><label>Code<input id="workflow-status-code" required pattern="[a-z][a-z0-9_]*"></label><label>Label<input id="workflow-status-label" required></label><label>Description<textarea id="workflow-status-description"></textarea></label><label class="check"><input id="workflow-status-enabled" type="checkbox">Enabled for Use</label><label class="check"><input id="workflow-status-displayed" type="checkbox" checked>Displayed</label><label class="check"><input id="workflow-status-transitional" type="checkbox">Transitional (expected to change in the short term)</label><label>Colour<input id="workflow-status-colour" type="color" value="#2563eb"></label><div class="actions"><button type="button" id="delete-workflow-status" class="secondary">Delete</button><button type="submit">Save Status</button></div></form></div>';
     section.insertAdjacentElement("afterend",statuses);
     $("workflow-status-search").oninput=renderWorkflowStatuses;
     $("add-workflow-status").onclick=()=>selectWorkflowStatus({});
-    $("workflow-status-form").onsubmit=async event=>{event.preventDefault();try{await api("setup/workflow-statuses",{method:"POST",body:JSON.stringify({organisation_id:state.orgId,workflow_status_id:$("workflow-status-id").value,status_code:$("workflow-status-code").value,status_label:$("workflow-status-label").value,description:$("workflow-status-description").value,colour:$("workflow-status-colour").value,enabled_for_use:$("workflow-status-enabled").checked,displayed:$("workflow-status-displayed").checked})});$("workflow-status-form").hidden=true;await loadMenuData(true);}catch(error){alert(error.message);}};
+    $("workflow-status-form").onsubmit=async event=>{event.preventDefault();try{await api("setup/workflow-statuses",{method:"POST",body:JSON.stringify({organisation_id:state.orgId,workflow_status_id:$("workflow-status-id").value,status_code:$("workflow-status-code").value,status_label:$("workflow-status-label").value,description:$("workflow-status-description").value,colour:$("workflow-status-colour").value,enabled_for_use:$("workflow-status-enabled").checked,displayed:$("workflow-status-displayed").checked,transitional:$("workflow-status-transitional").checked})});$("workflow-status-form").hidden=true;await loadMenuData(true);}catch(error){alert(error.message);}};
     $("delete-workflow-status").onclick=async()=>{if(!confirm("Delete this workflow status? Referenced statuses cannot be deleted."))return;try{await api("setup/workflow-statuses",{method:"DELETE",body:JSON.stringify({organisation_id:state.orgId,workflow_status_id:$("workflow-status-id").value})});$("workflow-status-form").hidden=true;await loadMenuData(true);}catch(error){alert(error.message);}};
   }
   function selectWorkflowStatus(status){
@@ -8209,6 +8580,7 @@
     $("workflow-status-description").value=status.description||"";
     $("workflow-status-enabled").checked=status.enabled_for_use===true;
     $("workflow-status-displayed").checked=status.displayed!==false;
+    $("workflow-status-transitional").checked=status.transitional===true;
     $("workflow-status-colour").value=status.colour||"#2563eb";
     $("delete-workflow-status").hidden=!status.workflow_status_id;
   }
@@ -8228,7 +8600,7 @@
   }
   function renderWorkflowStatuses(){
     if(!$("workflow-status-list"))return;
-    table($("workflow-status-list"),[["Code",r=>r.status_code],["Label",r=>r.status_label],["Description",r=>r.description],["Enabled for Use",r=>r.enabled_for_use ? "Yes" : "No"],["Displayed",r=>r.displayed!==false ? "Yes" : "No"],["Colour",r=>workflowStatusPreviewButton(r)]],state.workflowStatuses.filter(r=>rowMatches(r,searchTerm("workflow-status-search"))),selectWorkflowStatus);
+    table($("workflow-status-list"),[["Code",r=>r.status_code],["Label",r=>r.status_label],["Description",r=>r.description],["Enabled for Use",r=>r.enabled_for_use ? "Yes" : "No"],["Displayed",r=>r.displayed!==false ? "Yes" : "No"],["Transitional",r=>r.transitional===true ? "Yes" : "No"],["Colour",r=>workflowStatusPreviewButton(r)]],state.workflowStatuses.filter(r=>rowMatches(r,searchTerm("workflow-status-search"))),selectWorkflowStatus);
   }
   let workflowStatusEditorSequence = 0;
   async function selectWorkflowPath(path) {
@@ -8564,6 +8936,8 @@
     $("transaction-type-default-grid-view").value = type.default_grid_view || "columnar";
     fillWorkflowPathSelect("transaction-type-workflow-path", type.workflow_path_id);
     $("transaction-type-description").value = type.type_description || "";
+    $("transaction-type-schema").value = JSON.stringify(type.schema_json || {}, null, 2);
+    renderSchemaDesignPreview("transaction-type");
     $("transaction-type-sort").value = type.sort_order || 0;
     $("transaction-type-financial").checked = type.is_financial !== false;
     $("transaction-type-additional-lines").checked =
@@ -8591,6 +8965,7 @@
     showSetupTypeTab("transaction-type", "definition");
     await loadAccountsForFamily("gl");
     $("transaction-type-form").reset();
+    renderSchemaDesignPreview("transaction-type");
     $("transaction-type-id").value = "";
     $("transaction-type-group").value =
       state.transactionGroups[0]?.transaction_group_id || "";
@@ -8620,9 +8995,10 @@
     if (!financial) $("transaction-type-lines").innerHTML = "";
   }
   function renderTransactionTypeLines(lines = []) {
+    classificationValueCache.clear();
     $("transaction-type-lines").innerHTML =
       '<div class="transaction-type-line-grid"></div>';
-    lines.forEach((line) => addTransactionTypeLine(line, false));
+    [...lines].sort((a,b)=>Number(a.line_order||0)-Number(b.line_order||0)).forEach((line) => addTransactionTypeLine(line, false));
   }
   function transactionLineSectionIcon(kind) {
     const paths = {
@@ -8665,6 +9041,8 @@
     const analysis = [...row.querySelectorAll(".tx-classification-type")]
       .map((select) => selectedOptionText(select, ""))
       .filter(Boolean);
+    if (row.querySelector(".tx-allocation-class")?.value === "object")
+      row.querySelectorAll(".tx-object-type-options input:checked").forEach(input => analysis.push(input.dataset.typeName));
     row.querySelector(".transaction-line-summary-name").textContent = name;
     row.querySelector(".transaction-line-summary-gl").textContent = gl;
     row.querySelector(".transaction-line-summary-analysis").textContent =
@@ -8738,10 +9116,80 @@
     });
     refresh();
   }
+  function configureLineAllocation(row, line) {
+    const mode = row.querySelector(".tx-allocation-class");
+    const subRequirement = row.querySelector(".tx-line-subledger-requirement");
+    const subType = row.querySelector(".tx-line-subledger");
+    const objectRequirement = row.querySelector(".tx-object-requirement");
+    const behaviour = row.querySelector(".tx-object-behaviour");
+    const defaultValue = row.querySelector(".tx-object-default");
+    const picker = row.querySelector(".tx-object-type-picker");
+    const options = row.querySelector(".tx-object-type-options");
+    const initialTypes = new Set((line.object_requirements || []).map(type => type.accounting_object_type_id));
+    mode.value = line.object_requirement && line.object_requirement !== "not_used" ? "object" : line.subledger_requirement && line.subledger_requirement !== "not_used" ? "subledger" : "none";
+    objectRequirement.value = line.object_requirement === "mandatory" ? "mandatory" : "optional";
+    behaviour.value = line.object_value_behaviour || "captured";
+    for (const type of state.accountingObjectTypes.filter(type => type.is_active !== false || initialTypes.has(type.accounting_object_type_id))) {
+      const label = document.createElement("label");
+      const input = document.createElement("input");
+      input.type = "checkbox"; input.value = type.accounting_object_type_id; input.dataset.typeName = type.type_name;
+      input.checked = initialTypes.has(input.value);
+      label.append(input, document.createTextNode(type.type_name)); options.append(label);
+    }
+    const refresh = (selected = defaultValue.value) => {
+      const object = mode.value === "object", subledger = mode.value === "subledger";
+      row.querySelector(".tx-object-allocation").hidden = !object;
+      row.querySelector(".tx-subledger-allocation").hidden = !subledger;
+      if (!subledger) {subRequirement.value = "not_used"; subType.value = "";}
+      else if (subRequirement.value === "not_used") subRequirement.value = "optional";
+      subType.required = subledger;
+      subType.closest("label").hidden = !subledger;
+      const types = [...options.querySelectorAll("input:checked")];
+      picker.querySelector("summary").textContent = types.length > 2 ? `${types.length} types selected` : types.map(input => input.dataset.typeName).join(", ") || "Select object types";
+      // The validity anchor participates in the editor's existing hidden-line error handling.
+      objectRequirement.setCustomValidity(object && !types.length ? "Select at least one permitted accounting object type" : "");
+      const captured = !object || behaviour.value === "captured";
+      defaultValue.disabled = captured; defaultValue.required = !captured;
+      if (captured) {defaultValue.dataset.request = String(Number(defaultValue.dataset.request || 0) + 1); defaultValue.replaceChildren(new Option("Captured on transaction", ""));}
+      else fillPermittedObjectSelect(defaultValue, types.map(input => ({accounting_object_type_id: input.value, type_name: input.dataset.typeName})), selected).catch(error => alert(error.message));
+      updateTransactionLineSummary(row);
+    };
+    mode.addEventListener("change", () => refresh());
+    subRequirement.addEventListener("change", () => {
+      if (subRequirement.value === "not_used") mode.value = "none";
+      refresh();
+    });
+    behaviour.addEventListener("change", () => refresh());
+    objectRequirement.addEventListener("change", () => updateTransactionLineSummary(row));
+    options.addEventListener("change", () => refresh());
+    row.querySelector(".tx-object-type-search").addEventListener("input", event => {
+      const query = event.target.value.trim().toLocaleLowerCase();
+      options.querySelectorAll("label").forEach(label => {label.hidden = !label.textContent.toLocaleLowerCase().includes(query);});
+    });
+    attachCheckboxPopover(picker, picker.querySelector("summary"), row.querySelector(".tx-object-type-popup"), row.querySelector(".tx-object-type-search"));
+    picker.addEventListener("keydown", event => {if (event.key === "Escape") {picker.open = false; picker.querySelector("summary").focus(); event.stopPropagation();}});
+    picker.addEventListener("focusout", () => {setTimeout(() => {if (!picker.contains(document.activeElement)) picker.open = false;}, 0);});
+    refresh(line.default_accounting_object_id || "");
+  }
+  function validateTransactionLineOrders(grid) {
+    const inputs = [...grid.querySelectorAll(".tx-line-sort")];
+    let valid = true;
+    for (const input of inputs) {
+      const order = Number(input.value);
+      const error = !input.value.trim() || !Number.isInteger(order) || order < 0 || order > 2147483647
+        ? "Enter a non-negative whole-number sort order up to 2147483647"
+        : inputs.some(other => other !== input && Number(other.value) === order)
+          ? "Line sort orders must be unique" : "";
+      input.setCustomValidity(error);
+      if (error) valid = false;
+    }
+    return valid;
+  }
   function addTransactionTypeLine(line = {}, expanded = true) {
     const row = document.createElement("div");
     row.className = "transaction-type-line";
-    row.innerHTML = `<button type="button" class="transaction-line-summary" aria-expanded="false"><span class="transaction-line-summary-badge">DR</span><span class="transaction-line-summary-copy"><strong class="transaction-line-summary-name">Untitled line</strong><span class="transaction-line-summary-gl">GL not selected</span></span><span class="transaction-line-summary-analysis">No analysis requirements</span><span class="transaction-line-summary-chevron" aria-hidden="true">⌄</span></button><div class="transaction-type-line-details" hidden><section class="tx-line-section tx-line-posting"><div class="tx-line-section-heading"><span class="tx-line-section-icon">${transactionLineSectionIcon("posting")}</span><div><strong>Posting</strong><small>Line identity, amount and general ledger account</small></div><button type="button" class="secondary tx-line-remove">Remove line</button></div><div class="transaction-type-line-main"><label><span>Line code</span><input class="tx-line-code" placeholder="e.g. electricity_consumption"></label><label><span>Line name</span><input class="tx-line-description" placeholder="e.g. Electricity consumption"></label><label><span>Occurrence</span><select class="tx-line-occurrence"><option value="required">Required</option><option value="optional">Optional</option><option value="repeatable">Repeatable</option><option value="generated">Generated</option></select></label><label><span>Amount source</span><select class="tx-line-amount-source"><option value="manual">Manual amount</option><option value="balancing">Balancing amount</option></select></label><label><span>Debit / Credit</span><select class="tx-line-drcr"><option value="debit">Debit (DR)</option><option value="credit">Credit (CR)</option></select></label><label class="tx-line-gl-field"><span>General ledger account</span><select class="tx-line-gl"></select></label></div></section><section class="tx-line-section tx-line-subledger-section"><div class="tx-line-section-heading"><span class="tx-line-section-icon">${transactionLineSectionIcon("subledger")}</span><div><strong>Sub-ledger</strong><small>At most one sub-ledger type may be linked to this line</small></div></div><div class="tx-line-subledger-fields"><label><span>Requirement</span><select class="tx-line-subledger-requirement"><option value="not_used">Not used</option><option value="optional">Optional</option><option value="mandatory">Mandatory</option></select></label><label><span>Sub-ledger type</span><select class="tx-line-subledger"></select></label></div></section><div class="tx-line-classifications"><section class="tx-line-section"><div class="tx-line-section-heading"><span class="tx-line-section-icon">${transactionLineSectionIcon("object")}</span><div><strong>Accounting objects</strong><small>Business references configured for this organisation</small></div><button type="button" class="secondary tx-add-object">+ Add object type</button></div><div class="tx-classification-columns" aria-hidden="true"><span>Type</span><span>Requirement</span><span>Value behaviour</span><span>Default / fixed value</span><span></span></div><div class="tx-line-object-requirements"></div></section><section class="tx-line-section"><div class="tx-line-section-heading"><span class="tx-line-section-icon">${transactionLineSectionIcon("dimension")}</span><div><strong>Accounting dimensions</strong><small>Analytical classifications configured for this organisation</small></div><button type="button" class="secondary tx-add-dimension">+ Add dimension type</button></div><div class="tx-classification-columns" aria-hidden="true"><span>Type</span><span>Requirement</span><span>Value behaviour</span><span>Default / fixed value</span><span></span></div><div class="tx-line-dimension-requirements"></div></section></div></div>`;
+    row.dataset.definitionId = line.transaction_line_definition_id || "";
+    row.innerHTML = `<div class="tx-line-summary-header"><button type="button" class="transaction-line-summary" aria-expanded="false"><span class="transaction-line-summary-badge">DR</span><span class="transaction-line-summary-copy"><strong class="transaction-line-summary-name">Untitled line</strong><span class="transaction-line-summary-gl">GL not selected</span></span><span class="transaction-line-summary-analysis">No analysis requirements</span><span class="transaction-line-summary-chevron" aria-hidden="true">⌄</span></button><label class="tx-line-sort-label"><span>Sort</span><input class="tx-line-sort" type="number" min="0" max="2147483647" step="1" required aria-label="Line sort order"></label></div><div class="transaction-type-line-details" hidden><section class="tx-line-section tx-line-posting"><div class="tx-line-section-heading"><span class="tx-line-section-icon">${transactionLineSectionIcon("posting")}</span><div><strong>Posting</strong><small>Line identity, amount and general ledger account</small></div><button type="button" class="secondary tx-line-remove">Remove line</button></div><div class="transaction-type-line-main"><label><span>Line code</span><input class="tx-line-code" placeholder="e.g. electricity_consumption"></label><label><span>Line name</span><input class="tx-line-description" placeholder="e.g. Electricity consumption"></label><label><span>Occurrence</span><select class="tx-line-occurrence"><option value="required">Required</option><option value="optional">Optional</option><option value="repeatable">Repeatable</option><option value="generated">Generated</option></select></label><label><span>Amount source</span><select class="tx-line-amount-source"><option value="manual">Manual amount</option><option value="balancing">Balancing amount</option></select></label><label><span>Debit / Credit</span><select class="tx-line-drcr"><option value="debit">Debit (DR)</option><option value="credit">Credit (CR)</option></select></label><label class="tx-line-gl-field"><span>General ledger account</span><select class="tx-line-gl"></select></label></div></section><section class="tx-line-section tx-line-allocation"><div class="tx-line-section-heading"><span class="tx-line-section-icon">${transactionLineSectionIcon("object")}</span><div><strong>Allocation</strong><small>One sub-ledger account or one accounting object per captured line</small></div></div><div class="tx-allocation-fields"><label><span>Allocation class</span><select class="tx-allocation-class"><option value="none">None</option><option value="subledger">Sub-ledger</option><option value="object">Accounting object</option></select></label><div class="tx-subledger-allocation"><label><span>Requirement</span><select class="tx-line-subledger-requirement"><option value="not_used">Not used</option><option value="optional">Optional</option><option value="mandatory">Mandatory</option></select></label><label><span>Sub-ledger type</span><select class="tx-line-subledger"></select></label></div><div class="tx-object-allocation"><label><span>Requirement</span><select class="tx-object-requirement"><option value="optional">Optional</option><option value="mandatory">Mandatory</option></select></label><div class="tx-object-permitted"><span>Permitted object types</span><details class="tx-object-type-picker"><summary>Select object types</summary><div class="tx-object-type-popup checkbox-picker-popover"><input type="search" class="tx-object-type-search" aria-label="Search accounting object types" placeholder="Search object types"><div class="tx-object-type-options"></div></div></details></div><label><span>Value behaviour</span><select class="tx-object-behaviour"><option value="captured">Captured on transaction</option><option value="defaulted">Defaulted, may change</option><option value="fixed">Fixed by transaction type</option></select></label><label><span>Default / fixed value</span><select class="tx-object-default"></select></label></div></div></section><div class="tx-line-classifications"><section class="tx-line-section"><div class="tx-line-section-heading"><span class="tx-line-section-icon">${transactionLineSectionIcon("dimension")}</span><div><strong>Accounting dimensions</strong><small>Analytical classifications configured for this organisation</small></div><button type="button" class="secondary tx-add-dimension">+ Add dimension type</button></div><div class="tx-classification-columns" aria-hidden="true"><span>Type</span><span>Requirement</span><span>Value behaviour</span><span>Default / fixed value</span><span></span></div><div class="tx-line-dimension-requirements"></div></section></div></div>`;
     let grid = $("transaction-type-lines").querySelector(
       ".transaction-type-line-grid",
     );
@@ -8773,6 +9221,16 @@
       (type) => type.type_name,
       "Select subledger account type",
     );
+    const sortInput = row.querySelector(".tx-line-sort");
+    const orders = [...grid.querySelectorAll(".tx-line-sort")].filter(input=>input!==sortInput && input.value.trim()!=="").map(input=>Number(input.value)).filter(Number.isInteger);
+    sortInput.value = line.line_order ?? (Math.max(0,...orders)+10);
+    sortInput.addEventListener("input", () => validateTransactionLineOrders(grid));
+    sortInput.addEventListener("change", () => {
+      if (!validateTransactionLineOrders(grid)) {sortInput.reportValidity(); return;}
+      [...grid.children].sort((a,b)=>Number(a.querySelector(".tx-line-sort").value)-Number(b.querySelector(".tx-line-sort").value)).forEach(item=>grid.append(item));
+      sortInput.focus({preventScroll:true});
+    });
+    validateTransactionLineOrders(grid);
     row.querySelector(".tx-line-code").value = line.line_code || "";
     row.querySelector(".tx-line-drcr").value = line.debit_credit || "debit";
     row.querySelector(".tx-line-gl").value =
@@ -8821,13 +9279,10 @@
     row.querySelector(".tx-line-remove").addEventListener("click", () => {
       const next = row.nextElementSibling || row.previousElementSibling;
       row.remove();
+      validateTransactionLineOrders(grid);
       if (next) setExpandedTransactionTypeLine(next);
     });
-    row
-      .querySelector(".tx-add-object")
-      .addEventListener("click", () =>
-        addLineClassificationRequirement(row, "object"),
-      );
+
     row
       .querySelector(".tx-add-dimension")
       .addEventListener("click", () =>
@@ -8847,9 +9302,7 @@
           updateTransactionLineSummary(row),
         ),
       );
-    (line.object_requirements || []).forEach((requirement) =>
-      addLineClassificationRequirement(row, "object", requirement),
-    );
+    configureLineAllocation(row, line);
     (line.dimension_requirements || []).forEach((requirement) =>
       addLineClassificationRequirement(row, "dimension", requirement),
     );
@@ -9489,8 +9942,12 @@
     loadedSlices.dashboard = false;
     state.dashboardSummary = null;
     renderDashboard();
-    const summary = await api(`dashboard/summary?organisation_id=${orgId}`);
-    if (state.orgId !== orgId) return;
+    const request = ++dashboardRequest;
+    const scope = [state.orgId, state.divisionId, state.includeChildren].join(":");
+    const now = new Date();
+    const localDate = new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
+    const summary = await api(`dashboard/modules?organisation_id=${orgId}&as_of=${localDate}`);
+    if (request !== dashboardRequest || scope !== [state.orgId, state.divisionId, state.includeChildren].join(":")) return;
     state.dashboardSummary = summary;
     loadedSlices.dashboard = true;
     renderDashboard();
@@ -9856,6 +10313,9 @@
     renderRoles();
   }
   function resetScreenState() {
+    selectedDashboardModuleId = "";
+    dashboardRequest++;
+    clearDashboardRecordFilters();
     exchangeRateEditor.reset();
     selectedMasterRecord = null;
     selectedJournal = null;
@@ -9996,7 +10456,7 @@
   $("return-trial-balance").addEventListener("click", returnToTrialBalance);
   $("alert-close").addEventListener("click", () => alert(""));
   $("refresh").addEventListener("click", () =>
-    load().catch((e) => alert(e.message)),
+    ($("view-dashboard").hidden ? load() : loadDashboardData(true)).catch((e) => alert(e.message)),
   );
   async function initialiseTemplateOrganisation() {
     if (
@@ -10687,6 +11147,7 @@
         body.parent_accounting_object_id = $("accounting-object-parent").value;
       }
       body[config.recordId] = $(`${config.prefix}-id`).value;
+      const isNewAccountingObject = config.isObject && !body[config.recordId];
       body[config.typeId] = config.isObject ? config.selectedType() : $(`${config.prefix}-type`).value;
       body[config.code] = $(`${config.prefix}-code`).value;
       body[config.name] = $(`${config.prefix}-name`).value;
@@ -10717,6 +11178,7 @@
       alert(
         `${config.isObject ? "Accounting object" : "Accounting dimension"} saved.`,
       );
+      if (isNewAccountingObject) $(`${config.prefix}-form`).hidden = true;
     });
   });
   let accountingObjectParentSearchTimer = null;
@@ -10797,6 +11259,7 @@
   option($("journal-period"), [], null, null);
   $("add-journal-line").addEventListener("click", () => addJournalLine());
   function openNewJournal(options = {}) {
+    syncJournalNumber();
     $("journal-form").hidden = false;
     $("journal-form").reset();
     showSetupTypeTab("journal", "transaction");
@@ -10806,32 +11269,39 @@
     if (options.sourceDivisionId) $("journal-division").value = options.sourceDivisionId;
     $("journal-date").value = today();
     syncJournalPeriodToDate();
+    renderJournalSchema();
     renderJournalLines(defaultJournalLinesForType($("journal-type").value));
     setJournalEditable(true);
-    $("journal-workflow-actions")?.replaceChildren();
+    renderJournalWorkflowActions(null);
     loadEntityDocuments("journal").catch((e) => alert(e.message));
   }
   $("add-journal").addEventListener("click", openNewJournal);
-  const journalTabs = [...document.querySelectorAll('[data-setup-type-tab="journal"]')];
-  journalTabs.forEach((button, index) => {
+  $("journal-transaction-tab").parentElement.addEventListener("keydown", (event) => {
+    const tabs = [...document.querySelectorAll('[data-setup-type-tab="journal"]')].filter(button => !button.hidden);
+    const index = tabs.indexOf(event.target);
+    if (index < 0) return;
+    const next = event.key === "ArrowRight" ? (index + 1) % tabs.length
+      : event.key === "ArrowLeft" ? (index + tabs.length - 1) % tabs.length
+        : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : null;
+    if (next === null) return;
+    event.preventDefault();
+    tabs[next].click(); tabs[next].focus();
+  });
+  document.querySelectorAll('[data-setup-type-tab="journal"]').forEach(button => {
     button.addEventListener("click", () => showSetupTypeTab("journal", button.dataset.tab));
-    button.addEventListener("keydown", (event) => {
-      const next = event.key === "ArrowRight" ? (index + 1) % journalTabs.length
-        : event.key === "ArrowLeft" ? (index + journalTabs.length - 1) % journalTabs.length
-          : event.key === "Home" ? 0 : event.key === "End" ? journalTabs.length - 1 : null;
-      if (next === null) return;
-      event.preventDefault();
-      showSetupTypeTab("journal", journalTabs[next].dataset.tab);
-      journalTabs[next].focus();
-    });
   });
   $("journal-form").addEventListener("invalid", (event) => {
-    const panel = event.target.closest('[data-setup-type-panel="journal"]');
-    if (panel) showSetupTypeTab("journal", panel.dataset.panel);
+    const customPanel = event.target.closest("[data-account-detail-panel]");
+    if (customPanel && customPanel.dataset.showifHidden !== "true") showJournalSchemaTab(customPanel.dataset.accountDetailPanel);
+    else {
+      const panel = event.target.closest('[data-setup-type-panel="journal"]');
+      if (panel) showSetupTypeTab("journal", panel.dataset.panel);
+    }
   }, true);
   $("new-journal").addEventListener("click", openNewJournal);
   $("journal-date").addEventListener("change", syncJournalPeriodToDate);
   $("journal-type").addEventListener("change", () => {
+    renderJournalSchema();
     renderJournalLines(defaultJournalLinesForType($("journal-type").value));
   });
   $("intake-journal-document").addEventListener("click", () =>
@@ -10916,6 +11386,8 @@
           fiscal_period_id: fiscalPeriodId,
           source_division_id: sourceDivisionId,
           journal_date: $("journal-date").value,
+          transaction_heading: $("journal-heading").value,
+          additional_data: collectSchemaDetail("journal-detail-fields", selectedJournalSchema()),
           description: $("journal-description").value,
           currency_code: currentOrg()?.base_currency_code || "ZAR",
           lines,
@@ -10930,6 +11402,7 @@
         0,
       );
       selectedJournal = saved.journal?.journal_id || selectedJournal;
+      if (saved.journal) syncJournalNumber(saved.journal);
       $("journal-id").value = selectedJournal || "";
       state.orgId = organisationId;
       await loadJournalsForTransactionType(
@@ -11452,6 +11925,8 @@
     }
     const lines = financial
       ? [...document.querySelectorAll(".transaction-type-line")].map((row) => ({
+          transaction_line_definition_id: row.dataset.definitionId || "",
+          line_order: row.querySelector(".tx-line-sort").value,
           line_code: row.querySelector(".tx-line-code").value,
           debit_credit: row.querySelector(".tx-line-drcr").value,
           gl_account_id: row.querySelector(".tx-line-gl").value,
@@ -11463,19 +11938,10 @@
           subledger_account_type_id:
             row.querySelector(".tx-line-subledger").value,
           line_description: row.querySelector(".tx-line-description").value,
-          object_requirements: [
-            ...row.querySelectorAll(
-              ".tx-line-object-requirements .tx-line-classification-requirement",
-            ),
-          ].map((item) => ({
-            type_id: item.querySelector(".tx-classification-type").value,
-            requirement: item.querySelector(".tx-classification-requirement")
-              .value,
-            value_behaviour: item.querySelector(".tx-classification-behaviour")
-              .value,
-            accounting_object_id: item.querySelector(".tx-classification-value")
-              .value,
-          })),
+          object_requirement: row.querySelector(".tx-allocation-class").value === "object" ? row.querySelector(".tx-object-requirement").value : "not_used",
+          object_value_behaviour: row.querySelector(".tx-allocation-class").value === "object" ? row.querySelector(".tx-object-behaviour").value : "captured",
+          default_accounting_object_id: row.querySelector(".tx-allocation-class").value === "object" && row.querySelector(".tx-object-behaviour").value !== "captured" ? row.querySelector(".tx-object-default").value : "",
+          object_requirements: row.querySelector(".tx-allocation-class").value === "object" ? [...row.querySelectorAll(".tx-object-type-options input:checked")].map(input => ({type_id: input.value})) : [],
           dimension_requirements: [
             ...row.querySelectorAll(
               ".tx-line-dimension-requirements .tx-line-classification-requirement",
@@ -11507,6 +11973,7 @@
         workflow_path_id: $("transaction-type-workflow-path").value,
         default_grid_view: $("transaction-type-default-grid-view").value,
         type_description: $("transaction-type-description").value,
+        schema_json: $("transaction-type-schema").value,
         module_ids: moduleIds,
         is_financial: financial,
         allow_additional_lines: $("transaction-type-additional-lines").checked,

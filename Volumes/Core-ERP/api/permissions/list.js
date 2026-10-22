@@ -62,3 +62,5 @@ module.exports=async ctx=>{
   ]);
   return {roles:roles.rows,role_permissions:permissions.rows,role_users:users.rows};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

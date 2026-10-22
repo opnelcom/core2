@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { isAdministrator } = require("./access");
+const {resolveTransactionSchemas}=require("./transaction-schema-defaults");
 
 function contentRoot() {
   return process.env.CONTENT_ROOT || path.resolve(__dirname, "..", "..", "..");
@@ -65,6 +66,8 @@ async function seedTaxTypes(ctx, access, organisationId, taxTypeSeeds) {
 }
 
 async function seedOrganisationDefaults(ctx, access, organisationId) {
+  const defaults=loadTemplateDefaults();
+  const transactionSchemas=resolveTransactionSchemas(defaults);
   const {
     currencies,
     taxTypeSeeds,
@@ -93,7 +96,7 @@ async function seedOrganisationDefaults(ctx, access, organisationId) {
     moduleMappings = {},
     workflowStatuses,
     workflows,
-  } = loadTemplateDefaults();
+  } = defaults;
   const org = await ctx.broker("core_erp", "query", {
     text: `SELECT is_template FROM erp_organisation WHERE tenant_id=$1 AND organisation_id=$2 AND workflow_status <> 'deleted'`,
     values: [access.tenantId, organisationId],
@@ -446,10 +449,10 @@ async function seedOrganisationDefaults(ctx, access, organisationId) {
   await ctx.broker("core_erp", "query", {
     text: `WITH payload AS (
             SELECT * FROM jsonb_to_recordset($3::jsonb)
-            AS row(type_code text,group_code text,type_name text,type_description text,sort_order integer,allow_additional_lines boolean)
+            AS row(type_code text,group_code text,type_name text,type_description text,sort_order integer,allow_additional_lines boolean,schema_json jsonb)
           )
-          INSERT INTO erp_transaction_type(tenant_id,organisation_id,transaction_group_id,type_code,type_name,type_description,is_financial,allow_additional_lines,sort_order,is_active)
-          SELECT $1,$2,g.transaction_group_id,p.type_code,p.type_name,p.type_description,true,COALESCE(p.allow_additional_lines,true),p.sort_order,true
+          INSERT INTO erp_transaction_type(tenant_id,organisation_id,transaction_group_id,type_code,type_name,type_description,is_financial,allow_additional_lines,sort_order,is_active,schema_json)
+          SELECT $1,$2,g.transaction_group_id,p.type_code,p.type_name,p.type_description,true,COALESCE(p.allow_additional_lines,true),p.sort_order,true,COALESCE(p.schema_json,'{}'::jsonb)
           FROM payload p JOIN erp_transaction_group g ON g.tenant_id=$1 AND g.organisation_id=$2 AND g.group_code=p.group_code
           ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
           SET transaction_group_id=excluded.transaction_group_id,type_name=excluded.type_name,type_description=excluded.type_description,is_financial=true,allow_additional_lines=excluded.allow_additional_lines,sort_order=excluded.sort_order,is_active=true`,
@@ -472,6 +475,7 @@ async function seedOrganisationDefaults(ctx, access, organisationId) {
             type_description,
             sort_order,
             allow_additional_lines,
+            schema_json: transactionSchemas[type_code],
           }),
         ),
       ),

@@ -62,7 +62,7 @@ function fixture({ admin = true, permission = null, denied = null } = {}) {
   };
   db.exec("ALTER TABLE erp_journal ADD COLUMN posted_at; UPDATE erp_journal SET posted_at='2026-10-03' WHERE workflow_status IN ('approved','reversed','posted')");
   function handler(file) {
-  const context = { module: { exports: {} }, require: (name) => name.includes("workflow-presentation") ? {decorateWorkflowRecords:async()=>{}} : name.endsWith("trial-balance-math") ? math : name.endsWith("/trial-balance") ? helpers : name.endsWith("/transaction-visibility") ? { transactionVisibilitySql } : auth };
+  const context = { module: { exports: {} }, require: (name) => name.endsWith('/context') ? require('../api/_shared/context') : name.includes("workflow-presentation") ? {decorateWorkflowRecords:async()=>{}} : name.endsWith("trial-balance-math") ? math : name.endsWith("/trial-balance") ? helpers : name.endsWith("/transaction-visibility") ? { transactionVisibilitySql } : auth };
     vm.createContext(context);
     vm.runInContext(fs.readFileSync(require.resolve(file), "utf8"), context);
     return context.module.exports;

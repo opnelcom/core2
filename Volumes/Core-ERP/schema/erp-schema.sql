@@ -555,6 +555,7 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
     );
     ALTER TABLE erp_workflow_status ADD COLUMN IF NOT EXISTS enabled_for_use boolean NOT NULL DEFAULT false;
     ALTER TABLE erp_workflow_status ADD COLUMN IF NOT EXISTS displayed boolean NOT NULL DEFAULT true;
+    ALTER TABLE erp_workflow_status ADD COLUMN IF NOT EXISTS transitional boolean NOT NULL DEFAULT false;
     -- Replace the former per-workflow status definitions once in this test schema.
     DO $$ BEGIN
     IF EXISTS(SELECT 1 FROM pg_class WHERE oid=to_regclass('erp_workflow_step') AND relkind='r') THEN
@@ -677,6 +678,7 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       UNIQUE(tenant_id,organisation_id,type_code)
     );
 
+    ALTER TABLE erp_transaction_type ADD COLUMN IF NOT EXISTS schema_json jsonb NOT NULL DEFAULT '{}'::jsonb;
     ALTER TABLE erp_transaction_type ADD COLUMN IF NOT EXISTS workflow_path_id uuid REFERENCES erp_workflow_path(workflow_path_id);
     DROP TABLE IF EXISTS erp_posting_rule CASCADE;
     CREATE TABLE IF NOT EXISTS erp_transaction_line_definition(
@@ -699,19 +701,27 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
     );
     CREATE INDEX IF NOT EXISTS erp_transaction_line_definition_type_idx ON erp_transaction_line_definition(tenant_id,organisation_id,transaction_type_id,line_order);
 
+    ALTER TABLE erp_transaction_line_definition ADD COLUMN IF NOT EXISTS object_requirement text NOT NULL DEFAULT 'not_used' CHECK(object_requirement IN ('not_used','optional','mandatory'));
+    ALTER TABLE erp_transaction_line_definition ADD COLUMN IF NOT EXISTS object_value_behaviour text NOT NULL DEFAULT 'captured' CHECK(object_value_behaviour IN ('captured','defaulted','fixed'));
+    ALTER TABLE erp_transaction_line_definition ADD COLUMN IF NOT EXISTS default_accounting_object_id uuid REFERENCES erp_accounting_object(accounting_object_id);
+    ALTER TABLE erp_transaction_line_definition DROP CONSTRAINT IF EXISTS erp_line_allocation_exclusive;
+    ALTER TABLE erp_transaction_line_definition ADD CONSTRAINT erp_line_allocation_exclusive CHECK(object_requirement='not_used' OR subledger_requirement='not_used');
+    ALTER TABLE erp_transaction_line_definition DROP CONSTRAINT IF EXISTS erp_line_object_default;
+    ALTER TABLE erp_transaction_line_definition ADD CONSTRAINT erp_line_object_default CHECK((object_value_behaviour='captured' AND default_accounting_object_id IS NULL) OR (object_requirement<>'not_used' AND object_value_behaviour IN ('defaulted','fixed') AND default_accounting_object_id IS NOT NULL));
+
     CREATE TABLE IF NOT EXISTS erp_transaction_line_definition_object_type(
       transaction_line_definition_object_type_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       tenant_id uuid NOT NULL,
       organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
       transaction_line_definition_id uuid NOT NULL REFERENCES erp_transaction_line_definition(transaction_line_definition_id) ON DELETE CASCADE,
       accounting_object_type_id uuid NOT NULL REFERENCES erp_accounting_object_type(accounting_object_type_id),
-      requirement text NOT NULL DEFAULT 'optional' CHECK(requirement IN('optional','mandatory')),
-      value_behaviour text NOT NULL DEFAULT 'captured' CHECK(value_behaviour IN('captured','defaulted','fixed')),
-      accounting_object_id uuid REFERENCES erp_accounting_object(accounting_object_id),
       sort_order integer NOT NULL DEFAULT 0,
-      UNIQUE(transaction_line_definition_id,accounting_object_type_id),
-      CHECK((value_behaviour='captured' AND accounting_object_id IS NULL) OR (value_behaviour<>'captured' AND accounting_object_id IS NOT NULL))
+      UNIQUE(transaction_line_definition_id,accounting_object_type_id)
     );
+
+    ALTER TABLE erp_transaction_line_definition_object_type DROP COLUMN IF EXISTS requirement;
+    ALTER TABLE erp_transaction_line_definition_object_type DROP COLUMN IF EXISTS value_behaviour;
+    ALTER TABLE erp_transaction_line_definition_object_type DROP COLUMN IF EXISTS accounting_object_id;
 
     CREATE TABLE IF NOT EXISTS erp_transaction_line_definition_dimension_type(
       transaction_line_definition_dimension_type_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -757,9 +767,8 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       source_division_id uuid NOT NULL REFERENCES erp_division(division_id),
       supplier_subledger_account_id uuid REFERENCES erp_subledger_account(subledger_account_id),
       vat_recipient_legal_entity_id uuid REFERENCES erp_legal_entity(legal_entity_id),
-      supplier_invoice_number text NOT NULL DEFAULT '',
-      supplier_invoice_date date,
       journal_number text,
+      transaction_heading varchar(200) NOT NULL DEFAULT '',
       journal_date date NOT NULL DEFAULT CURRENT_DATE,
       description text NOT NULL DEFAULT '',
       workflow_status text NOT NULL DEFAULT 'draft',
@@ -792,6 +801,18 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
     END $$;
     ALTER TABLE erp_journal ADD COLUMN IF NOT EXISTS posted_at timestamptz;
     CREATE INDEX IF NOT EXISTS erp_journal_lookup_idx ON erp_journal(tenant_id,organisation_id,workflow_status,journal_date DESC);
+    ALTER TABLE erp_journal ADD COLUMN IF NOT EXISTS additional_data jsonb NOT NULL DEFAULT '{}'::jsonb;
+    -- Read through to_jsonb so this action is repeatable after the legacy columns
+    -- have been removed. Existing custom values take precedence.
+    UPDATE erp_journal j SET additional_data=
+      jsonb_strip_nulls(jsonb_build_object(
+        'supplierInvoiceNumber',NULLIF(to_jsonb(j)->>'supplier_invoice_number',''),
+        'supplierInvoiceDate',to_jsonb(j)->>'supplier_invoice_date')) || j.additional_data
+    WHERE NULLIF(to_jsonb(j)->>'supplier_invoice_number','') IS NOT NULL
+       OR to_jsonb(j)->>'supplier_invoice_date' IS NOT NULL;
+    ALTER TABLE erp_journal DROP COLUMN IF EXISTS supplier_invoice_number;
+    ALTER TABLE erp_journal DROP COLUMN IF EXISTS supplier_invoice_date;
+    ALTER TABLE erp_journal ADD COLUMN IF NOT EXISTS transaction_heading varchar(200) NOT NULL DEFAULT '';
 
     CREATE TABLE IF NOT EXISTS erp_journal_line(
       journal_line_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -824,6 +845,8 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       accounting_object_id uuid NOT NULL REFERENCES erp_accounting_object(accounting_object_id),
       UNIQUE(journal_line_id,accounting_object_type_id)
     );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS erp_journal_line_single_object_idx ON erp_journal_line_accounting_object(journal_line_id);
 
     CREATE TABLE IF NOT EXISTS erp_journal_line_accounting_dimension(
       journal_line_accounting_dimension_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

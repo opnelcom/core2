@@ -32,3 +32,5 @@ module.exports=async ctx=>{
     values:r.results[3].rows
   };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

@@ -1,0 +1,14 @@
+{
+  "name": "core-dbmanager",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@core/service-client": "file:vendor/core-service-client-1.0.0.tgz",
+    "@core/identity-client": "file:vendor/core-identity-client-1.0.0.tgz",
+    "pg": "8.13.1"
+  }
+}

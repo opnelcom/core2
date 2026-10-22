@@ -1,0 +1,16 @@
+{
+  "name": "core-objectsphere",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@core/service-client": "file:vendor/core-service-client-1.0.0.tgz",
+    "@core/identity-client": "file:vendor/core-identity-client-1.0.0.tgz"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.10"
+  }
+}

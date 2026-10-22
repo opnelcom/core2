@@ -46,3 +46,5 @@ module.exports=async ctx=>{
 
   return {ok:true,role:role.rows[0],email:access.auth.email};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

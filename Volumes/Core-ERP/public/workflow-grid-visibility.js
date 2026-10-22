@@ -10,7 +10,7 @@
     const hidden = new Set(statuses.filter(s => s.displayed === false).map(s => s.status_code));
     return rows.filter(row => !hidden.has(row.workflow_status));
   }
-  function prepare(target, rows, statuses, refresh) {
+  function prepare(target, rows, statuses, refresh, explicitStatus = false) {
     let control = controls.get(target);
     if (!control && rows.some(row => row.workflow_status)) {
       const label = document.createElement('label');
@@ -18,16 +18,18 @@
       const input = document.createElement('input');
       input.type = 'checkbox';
       label.append(input, document.createTextNode('Show hidden records'));
-      target.before(label);
+      const filters = target.closest('.object-grid-panel')?.querySelector('.object-grid-filters');
+      if (filters) filters.append(label);
+      else target.before(label);
       control = { label, input };
       controls.set(target, control);
       input.addEventListener('change', () => control.refresh());
     }
     if (control) {
       control.refresh = refresh;
-      control.label.hidden = !rows.some(row => row.workflow_status);
+      control.label.hidden = explicitStatus || !rows.some(row => row.workflow_status);
     }
-    return visibleRows(rows, statuses, control?.input.checked === true);
+    return visibleRows(rows, statuses, explicitStatus || control?.input.checked === true);
   }
   return { visibleRows, prepare };
 });

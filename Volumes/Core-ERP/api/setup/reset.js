@@ -91,3 +91,5 @@ module.exports = async (ctx) => {
       .reduce((total, count) => total + count, 0),
   };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

@@ -12,7 +12,7 @@ const endpoints = [
 ];
 function fixture(endpoint, {admin=true}={}) {
   const file=require.resolve("../api/"+endpoint), actualRequire=createRequire(file), calls=[];
-  const scope={module:{exports:{}},require:name=>{
+  const scope={module:{exports:{}},require:name=>{if(name.endsWith('/context'))return require('../api/_shared/context');
     if(name.endsWith("/erp"))return {
       authTenant:async()=>({tenantId:"tenant"}),requireAdmin:()=>admin?null:{status:403,body:{error:"Administrator required"}},
       clean:(v,f="")=>String(v??f),nullable:v=>v||null,bool:v=>v!==false,
@@ -26,6 +26,12 @@ function fixture(endpoint, {admin=true}={}) {
   const ctx={req:{method:"POST"},body:{organisation_id:"org",type_code:"contract",type_name:"Contract",workflow_path_id:"workflow",
     schema_json:"{}",ui_schema_json:"{}",transaction_group_id:"group",is_financial:false},
     send:(status,body)=>({status,body}),broker:async(_profile,action,q)=>{
+      if(endpoint==='transaction-types/save'&&action==='transaction'){
+        calls.push({action,...q});return {results:q.statements.map(()=>({rows:[],rowCount:1}))};
+      }
+      if(endpoint==='transaction-types/save'&&q.text.startsWith('WITH read_rows')){
+        calls.push({action,...q});return {rows:q.text.includes('FROM erp_transaction_type ')&&ctx.body.transaction_type_id?[{transaction_type_id:ctx.body.transaction_type_id}]:[]};
+      }
       calls.push({action,...q});return {rows:[{subledger_account_type_id:"id",accounting_object_type_id:"id",accounting_dimension_type_id:"id",transaction_type_id:"id"}],rowCount:1};
     }};
   return {save:scope.module.exports,ctx,calls};
@@ -41,7 +47,7 @@ for(const [endpoint,id] of endpoints) {
       const {save,ctx,calls}=fixture(endpoint);ctx.body.default_grid_view="status";
       if(editing)ctx.body[id]="existing";
       await save(ctx);
-      const write=calls.find(q=>q.text?.startsWith(editing?"UPDATE":"INSERT INTO"));
+      const write=calls.flatMap(q=>q.statements||[q]).find(q=>q.text?.startsWith(editing?"UPDATE":"INSERT INTO"));
       assert.ok(write.text.includes("default_grid_view"));assert.ok(write.values.includes("status"));
       assert.equal(write.values[0],"tenant");assert.ok(write.values.includes("org"));
       const placeholders=[...write.text.matchAll(/\$(\d+)/g)].map(m=>Number(m[1]));

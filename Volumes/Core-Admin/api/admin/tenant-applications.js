@@ -2,7 +2,7 @@
 const {requireAdmin,rowStatuses}=require('../_shared/admin');
 
 module.exports=async ctx=>{
-  const admin=requireAdmin(ctx);
+  const admin=await requireAdmin(ctx);
   if(admin.status)return ctx.send(admin.status,admin.body);
   if(ctx.req.method==='GET'){
     const r=await ctx.broker('core_saas','query',{
@@ -30,3 +30,5 @@ module.exports=async ctx=>{
   });
   return {tenant_application:r.rows[0]};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

@@ -1,0 +1,12 @@
+{
+  "name": "core-broker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "pg": "8.13.1"
+  }
+}

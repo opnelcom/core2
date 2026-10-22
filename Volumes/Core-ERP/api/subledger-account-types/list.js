@@ -17,3 +17,5 @@ module.exports=async ctx=>{
   });
   return {subledger_account_types:result.rows};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

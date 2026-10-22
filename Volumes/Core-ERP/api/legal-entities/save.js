@@ -79,3 +79,5 @@ module.exports=async ctx=>{
   }
   return {legal_entity:saved.rows[0]};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

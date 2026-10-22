@@ -28,3 +28,5 @@ module.exports=async ctx=>{
   });
   return ctx.send(201,{item:r.rows[0]});
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

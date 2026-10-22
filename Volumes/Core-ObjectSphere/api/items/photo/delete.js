@@ -2,3 +2,5 @@
 const {deleteAttachment}=require('../_shared/attachments');
 
 module.exports=ctx=>deleteAttachment(ctx,'photo');
+
+module.exports=require("../../_shared/context").withContext(module.exports);

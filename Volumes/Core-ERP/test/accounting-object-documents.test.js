@@ -14,7 +14,7 @@ function fixture({ denied = null, missing = false } = {}) {
     requireModuleAccess: async (_ctx, _access, options) => { permissions.push(options); return null; },
     requireResourcePermission: async (_ctx, _access, options) => { permissions.push(options); return denied; },
   };
-  const context = { module: { exports: {} }, Buffer, require: () => dependencies };
+  const context = { module: { exports: {} }, Buffer, require: name => name.endsWith('/context') ? require('../api/_shared/context') : dependencies };
   vm.createContext(context);
   vm.runInContext(source, context);
   const ctx = {

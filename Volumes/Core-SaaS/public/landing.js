@@ -898,6 +898,7 @@ function renderTenantEditPanel(){
   const panel=$('tenant-edit-panel');
   if(!panel)return;
   if(!tenantEditorId){
+    if(panel.open)panel.close();
     panel.hidden=true;
     panel.innerHTML='';
     return;
@@ -906,6 +907,7 @@ function renderTenantEditPanel(){
   const listTenant=currentTenants.find(tenant=>tenant.tenant_id===tenantEditorId);
   if(!listTenant&&!detail){
     tenantEditorId=null;
+    if(panel.open)panel.close();
     panel.hidden=true;
     panel.innerHTML='';
     return;
@@ -920,6 +922,7 @@ function renderTenantEditPanel(){
   close.setAttribute('aria-label','Close tenant editor');
   close.addEventListener('click',closeTenantEditPanel);
   const title=document.createElement('h2');
+  title.id='tenant-editor-title';
   title.textContent='Manage Tenant';
   const tabs=document.createElement('div');
   tabs.className='tenant-editor-tabs';
@@ -948,6 +951,7 @@ function renderTenantEditPanel(){
     body.append(renderTenantApplicationsGrid(tenantEditorId,detail));
   }
   panel.append(close,title,tabs,body);
+  if(!panel.open)panel.showModal();
 }
 
 function renderTenantEditorTenantTab(tenantId,detail,tenant){
@@ -1364,6 +1368,13 @@ bindClick('core-about-button',showCoreAbout);
 bindClick('manage-tenants',showTenantManagement);
 bindClick('new-tenant-toggle',toggleNewTenantPanel);
 bindClick('create-tenant-submit',createTenant);
+const tenantEditPanel=$('tenant-edit-panel');
+if(tenantEditPanel){
+  tenantEditPanel.addEventListener('cancel',event=>{
+    event.preventDefault();
+    closeTenantEditPanel();
+  });
+}
 bindClick('tenant-picker-trigger',toggleTenantPicker);
 function renderNewTenantIconEditor(){
   const mount=$('new-tenant-icon-editor');

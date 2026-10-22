@@ -28,7 +28,7 @@ async function checkDatabase(id,d){
 }
 
 function brokerConfig(){
-  return JSON.parse(fs.readFileSync(path.join(process.env.CONTENT_ROOT||'/app/content','config','config.json'),'utf8'));
+  return JSON.parse(fs.readFileSync(path.join('/app/content','config','config.json'),'utf8'));
 }
 
 function authorize(ctx,config){

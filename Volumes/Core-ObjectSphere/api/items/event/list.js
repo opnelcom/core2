@@ -38,3 +38,5 @@ module.exports=async ctx=>{
   });
   return {events:r.rows};
 };
+
+module.exports=require("../../_shared/context").withContext(module.exports);

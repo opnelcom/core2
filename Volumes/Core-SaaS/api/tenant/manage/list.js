@@ -28,3 +28,5 @@ module.exports=async ctx=>{
 
   return {tenants:r.rows.map(t=>({...t,can_manage:adminRoles.includes(t.tenant_user_type)})),themes:themes.rows};
 };
+
+module.exports=require("../../_shared/context").withContext(module.exports);

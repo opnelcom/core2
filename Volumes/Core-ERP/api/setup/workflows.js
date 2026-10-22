@@ -26,3 +26,5 @@ module.exports=async ctx=>{
   const result=await ctx.broker('core_erp','transaction',{statements:workflowStatements(access.tenantId,orgId,id,definition,{existing:!!existing})});
   return {ok:true,workflow_path:result.results[0].rows[0]};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

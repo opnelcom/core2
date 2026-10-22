@@ -20,3 +20,5 @@ module.exports=async ctx=>{
   });
   return {tenant_application:r.rows[0]};
 };
+
+module.exports=require("../../../_shared/context").withContext(module.exports);

@@ -24,3 +24,5 @@ module.exports=async ctx=>{
   ]);
   return {tax_types:types.rows,tax_rates:rates.rows};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

@@ -75,3 +75,5 @@ module.exports=async ctx=>{
   ctx.logger.info('item enhancement confirmed',{requestId:ctx.requestId,itemId,savedCount:saved.length});
   return {item_id:itemId,saved};
 };
+
+module.exports=require("../../_shared/context").withContext(module.exports);

@@ -10,8 +10,8 @@ const tenantUserTypes=['owner','tenant_administrator','tenant_user'];
 const rowStatuses=['active','disabled'];
 const applicationTypes=['public_application','administration_application'];
 
-function requireAdmin(ctx){
-  const a=ctx.auth();
+async function requireAdmin(ctx){
+  const a=await ctx.auth();
   if(!a||a.user_type!=='administration_user')return {status:403,body:{error:'Core administrator required'}};
   return {auth:a};
 }

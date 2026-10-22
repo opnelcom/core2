@@ -9,7 +9,9 @@ const { defaultLayout, collectUiSchema } = require("../public/record-editor-layo
 const defaults = require("../seeds/template-defaults.json");
 
 test("editor layout accepts only Tabs/Stacked and retains existing UI configuration", () => {
-  assert.equal(defaultLayout({}), "tabs");
+  assert.equal(defaultLayout({}), "stacked");
+  assert.equal(defaultLayout(), "stacked");
+  assert.equal(defaultLayout({ ui_schema_json: { default_editor_layout: "tabs" } }), "tabs");
   assert.equal(defaultLayout({ ui_schema_json: { default_editor_layout: "stacked" } }), "stacked");
   for (const layout of ["tabs", "stacked", undefined]) assert.equal(validateEditorLayout({ default_editor_layout: layout }), null);
   for (const layout of [null, "Stacked", "invalid", {}, 0]) assert.ok(validateEditorLayout({ default_editor_layout: layout }));
@@ -23,7 +25,7 @@ for (const endpoint of ["subledger-account-types/save", "accounting-objects/save
     const file = require.resolve(`../api/${endpoint}`), actualRequire = createRequire(file);
     async function run(layout, admin = true) {
       const calls = [];
-      const scope = { module: { exports: {} }, require: name => {
+      const scope = { module: { exports: {} }, require: name => {if(name.endsWith('/context'))return require('../api/_shared/context');
         if (name.endsWith("/erp")) return {
           authTenant: async () => ({ tenantId: "tenant" }), requireAdmin: () => admin ? null : { status: 403, body: {} },
           clean: (v, fallback = "") => String(v ?? fallback), nullable: v => v || null, bool: Boolean,
@@ -80,7 +82,7 @@ test("seeded editors retain data and grids across layouts, expand independently 
       return app.slice(start, end);
     };
     const examples = [
-      ["account", defaults.ledgerFamilySchemas.asset_ppe, { assetTag: "VEH-001", assetClass: "vehicles" }],
+      ["account", defaults.ledgerFamilySchemas.asset, { assetTag: "VEH-001", assetClass: "ppe", assetSubClass: "vehicles" }],
       ["accounting-object", defaults.accountingObjectTypeMetadata.property.schema_json, { physicalAddress: "Example warehouse site", propertyKind: "building" }],
       ["accounting-dimension", defaults.accountingDimensionTypeMetadata.service.schema_json, {}],
     ];
@@ -94,13 +96,15 @@ test("seeded editors retain data and grids across layouts, expand independently 
       await page.addScriptTag({ content: fs.readFileSync(require.resolve("../public/schema-visibility"), "utf8") });
       await page.addScriptTag({ content: fs.readFileSync(require.resolve("../public/record-editor-layout"), "utf8") });
       await page.addScriptTag({ content: fs.readFileSync(require.resolve("../public/movable-panels"), "utf8") });
-      await page.addScriptTag({ content: `const $=id=>document.getElementById(id);const state={orgId:""};const pretty=name=>name;
+      await page.addScriptTag({ content: `const $=id=>document.getElementById(id);const state={orgId:"",currencies:[],accounts:[],accountingObjects:[]};const pretty=name=>name;
+        const objectActions={editor(){}};
         function syncRequiredMarkers(){};function loadResourceAssignmentEditor(){return Promise.resolve()};function loadEntityDocuments(){return Promise.resolve()};function loadObjectVersions(){return Promise.resolve()};function renderWorkflowHistory(){};
         const recordComments={show(){}};
         ${extract("installResourceAssignmentTab")}
         ${extract("showResourceEditorTab")}
         ${extract("installObjectVersionTabs")}
         ${extract("installWorkflowHistoryTabs")}
+        ${extract("syncRecordTypeDescription")}
         
         ${app.slice(app.indexOf("  function schemaFields("), app.indexOf("  function syncRecordTypeDescription("))}
         ${app.slice(app.indexOf("  function collectSchemaDetail("), app.indexOf("  function collectAccountDetail("))} ` });
@@ -121,6 +125,7 @@ test("seeded editors retain data and grids across layouts, expand independently 
         const description = document.createElement("p"); description.className = "record-type-description"; description.textContent = "Seeded record editor"; header.append(description);
         const layout = erpRecordEditorLayout.install({ form, prefix, selectTab: id => prefix === "account" ? showAccountEditorTab(id) : showAccountingEditorTab(prefix, id) });
         recordEditorLayouts.set(prefix, layout);
+        syncRecordTypeDescription(prefix, {type_name:"Fleet Vehicle",type_description:"Seeded record editor",ui_schema_json:{default_editor_layout:"stacked"}}, prefix === "account" ? "Sub Ledger" : prefix === "accounting-object" ? "Accounting Object" : "Accounting Dimension");
         layout.bind({ ui_schema_json: { default_editor_layout: "stacked" } });
         renderSchemaDetailFields(`${prefix}-detail-fields`, schema, detail); layout.reset();
         // The production editor is floating; exercise movement together with the actual layout renderer.
@@ -128,6 +133,15 @@ test("seeded editors retain data and grids across layouts, expand independently 
         erpMovablePanels.install();
       }, { prefix, schema, detail });
       await page.waitForTimeout(40);
+      const compact = await page.locator("form").evaluate(form => {
+        const header = form.querySelector('.record-editor-header'), toolbar = form.querySelector('.record-editor-layout-switch');
+        const title = header.querySelector('h2'), context = header.querySelector('.record-type-context');
+        return { inside: header.contains(toolbar), titleFirst: title.getBoundingClientRect().top < context.getBoundingClientRect().top,
+          beside: toolbar.getBoundingClientRect().top < context.getBoundingClientRect().bottom,
+          context: context.textContent, top: form.getBoundingClientRect().top };
+      });
+      assert.equal(compact.inside, true); assert.equal(compact.titleFirst, true); assert.equal(compact.beside, true);
+      assert.match(compact.context, / \/ Fleet Vehicle$/);
       await page.locator(".editor-move-handle").first().focus();
       await page.locator(".editor-move-handle").first().press("ArrowRight");
       assert.equal(await page.locator("form").evaluate(node => node.style.position), "fixed");
@@ -149,7 +163,7 @@ test("seeded editors retain data and grids across layouts, expand independently 
       await page.locator(".record-editor-section-toggle").nth(1).click();
       assert.equal(await page.locator('.record-editor-section-toggle[aria-expanded="false"]').count(), 1);
       await page.locator('.schema-grid-heading button').first().click();
-      assert.equal(await page.locator(".schema-grid-row").count(), 1);
+      assert.equal(await page.locator(".schema-grid-row").count(), 1, JSON.stringify({ prefix, width, errors }));
       const row = page.locator('.schema-grid-row [data-detail-field]').first();
       await row.fill((await row.getAttribute("type")) === "date" ? "2026-10-15" : "Example characteristic");
       if ((await row.getAttribute("type")) !== "date") {
@@ -174,6 +188,7 @@ test("seeded editors retain data and grids across layouts, expand independently 
       if (process.env.EDITOR_LAYOUT_SCREENSHOT_DIR) await page.screenshot({path: require("node:path").join(process.env.EDITOR_LAYOUT_SCREENSHOT_DIR, `${prefix}-stacked-${width}.png`), fullPage:true});
       // Reopening always resets to the type default; an unsaved preference has no persistence.
       await page.locator('[data-editor-layout="tabs"]').click();
+      if (process.env.EDITOR_LAYOUT_SCREENSHOT_DIR) await page.screenshot({path: require("node:path").join(process.env.EDITOR_LAYOUT_SCREENSHOT_DIR, `${prefix}-tabs-${width}.png`), fullPage:true});
       await page.evaluate(prefix => recordEditorLayouts.get(prefix).reset(), prefix);
       assert.equal(await page.locator("form").getAttribute("data-editor-layout"), "stacked");
       // Regenerating a schema and switching to/from the raw-JSON fallback cannot detach the container.

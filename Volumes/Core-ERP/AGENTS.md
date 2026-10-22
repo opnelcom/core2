@@ -24,6 +24,12 @@ For each applicable category, describe the proposed scope, resulting behaviour o
 
 In delivery reports, distinguish source changes from actions actually executed. State whether service restarts, Initialise Schema, Initialise Template Org, and example-data creation were performed when applicable. These presentation categories do not replace the changelog categories or relax infrastructure protection and database-change rules below.
 
+### UI mockups before approval
+
+When a requested change updates the UI or introduces a feature that affects the UI, automatically generate a mockup of the proposed interface before requesting implementation approval. Prefer interactive HTML when applicable; use static images when interactive HTML is unsuitable. Present the mockup alongside the six-category change proposal as supplementary approval material, including affected states and interactions where needed to make the proposed behaviour clear.
+
+Create approval mockups without modifying application source. Mockup preparation is part of preparing the proposal and does not require separate implementation approval. Obtain owner confirmation before implementing the proposed application changes; the mockup does not replace the existing confirmation requirements.
+
 ## Purpose and platform
 
 Core-ERP is the foundation for building a tenant-scoped ERP system within SaaS14 Core. Core provides central management of applications, users, and tenants (shared workspaces).
@@ -131,6 +137,17 @@ Preserve exchange-rate correction history, revision checks, and reasons for corr
 - `logs/`: Operational log output.
 
 Use existing shared services and endpoint conventions. Extract repeated behaviour into an appropriately scoped shared helper. Prefer configurable definitions and schemas where the application already supports them, while keeping business validation explicit. Keep schema, seeds, API behaviour, and UI representations consistent when an agreed change affects them.
+
+## UI: shared field layout — mandatory
+
+- All scalar edit fields, including transaction capture and schema-generated fields, must place the caption to the left of the control.
+- Reuse the shared `erp-field-rows` layout. Schema-generated record fields must also use the shared `schema-record-fields` presentation.
+- Preserve the responsive caption column and 16px horizontal gap at desktop and narrow widths. Controls must shrink; captions may wrap. Do not switch to captions above controls.
+- Honour configured short, medium, wide and full control widths.
+- Preserve checkbox layouts and grid/table column headings; do not convert grid cells into caption/control rows.
+- New renderer integrations must apply the shared presentation classes, not merely reuse the rendering function.
+- Before delivery, verify caption/control geometry at desktop and narrow widths. Extend existing browser checks when introducing another editor or renderer integration. Report when browser verification was not performed.
+- Mockups must follow these same rules.
 
 ## UI: record edit panels
 

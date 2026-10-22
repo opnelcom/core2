@@ -2,7 +2,7 @@
 const {requireAdmin,clean,hashPassword,userTypes,userStatuses}=require('../_shared/admin');
 
 module.exports=async ctx=>{
-  const admin=requireAdmin(ctx);
+  const admin=await requireAdmin(ctx);
   if(admin.status)return ctx.send(admin.status,admin.body);
   if(ctx.req.method==='GET'){
     const r=await ctx.broker('core_saas','query',{text:`SELECT user_id,email,known_name,full_name,user_type,status,created_at,activated_at,updated_at FROM core_user ORDER BY created_at DESC`});
@@ -31,3 +31,5 @@ module.exports=async ctx=>{
   });
   return {user:r.rows[0]};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

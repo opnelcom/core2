@@ -17,3 +17,5 @@ module.exports=async ctx=>{
   });
   return {countries:r.rows};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

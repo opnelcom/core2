@@ -6,8 +6,8 @@
   'use strict';
   function accepts(definition,kind,object){
     if(kind==='subledger_account')return definition.subledger_requirement!=='not_used'&&definition.subledger_account_type_id===object.object_type_id;
-    if(kind!=='accounting_object')return false;
-    return (definition.object_requirements||[]).some(r=>r.accounting_object_type_id===object.object_type_id&&(r.value_behaviour!=='fixed'||r.accounting_object_id===object.object_id));
+    if(kind!=='accounting_object'||definition.subledger_requirement!=='not_used'||!['optional','mandatory'].includes(definition.object_requirement))return false;
+    return (definition.object_requirements||[]).some(r=>r.accounting_object_type_id===object.object_type_id&&(definition.object_value_behaviour!=='fixed'||definition.default_accounting_object_id===object.object_id));
   }
   function prepareLines({definitions,lines,kind,object,definitionId,createLine}){
     const definition=definitions.find(d=>d.transaction_line_definition_id===definitionId);
@@ -15,9 +15,10 @@
     const result=lines.map(line=>({...line,accounting_objects:(line.accounting_objects||[]).map(a=>({...a})),accounting_dimensions:(line.accounting_dimensions||[]).map(a=>({...a}))}));
     let selected=result.find(l=>l.transaction_line_definition_id===definitionId);
     if(!selected){selected=createLine(definition);result.push(selected);}
-    if(kind==='subledger_account')selected.subledger_account_id=object.object_id;
+    if(kind==='subledger_account'){selected.subledger_account_id=object.object_id;selected.accounting_objects=[];}
     else{
-      selected.accounting_objects=(selected.accounting_objects||[]).filter(a=>a.accounting_object_type_id!==object.object_type_id);
+      selected.accounting_objects=[];
+      selected.subledger_account_id='';
       selected.accounting_objects.push({accounting_object_type_id:object.object_type_id,accounting_object_id:object.object_id});
     }
     const order=new Map(definitions.map(d=>[d.transaction_line_definition_id,Number(d.line_order)]));

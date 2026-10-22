@@ -61,3 +61,5 @@ module.exports=async ctx=>{
 
   return {applications:r.rows};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

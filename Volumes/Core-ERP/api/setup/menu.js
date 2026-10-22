@@ -98,3 +98,5 @@ module.exports = async (ctx) => {
     resource_role_mappings: resourceRoleMappings.rows,
   };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

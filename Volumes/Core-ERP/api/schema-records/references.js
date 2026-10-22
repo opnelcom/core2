@@ -13,3 +13,5 @@ module.exports = async ctx => {
   if (!organisationId || !targets.length || target?.anyOf !== undefined && (!Array.isArray(target.anyOf) || target.class) || targets.some(item => !classes[item?.class] || item.types !== undefined && (!Array.isArray(item.types) || item.types.some(code => typeof code !== "string")))) return ctx.send(400, { error: "Organisation and a supported object_class are required" });
   return { records: await lookupReferences(ctx, access, organisationId, target, { search: ctx.query.search, selectedId: ctx.query.selected_id || "", source: ctx.query.source_id ? { class: ctx.query.source_class, id: ctx.query.source_id, grid: ctx.query.source_grid, column: ctx.query.source_column } : ctx.query.source_grid ? {} : null }) };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

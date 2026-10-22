@@ -188,3 +188,5 @@ module.exports=async ctx=>{
   ctx.logger.info('item wireframe generated',{requestId:ctx.requestId,itemId,sourceAttachmentId:photo.attachment_id});
   return ctx.send(201,{wireframe:saved.results[1].rows[0]});
 };
+
+module.exports=require("../../_shared/context").withContext(module.exports);

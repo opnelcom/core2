@@ -23,3 +23,5 @@ module.exports=async ctx=>{
     current_tenant:currentTenant
   };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

@@ -83,7 +83,7 @@ test("browser renderer retains hidden values, updates rows and switches hidden t
     await page.setContent('<form id="accounting-object-form"><div class="account-editor-tabs"><button data-record-tab="general" class="active">Identification</button></div><div id="accounting-object-detail-fields"></div></form><div id="snapshot"></div>');
     await page.addScriptTag({content:fs.readFileSync(require.resolve('../public/schema-visibility'),'utf8')});
     const app=fs.readFileSync(require.resolve('../public/app.js'),'utf8');
-    await page.addScriptTag({content:'const $=id=>document.getElementById(id); const pretty=name=>name; function syncRequiredMarkers(){}\n'+app.slice(app.indexOf('  function schemaFields('),app.indexOf('  function syncRecordTypeDescription('))+app.slice(app.indexOf('  function collectSchemaDetail('),app.indexOf('  function collectAccountDetail('))});
+    await page.addScriptTag({content:'const $=id=>document.getElementById(id); const state={orgId:"",currencies:[],subledgerAccountTypes:[],accountingObjectTypes:[],accountingDimensionTypes:[]}; const pretty=name=>name; function syncRequiredMarkers(){}\n'+app.slice(app.indexOf('  function schemaFields('),app.indexOf('  function syncRecordTypeDescription('))+app.slice(app.indexOf('  function collectSchemaDetail('),app.indexOf('  function collectAccountDetail('))});
     for (const width of [1100,420]) {
       await page.setViewportSize({width,height:900});
       await page.evaluate(s=>{

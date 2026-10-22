@@ -19,7 +19,8 @@ function candidateSql(kind){
     WHERE requirement.tenant_id=$1 AND requirement.organisation_id=$2
     AND requirement.transaction_line_definition_id=line.transaction_line_definition_id
     AND requirement.accounting_object_type_id=$3
-    AND (requirement.value_behaviour<>'fixed' OR requirement.accounting_object_id=$4))`;
+    AND line.object_requirement IN ('optional','mandatory') AND line.subledger_requirement='not_used'
+    AND (line.object_value_behaviour<>'fixed' OR line.default_accounting_object_id=$4))`;
  return `SELECT tx.transaction_type_id,tx.type_code,tx.type_name,tx.type_description,
  line.transaction_line_definition_id,line.line_order,line.line_code,line.line_description,
  line.debit_credit,line.occurrence,line.amount_source,gl.account_code,gl.account_name

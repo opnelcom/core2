@@ -26,7 +26,7 @@ test('template reset covers scoped application tables and deletes children befor
 });
 
 function loadWithAccess(overrides={}){
-  const scope={module:{exports:{}},require:id=>overrides[id]||(id==='./access'?{canInitialiseTemplateOrganisation:async()=>true}:id.startsWith('node:')?require(id):require(path.resolve(__dirname,'../api/_shared/erp',id)))};
+  const scope={module:{exports:{}},require:id=>id.endsWith('/context') ? require('../api/_shared/context') : overrides[id]||(id==='./access'?{canInitialiseTemplateOrganisation:async()=>true}:id.startsWith('node:')?require(id):require(path.resolve(__dirname,'../api/_shared/erp',id)))};
   vm.createContext(scope);
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../api/_shared/erp/template-initialisation.js'),'utf8'),scope);
   return scope.module.exports;
@@ -55,6 +55,13 @@ test('rebuild plans a complete reset and fresh seeds together without reading de
   assert.deepEqual(workflowWrites.map(s=>s.values[3]),defaults.workflows.map(w=>w.path_name));
   assert.ok(!statements.some(s=>s.values?.includes('Default workflow')));
   assert.equal(statements.filter(s=>/^INSERT INTO erp_report\(/.test(s.text)).length,defaults.reportSeeds.length);
+  const typeInsert=statements.find(s=>s.text.includes('INSERT INTO erp_transaction_type('));
+  assert.ok(statements.indexOf(typeInsert)>statements.indexOf(reset.at(-1)));
+  const schemas=require('../api/_shared/erp/transaction-schema-defaults').resolveTransactionSchemas(defaults);
+  const types=JSON.parse(typeInsert.values[2]);
+  assert.equal(types.length,110);
+  for(const type of types)assert.deepEqual(type.schema_json,schemas[type.type_code]);
+  assert.ok(!reads.some(s=>/FROM erp_transaction_type\b/.test(s.text)));
   assert.match(statements[0].text,/LOCK TABLE/);
 });
 

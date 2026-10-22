@@ -8,3 +8,5 @@ module.exports=async ctx=>{
  try{const plan=await prepare(ctx,access);const result=await commit(ctx,access,plan);return ctx.send(201,result);}
  catch(e){if(e.code)throw e;return ctx.send(400,{error:e.message});}
 };
+
+module.exports=require("../../_shared/context").withContext(module.exports);

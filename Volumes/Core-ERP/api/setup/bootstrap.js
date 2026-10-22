@@ -70,3 +70,5 @@ module.exports=async ctx=>{
     currencies:currencyDefaults
   };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

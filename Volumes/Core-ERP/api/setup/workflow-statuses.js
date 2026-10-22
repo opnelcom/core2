@@ -21,12 +21,14 @@ module.exports=async ctx=>{
     return {ok:true};
   }
   if(ctx.req.method!=='POST')return ctx.send(405,{error:'GET, POST or DELETE required'});
-  for (const key of ['enabled_for_use','displayed']) {
+  for (const key of ['enabled_for_use','displayed','transitional']) {
     if (ctx.body[key] !== undefined && typeof ctx.body[key] !== 'boolean') return ctx.send(400,{error:`${key} must be a boolean`});
   }
   const code=normalizeStepCode(ctx.body.status_code),label=clean(ctx.body.status_label),description=clean(ctx.body.description),colour=clean(ctx.body.colour);
   if(!/^[a-z][a-z0-9_]*$/.test(code)||!label||!/^#[0-9a-f]{6}$/i.test(colour))return ctx.send(400,{error:'A code (letters, digits, underscores), label and six-digit hex colour are required'});
-  const r=await ctx.broker('core_erp','query',id?{text:`UPDATE erp_workflow_status SET status_label=$4,description=$5,colour=$6,enabled_for_use=$8,displayed=$9,updated_at=now() WHERE tenant_id=$1 AND organisation_id=$2 AND workflow_status_id=$3 AND status_code=$7 RETURNING *`,values:[access.tenantId,orgId,id,label,description,colour,code,ctx.body.enabled_for_use===true,ctx.body.displayed!==false]}:{text:`INSERT INTO erp_workflow_status(tenant_id,organisation_id,workflow_status_id,status_code,status_label,description,colour,enabled_for_use,displayed) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,values:[access.tenantId,orgId,randomUUID(),code,label,description,colour,ctx.body.enabled_for_use===true,ctx.body.displayed!==false]});
+  const r=await ctx.broker('core_erp','query',id?{text:`UPDATE erp_workflow_status SET status_label=$4,description=$5,colour=$6,enabled_for_use=$8,displayed=$9,transitional=$10,updated_at=now() WHERE tenant_id=$1 AND organisation_id=$2 AND workflow_status_id=$3 AND status_code=$7 RETURNING *`,values:[access.tenantId,orgId,id,label,description,colour,code,ctx.body.enabled_for_use===true,ctx.body.displayed!==false,ctx.body.transitional===true]}:{text:`INSERT INTO erp_workflow_status(tenant_id,organisation_id,workflow_status_id,status_code,status_label,description,colour,enabled_for_use,displayed,transitional) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,values:[access.tenantId,orgId,randomUUID(),code,label,description,colour,ctx.body.enabled_for_use===true,ctx.body.displayed!==false,ctx.body.transitional===true]});
   if(!r.rowCount)return ctx.send(404,{error:'Status was not found; an existing status code cannot be changed'});
   return {ok:true,workflow_status:r.rows[0]};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

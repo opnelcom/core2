@@ -1,0 +1,9 @@
+{
+  "name": "@core/identity-client",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "files": ["index.js"],
+  "engines": {"node": ">=20"},
+  "scripts": {"test": "node --test test/*.test.js"}
+}

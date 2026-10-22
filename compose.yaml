@@ -111,7 +111,7 @@ services:
       start_period: 20s
 
   core-broker:
-    image: core-runtime:1.0
+    image: core-runtime:2.0.0
     build:
       context: ./Applications/Core-Runtime
     restart: unless-stopped
@@ -120,7 +120,7 @@ services:
       - "3000"
     volumes:
       - ./Volumes/Core-Broker:/app/content:ro
-      - ./Volumes/Core-Broker/logs:/app/logs
+      - ./Volumes/Core-Broker/logs:/app/content/logs
     networks: [core-application, core-database]
     healthcheck:
       test: ["CMD", "node", "/app/healthcheck.js"]
@@ -132,14 +132,14 @@ services:
       - no-new-privileges:true
 
   core-smtp:
-    image: core-runtime:1.0
+    image: core-runtime:2.0.0
     restart: unless-stopped
     init: true
     expose:
       - "3000"
     volumes:
       - ./Volumes/Core-SMTP:/app/content:ro
-      - ./Volumes/Core-SMTP/logs:/app/logs
+      - ./Volumes/Core-SMTP/logs:/app/content/logs
     networks: [core-application, core-outbound]
     healthcheck:
       test: ["CMD", "node", "/app/healthcheck.js"]
@@ -151,14 +151,14 @@ services:
       - no-new-privileges:true
 
   core-saas:
-    image: core-runtime:1.0
+    image: core-runtime:2.0.0
     restart: unless-stopped
     init: true
     expose:
       - "3000"
     volumes:
       - ./Volumes/Core-SaaS:/app/content:ro
-      - ./Volumes/Core-SaaS/logs:/app/logs
+      - ./Volumes/Core-SaaS/logs:/app/content/logs
     depends_on:
       core-db-saas: { condition: service_healthy }
       core-broker: { condition: service_healthy }
@@ -176,14 +176,14 @@ services:
       - no-new-privileges:true
 
   core-admin:
-    image: core-runtime:1.0
+    image: core-runtime:2.0.0
     restart: unless-stopped
     init: true
     expose:
       - "3000"
     volumes:
       - ./Volumes/Core-Admin:/app/content:ro
-      - ./Volumes/Core-Admin/logs:/app/logs
+      - ./Volumes/Core-Admin/logs:/app/content/logs
     depends_on:
       core-broker: { condition: service_healthy }
     networks:
@@ -198,14 +198,14 @@ services:
       - no-new-privileges:true
 
   core-monitor:
-    image: core-runtime:1.0
+    image: core-runtime:2.0.0
     restart: unless-stopped
     init: true
     expose:
       - "3000"
     volumes:
       - ./Volumes/Core-Monitor:/app/content:ro
-      - ./Volumes/Core-Monitor/logs:/app/logs
+      - ./Volumes/Core-Monitor/logs:/app/content/logs
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       core-broker: { condition: service_healthy }
@@ -221,14 +221,14 @@ services:
       - no-new-privileges:true
 
   core-erp:
-    image: core-runtime:1.0
+    image: core-runtime:2.0.0
     restart: unless-stopped
     init: true
     expose:
       - "3000"
     volumes:
       - ./Volumes/Core-ERP:/app/content:ro
-      - ./Volumes/Core-ERP/logs:/app/logs
+      - ./Volumes/Core-ERP/logs:/app/content/logs
     depends_on:
       core-broker: { condition: service_healthy }
     networks:
@@ -244,14 +244,14 @@ services:
       - no-new-privileges:true
 
   core-objectsphere:
-    image: core-runtime:1.0
+    image: core-runtime:2.0.0
     restart: unless-stopped
     init: true
     expose:
       - "3000"
     volumes:
       - ./Volumes/Core-ObjectSphere:/app/content:ro
-      - ./Volumes/Core-ObjectSphere/logs:/app/logs
+      - ./Volumes/Core-ObjectSphere/logs:/app/content/logs
     depends_on:
       core-broker: { condition: service_healthy }
       core-db-objectsphere: { condition: service_healthy }
@@ -271,14 +271,14 @@ services:
       - no-new-privileges:true
 
   core-tasks:
-    image: core-runtime:1.0
+    image: core-runtime:2.0.0
     restart: unless-stopped
     init: true
     expose:
       - "3000"
     volumes:
       - ./Volumes/Core-Tasks:/app/content:ro
-      - ./Volumes/Core-Tasks/logs:/app/logs
+      - ./Volumes/Core-Tasks/logs:/app/content/logs
     depends_on:
       core-broker: { condition: service_healthy }
       core-db-tasks: { condition: service_healthy }
@@ -298,14 +298,14 @@ services:
       - no-new-privileges:true
 
   core-tools:
-    image: core-runtime:1.0
+    image: core-runtime:2.0.0
     restart: unless-stopped
     init: true
     expose:
       - "3000"
     volumes:
       - ./Volumes/Core-Tools:/app/content:ro
-      - ./Volumes/Core-Tools/logs:/app/logs
+      - ./Volumes/Core-Tools/logs:/app/content/logs
     networks:
       - core-application
     healthcheck:
@@ -318,14 +318,14 @@ services:
       - no-new-privileges:true
 
   core-reference:
-    image: core-runtime:1.0
+    image: core-runtime:2.0.0
     restart: unless-stopped
     init: true
     expose:
       - "3000"
     volumes:
       - ./Volumes/Core-Reference:/app/content:ro
-      - ./Volumes/Core-Reference/logs:/app/logs
+      - ./Volumes/Core-Reference/logs:/app/content/logs
     networks:
       - core-application
     healthcheck:
@@ -338,7 +338,7 @@ services:
       - no-new-privileges:true
 
   core-database-management:
-    image: core-runtime:1.0
+    image: core-runtime:2.0.0
     restart: unless-stopped
     init: true
     expose:
@@ -347,6 +347,7 @@ services:
       DBMANAGER_SCHEMA: /app/dbmanager-schema/001-schema.sql
     volumes:
       - ./Volumes/Core-DBManager:/app/content:ro
+      - ./Volumes/Core-DBManager/logs:/app/content/logs
       - ./Volumes/Databases/Core-DBManager/Init:/app/dbmanager-schema:ro
     networks: [core-application, core-outbound]
     depends_on:

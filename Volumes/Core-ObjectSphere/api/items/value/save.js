@@ -63,3 +63,5 @@ module.exports=async ctx=>{
     history_recorded:r.rows[0].history_recorded
   };
 };
+
+module.exports=require("../../_shared/context").withContext(module.exports);

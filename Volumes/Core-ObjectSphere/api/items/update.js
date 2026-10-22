@@ -40,3 +40,5 @@ module.exports=async ctx=>{
   if(!r.rowCount)return ctx.send(404,{error:'Item not found'});
   return {item:r.rows[0]};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

@@ -15,3 +15,5 @@ module.exports=async ctx=>{
   }
   return {message:'If the account is pending, an activation message has been sent.'};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

@@ -108,3 +108,5 @@ module.exports=async ctx=>{
   ctx.logger.info('item described from photo',{requestId:ctx.requestId,itemId,photoId:photo.attachment_id});
   return {item:saved.rows[0],description:generated};
 };
+
+module.exports=require("../../_shared/context").withContext(module.exports);

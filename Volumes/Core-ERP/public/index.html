@@ -6,7 +6,7 @@
     <title>Core ERP</title>
     <link
       rel="stylesheet"
-      href="/erp/style.css?v=20261015-stacked-borders"
+      href="/erp/style.css?v=20261022-transaction-field-rows"
     />
     <script>
       (function () {
@@ -208,11 +208,7 @@
           </button>
         </div>
         <section id="view-dashboard" class="view">
-          <div class="metric-grid" id="metrics"></div>
-          <div class="panel">
-            <h2>Current Organisation</h2>
-            <div id="org-summary" class="summary-list"></div>
-          </div>
+          <div id="module-dashboard" aria-live="polite"></div>
         </section>
         <section id="view-organisations" class="view" hidden>
           <div class="split">
@@ -972,6 +968,7 @@
           <form id="journal-form" class="panel form" hidden>
             <header class="record-editor-header">
               <h2 id="journal-capture-title">Transaction Capture</h2>
+              <p id="journal-capture-number" class="record-type-context">Transaction number: Not yet assigned</p>
               <p id="journal-capture-description" class="record-type-description" hidden></p>
             </header>
             <input type="hidden" id="journal-id" />
@@ -997,6 +994,7 @@
                 ></label>
               </div>
               <div class="journal-header-right">
+                <label><span>Transaction heading</span><input id="journal-heading" type="text" required maxlength="200" pattern=".*\S.*" title="Enter a transaction heading of up to 200 characters" /></label>
                 <label
                   ><span>Description</span
                   ><textarea id="journal-description" rows="4"></textarea>
@@ -1630,6 +1628,7 @@
             <form id="transaction-type-form" class="panel form" hidden novalidate>
               <p id="transaction-type-error" role="alert" class="form-error" hidden></p>
               <h2>Manage Transaction Type</h2>
+              <label class="full">Custom header schema JSON<textarea id="transaction-type-schema" rows="16" spellcheck="false">{}</textarea></label>
               <input type="hidden" id="transaction-type-id" /><label
                 >Group<select id="transaction-type-group"></select></label
               ><label>Code<input id="transaction-type-code" required /></label
@@ -2117,13 +2116,14 @@
     <script src="/erp/setup-deletion.js?v=20261015-header-actions"></script>
     <script src="/erp/organisation-setup-ui.js?v=20261012"></script>
     <script src="/erp/record-comments.js?v=20261013"></script>
-    <script src="/erp/schema-visibility.js?v=20261013"></script>
-    <script src="/erp/workflow-grid-visibility.js?v=20261015"></script>
-    <script src="/erp/object-grid-views.js?v=20261014-actions"></script>
-    <script src="/erp/object-statement.js?v=20261014-class-pills"></script>
-    <script src="/erp/object-actions.js?v=20261014-editor-button-alignment"></script>
-    <script src="/erp/record-editor-layout.js?v=20261015"></script>
+    <script src="/erp/schema-visibility.js?v=20261021-conditional-options"></script>
+    <script src="/erp/workflow-grid-visibility.js?v=20261021-compact-grids"></script>
+    <script src="/erp/object-grid-views.js?v=20261021-compact-grids"></script>
+    <script src="/erp/module-dashboard.js?v=20261021-balances"></script>
+    <script src="/erp/object-statement.js?v=20261021-output"></script>
+    <script src="/erp/object-actions.js?v=20261021-allocation-picker-popover"></script>
+    <script src="/erp/record-editor-layout.js?v=20261021-stacked-default"></script>
     <script src="/erp/movable-panels.js?v=20261015"></script>
-    <script src="/erp/app.js?v=20261015-movable-editors"></script>
+    <script src="/erp/app.js?v=20261022-transaction-field-rows"></script>
   </body>
 </html>

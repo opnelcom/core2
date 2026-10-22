@@ -30,3 +30,5 @@ module.exports=async ctx=>{
   }
   return {gl_account_type:result.rows[0]};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

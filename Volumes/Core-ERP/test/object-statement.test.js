@@ -6,10 +6,10 @@ const {runStatement,validate,statementSql}=require('../api/_shared/erp/object-st
 const endpoint=require('../api/reports/object-statement');
 const id=n=>`00000000-0000-0000-0000-${String(n).padStart(12,'0')}`;
 
-test('all statement classes retain ten SQL parameters and explicitly type the child flag',()=>{
+test('all statement classes retain twelve SQL parameters and explicitly type the child flag',()=>{
  for(const kind of ['subledger_account','accounting_object','accounting_dimension']){
  const sql=statementSql(kind);
- assert.deepEqual([...new Set([...sql.matchAll(/\$(\d+)/g)].map(match=>Number(match[1])))].sort((a,b)=>a-b),[1,2,3,4,5,6,7,8,9,10],kind);
+ assert.deepEqual([...new Set([...sql.matchAll(/\$(\d+)/g)].map(match=>Number(match[1])))].sort((a,b)=>a-b),[1,2,3,4,5,6,7,8,9,10,11,12],kind);
  assert.match(sql,/\$6::boolean\b/,kind);
  }
 });
@@ -17,6 +17,21 @@ test('statement endpoint requires GET and an authenticated tenant session',async
  const send=(status,body)=>({status,body});
  assert.equal((await endpoint({req:{method:'POST'},send})).status,405);
  assert.equal((await endpoint({req:{method:'GET'},send,tenantSession:async()=>({status:401,body:{error:'Sign in'}})})).status,401);
+});
+
+test('division scope filters posted lines and opening balances while leaving unscoped statements unchanged',async()=>{
+  const f=fixture();try{
+    const child=id(600);f.db.prepare('INSERT INTO erp_division VALUES(?,?,?,?)').run(f.tenant,f.org,child,f.division);
+    f.post('2025-01-01',100,0);const childLine=f.post('2026-09-02',25,0);
+    f.db.prepare('UPDATE erp_journal_line SET division_id=? WHERE journal_line_id=?').run(child,childLine.line);
+    const root=await f.run({object_class:'subledger_account',division_id:f.division,include_child_divisions:'0'});
+    assert.equal(root.closing_balance,'100');assert.equal(root.opening_balance,'100');
+    assert.equal(root.division_id,f.division);assert.equal(root.include_child_divisions,false);
+    const children=await f.run({object_class:'subledger_account',division_id:f.division,include_child_divisions:'1'});
+    assert.equal(children.closing_balance,'125');assert.equal((await f.run({object_class:'subledger_account'})).closing_balance,'125');
+    assert.equal((await f.run({object_class:'subledger_account',division_id:id(999)})).closing_balance,'0');
+    await assert.rejects(f.run({division_id:'invalid'}),e=>e.status===400);
+  }finally{f.db.close();}
 });
 function fixture(){
  const db=new DatabaseSync(':memory:');
@@ -29,7 +44,7 @@ function fixture(){
  CREATE TABLE erp_subledger_account_type(tenant_id,organisation_id,subledger_account_type_id,type_name);
  CREATE TABLE erp_accounting_dimension(tenant_id,organisation_id,accounting_dimension_id,accounting_dimension_type_id,owner_division_id,dimension_code,dimension_name);
  CREATE TABLE erp_accounting_dimension_type(tenant_id,organisation_id,accounting_dimension_type_id,type_name);
- CREATE TABLE erp_journal(tenant_id,organisation_id,journal_id,journal_date,journal_number,description,created_at,posted_at,workflow_status,transaction_type_id);
+ CREATE TABLE erp_journal(tenant_id,organisation_id,journal_id,journal_date,journal_number,transaction_heading,description,created_at,posted_at,workflow_status,transaction_type_id);
  CREATE TABLE erp_journal_line(tenant_id,organisation_id,journal_id,journal_line_id,line_number,division_id,gl_account_id,subledger_account_id,description,debit_amount,credit_amount);
  CREATE TABLE erp_gl_account(tenant_id,organisation_id,gl_account_id,account_code,account_name);
  CREATE TABLE erp_journal_line_accounting_object(tenant_id,organisation_id,journal_line_id,accounting_object_id);
@@ -51,7 +66,7 @@ function fixture(){
  for(const g of [gl,otherGl])db.prepare('INSERT INTO erp_gl_account VALUES(?,?,?,?,?)').run(tenant,org,g,g,'GL');
  let serial=20;
  function post(date,debit,credit,object=root,{posted=true,account=gl,orgId=org,tenantId=tenant,status='approved',extraObject=null}={}){
- const journal=id(serial++),line=id(serial++);db.prepare('INSERT INTO erp_journal VALUES(?,?,?,?,?,?,?,?,?,?)').run(tenantId,orgId,journal,date,journal,'Journal',date+'T10:00:00',posted?date:null,status,type);
+ const journal=id(serial++),line=id(serial++);db.prepare('INSERT INTO erp_journal VALUES(?,?,?,?,?,?,?,?,?,?,?)').run(tenantId,orgId,journal,date,journal,'Saved transaction heading','Journal',date+'T10:00:00',posted?date:null,status,type);
  db.prepare('INSERT INTO erp_journal_line VALUES(?,?,?,?,?,?,?,?,?,?,?)').run(tenantId,orgId,journal,line,1,division,account,root,'Line',debit,credit);
  db.prepare('INSERT INTO erp_journal_line_accounting_object VALUES(?,?,?,?)').run(tenantId,orgId,line,object);if(extraObject)db.prepare('INSERT INTO erp_journal_line_accounting_object VALUES(?,?,?,?)').run(tenantId,orgId,line,extraObject);
  db.prepare('INSERT INTO erp_journal_line_accounting_dimension VALUES(?,?,?,?)').run(tenantId,orgId,line,root);return {journal,line};
@@ -88,5 +103,17 @@ test('object and transaction permissions flag incomplete balances without reveal
  f.access.setupAdministrator=false;const r=await f.run();assert.equal(r.restricted,true);assert.equal(r.closing_balance,'10');assert.equal(r.total_count,1);assert.ok(!r.rows[0].allocated_objects.includes(f.child));
  f.db.exec("DELETE FROM erp_role_permission WHERE resource_kind='transaction'");const hidden=await f.run();assert.equal(hidden.restricted,true);assert.equal(hidden.total_count,0);
  f.db.exec("DELETE FROM erp_role_permission");await assert.rejects(f.run(),e=>e.status===403);
+ }finally{f.db.close();}
+});
+
+test('statement returns the saved transaction heading separately from journal and line descriptions for every class',async()=>{
+ const f=fixture();try{
+  f.post('2026-09-02',25,0);
+  for(const object_class of ['subledger_account','accounting_object','accounting_dimension']){
+   const result=await f.run({object_class});
+   assert.equal(result.rows[0].transaction_heading,'Saved transaction heading');
+   assert.equal(result.rows[0].journal_description,'Journal');
+   assert.equal(result.rows[0].description,'Line');
+  }
  }finally{f.db.close();}
 });

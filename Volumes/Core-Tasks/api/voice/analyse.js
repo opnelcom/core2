@@ -224,3 +224,5 @@ module.exports=async ctx=>{
     warnings:Array.isArray(raw.warnings)?raw.warnings.map(String).map(v=>v.trim()).filter(Boolean).slice(0,8):[]
   };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

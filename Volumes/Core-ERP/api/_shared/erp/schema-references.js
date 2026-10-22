@@ -81,7 +81,7 @@ async function sourceReferenceValues(ctx, access, organisationId, source) {
 
 async function validateSchemaReferences(ctx, access, organisationId, schema, data, existing = null) {
   const errors = [], cache = new Map();
-  let previous={};
+  let previous=existing?.previousData||{};
   const c=existing&&classes[existing.kind];
   if(c&&existing.id){
     const result=await ctx.broker('core_erp','query',{text:`SELECT additional_data FROM ${c.table} WHERE tenant_id=$1 AND organisation_id=$2 AND ${c.id}=$3`,values:[access.tenantId,organisationId,existing.id]});

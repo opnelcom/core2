@@ -42,7 +42,7 @@ function topLevelSearch(schema,data){
   return result;
 }
 
-function validateSchema(schema,data){
+function validateSchema(schema,data,rootData=data,rootSchema=schema){
   const errors=[];
   if (!data || typeof data !== 'object' || Array.isArray(data)) return ['Additional data must be an object'];
   const props=schema?.properties||{};
@@ -58,7 +58,7 @@ function validateSchema(schema,data){
     const value=data?.[key];
     if(value===undefined||value===null||value==='')return;
     if(field.type==='grid') {
-      errors.push(...validateGrid(field,value,validateSchema).map(error=>`${field.title||key}: ${error}`));
+      errors.push(...validateGrid(field,value,(rowSchema,row)=>validateSchema(rowSchema,row,rootData,rootSchema)).map(error=>`${field.title||key}: ${error}`));
       return;
     }
     const type=['text','short_text','long_text','textarea','date','date_time','email','url','select','reference'].includes(field.type)?'string':field.type;
@@ -103,8 +103,10 @@ function validateSchema(schema,data){
     }
     if(type==='boolean'&&typeof value!=='boolean')errors.push(`${key} must be true or false`);
     if(Array.isArray(field.options)){
-      const codes=field.options.map(option=>typeof option==='object'?option.code??option.value:option).filter(option=>option!==undefined&&option!==null);
-      if(codes.length&&!codes.includes(value))errors.push(`${key} must be one of ${codes.join(', ')}`);
+      const scope=schema===rootSchema?'object':'row';
+      const options=visibility.availableOptions(field,rootData,scope==='row'?data:undefined,scope,rootSchema,schema);
+      const codes=options.map(option=>typeof option==='object'?option.code??option.value:option).filter(option=>option!==undefined&&option!==null);
+      if((codes.length||field.options.some(option=>option?.showif!==undefined))&&!codes.includes(value))errors.push(`${key} must be one of ${codes.join(', ')}`);
     }
     if(Array.isArray(field.enum)&&!field.enum.includes(value))errors.push(`${key} must be one of ${field.enum.join(', ')}`);
   });
@@ -121,6 +123,9 @@ function validateSchemaDefinition(schema,rootSchema=schema){
   for(const [name,field] of Object.entries(schema.properties||{})){
     if(!field||typeof field!=='object'||Array.isArray(field)){errors.push(`${name} must define a field object`);continue;}
     errors.push(...visibility.validate(field.showif,schema,rootSchema,scope,`${name}.showif`));
+    for(const [index,option] of (Array.isArray(field.options)?field.options:[]).entries()) {
+      if(option && typeof option==='object') errors.push(...visibility.validate(option.showif,schema,rootSchema,scope,`${name}.options[${index}].showif`));
+    }
     if(field.type==='grid')errors.push(...validateGridDefinition(field,row=>validateSchemaDefinition(row,rootSchema)).map(error=>`${name}: ${error}`));
     if(field.type==='reference'){
       const targets=Array.isArray(field.target?.anyOf)?field.target.anyOf:[field.target];

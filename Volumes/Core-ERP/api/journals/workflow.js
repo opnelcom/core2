@@ -34,3 +34,5 @@ module.exports=async ctx=>{
   await plan.commit();
   return {ok:true};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

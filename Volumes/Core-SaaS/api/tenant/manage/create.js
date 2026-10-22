@@ -45,3 +45,5 @@ module.exports=async ctx=>{
   ctx.setCookie('current_tenant',tenant.tenant_id,{secure:ctx.config.cookieSecure===true,maxAge:sessionMaxAge(ctx.config)});
   return ctx.send(201,{tenant});
 };
+
+module.exports=require("../../_shared/context").withContext(module.exports);

@@ -85,3 +85,5 @@ module.exports=async ctx=>{
     counts:Object.fromEntries(keys.map(key=>[key,data[key].length]))
   };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

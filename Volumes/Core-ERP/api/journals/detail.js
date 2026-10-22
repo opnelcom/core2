@@ -16,7 +16,7 @@ module.exports=async ctx=>{
     if(access.status)return ctx.send(access.status,access.body);
   }
   const journal=await ctx.broker('core_erp','query',{
-    text:`SELECT j.* FROM erp_journal j WHERE j.tenant_id=$1 AND j.journal_id=$2 AND j.organisation_id=$4
+    text:`SELECT j.*,t.schema_json transaction_schema_json FROM erp_journal j LEFT JOIN erp_transaction_type t ON t.transaction_type_id=j.transaction_type_id AND t.tenant_id=j.tenant_id AND t.organisation_id=j.organisation_id WHERE j.tenant_id=$1 AND j.journal_id=$2 AND j.organisation_id=$4
       AND (${transactionVisibilitySql({tenant:'$1',organisation:'$4',division:'j.source_division_id',transactionType:'j.transaction_type_id',status:"CASE WHEN j.workflow_status='reversed' THEN 'approved' ELSE j.workflow_status END",email:'$3',administrator:'$5'})}
         OR lower(j.created_by_email)=lower($3))`,
     values:[access.tenantId,id,access.auth.email,owner.rows[0].organisation_id,isAdministrator(access)]
@@ -39,3 +39,5 @@ module.exports=async ctx=>{
   await require('../_shared/erp/workflow-presentation').decorateWorkflowRecords(ctx,access,journal.rows,{kind:'transaction',typeTable:'erp_transaction_type',typeIdColumn:'transaction_type_id'});
   return {journal:journal.rows[0],lines:lines.rows};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

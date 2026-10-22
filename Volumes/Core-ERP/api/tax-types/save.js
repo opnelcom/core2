@@ -86,3 +86,5 @@ module.exports=async ctx=>{
 
   return {tax_type:taxType};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

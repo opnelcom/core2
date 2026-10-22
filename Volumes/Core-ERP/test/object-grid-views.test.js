@@ -1,7 +1,7 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const {statusGroups, render} = require("../public/object-grid-views");
+const {statusGroups, render, setStatusFilter} = require("../public/object-grid-views");
 
 const statuses = [
   {status_code:"draft", status_label:"Draft", colour:"#2563eb"},
@@ -40,14 +40,36 @@ test("equal sort numbers break ties by label and missing workflow metadata keeps
 class Element {
   constructor(tag) {
     this.tag=tag;this.children=[];this.value="";this.listeners={};this.attributes={};
-    this.classList={add(){},remove(){}};this.style={setProperty(){}};
+    this.classList={add(){},remove(){},contains(){return false;}};this.style={setProperty(){}};
   }
   append(...children){this.children.push(...children);}
   prepend(child){this.children.unshift(child);}
   replaceChildren(...children){this.children=children;}
   setAttribute(key,value){this.attributes[key]=value;}
   addEventListener(type,callback){this.listeners[type]=callback;}
+  before(child){(this.beforeChildren ||= []).push(child);}
+  remove(){this.removed=true;}
+  closest(){return null;}
 }
+
+test('dashboard status filter is removable, reveals an explicitly selected hidden status and resets between contexts',()=>{
+  const original=global.document, visibility=global.erpWorkflowGridVisibility;
+  global.document={createElement:tag=>new Element(tag),createTextNode:text=>({textContent:text})};
+  global.erpWorkflowGridVisibility=require('../public/workflow-grid-visibility');
+  try{
+    const target=new Element('div'),toolbar=new Element('div');
+    const rows=[{workflow_status:'hidden'},{workflow_status:'active'}];let shown;
+    const config={target,toolbar,enabled:false,rows,contextKey:'org:type',columns:[],statuses:[{status_code:'hidden',displayed:false}],table:(t,c,r)=>{shown=r;}};
+    render(config);assert.deepEqual(shown,[rows[1]]);
+    setStatusFilter(target,{contextKey:'org:type',status_code:'hidden',status_label:'Retirement pending'});
+    render(config);assert.deepEqual(shown,[rows[0]]);
+    const label=target.beforeChildren.find(el=>el.className==='dashboard-status-filter');
+    assert.equal(label.children[0].textContent,'Workflow status: Retirement pending');
+    label.children[1].listeners.click();assert.deepEqual(shown,[rows[1]]);assert.equal(label.removed,true);
+    setStatusFilter(target,{contextKey:'org:type',status_code:'hidden',status_label:'Retirement pending'});
+    render({...config,contextKey:'org:other-type'});assert.deepEqual(shown,[rows[1]]);
+  }finally{global.document=original;global.erpWorkflowGridVisibility=visibility;}
+});
 test("view switching retains table inputs, opens the original record and retains workflow actions", () => {
   const original=global.document;
   global.document={createElement:tag=>new Element(tag),createTextNode:text=>({textContent:text})};
@@ -63,23 +85,41 @@ test("view switching retains table inputs, opens the original record and retains
       table:(t,c,r)=>{calls++;assert.equal(t,target);assert.equal(c,config.columns);assert.equal(r,config.rows);}};
     render(config);
     assert.equal(calls,1);
-    const select=toolbar.children[0].children[1];
-    assert.deepEqual(select.children.map(o=>o.value),["Columnar","Status"]);
-    select.value="Status";select.listeners.change();
+    const [columnar,status]=toolbar.children[0].children;
+    assert.deepEqual([columnar,status].map(b=>b.attributes['aria-label']),["Columnar","Status"]);
+    const selected=()=>status.attributes['aria-pressed']==='true'?'Status':'Columnar';
+    assert.equal(selected(),"Columnar");
+    assert.equal(columnar.attributes['aria-pressed'],'true');
+    status.listeners.click();
+    assert.equal(selected(),"Status");
+    assert.equal(columnar.attributes['aria-pressed'],'false');
+    status.listeners.click();assert.equal(closed,1);
     const tile=target.children[0].children[0].children[1];
     assert.equal(tile.children[1],action);
     assert.equal(tile.children[0].textContent,"<code> - Contract");
     tile.children[0].listeners.click();assert.equal(opened,row);
+    render({...config,tileValue:()=>"Value (ZAR): -123.45"});
+    const valuedTile=target.children[0].children[0].children[1];
+    assert.equal(valuedTile.children[1].textContent,"Value (ZAR): -123.45");
+    assert.equal(valuedTile.children[2],action);
+    render({...config,tileDescription:()=>"First line\n<script>plain text</script>",tileValue:()=>"Value (ZAR): 123.45"});
+    const describedTile=target.children[0].children[0].children[1];
+    assert.equal(describedTile.children[1].className,"object-status-description");
+    assert.equal(describedTile.children[1].textContent,"First line\n<script>plain text</script>");
+    assert.equal(describedTile.children[2].textContent,"Value (ZAR): 123.45");
+    assert.equal(describedTile.children[3],action);
+    render({...config,tileDescription:()=>""});
+    assert.equal(target.children[0].children[0].children[1].children.length,2);
     render({...config,rows:[]});assert.equal(target.children[0].className,"empty");
     render({...config,enabled:false});assert.equal(toolbar.children[0].hidden,true);
-    select.value="Columnar";render(config);assert.equal(calls,3);assert.equal(closed,1);
+    render(config);assert.equal(calls,3);assert.equal(closed,1);
     assert.equal(toolbar.children.length,1);
     const typed = {...config,contextKey:"org:type-a",defaultView:"status"};
-    render(typed);assert.equal(select.value,"Status");
-    select.value="Columnar";select.listeners.change();
-    render({...typed,rows:config.rows});assert.equal(select.value,"Columnar");
-    render({...typed,contextKey:"org:type-b",defaultView:"columnar"});assert.equal(select.value,"Columnar");
-    render(typed);assert.equal(select.value,"Status");
-    render({...typed,defaultView:"columnar"});assert.equal(select.value,"Columnar");
+    render(typed);assert.equal(selected(),"Status");
+    columnar.listeners.click();
+    render({...typed,rows:config.rows});assert.equal(selected(),"Columnar");
+    render({...typed,contextKey:"org:type-b",defaultView:"columnar"});assert.equal(selected(),"Columnar");
+    render(typed);assert.equal(selected(),"Status");
+    render({...typed,defaultView:"columnar"});assert.equal(selected(),"Columnar");
   } finally {global.document=original;}
 });

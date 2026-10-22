@@ -40,3 +40,5 @@ module.exports=async ctx=>{
     event_statuses:['open','in_review','resolved','closed']
   };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

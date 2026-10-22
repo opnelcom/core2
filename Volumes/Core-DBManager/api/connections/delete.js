@@ -6,3 +6,5 @@ module.exports=async ctx=>{
   if(!result.rows.length)throw fail(409,'Connection was changed or deleted. Reload and try again.');
   return {deleted:true,tenant_id:tenantId};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

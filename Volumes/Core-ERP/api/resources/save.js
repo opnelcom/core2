@@ -97,3 +97,5 @@ module.exports = async (ctx) => {
     return ctx.send(404, { error: "Resource was not found" });
   return { resource: result.rows[0] };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

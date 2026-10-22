@@ -2,7 +2,7 @@
 const {requireAdmin,clean,cleanSvg,ensureApplicationColumns,applicationTypes,rowStatuses}=require('../_shared/admin');
 
 module.exports=async ctx=>{
-  const admin=requireAdmin(ctx);
+  const admin=await requireAdmin(ctx);
   if(admin.status)return ctx.send(admin.status,admin.body);
   await ensureApplicationColumns(ctx);
   if(ctx.req.method==='GET'){
@@ -36,3 +36,5 @@ module.exports=async ctx=>{
   });
   return {application:r.rows[0]};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

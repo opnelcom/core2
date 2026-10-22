@@ -45,3 +45,5 @@ module.exports=async ctx=>{
   });
   return {favourites:result.rows.map(row=>row.item_key)};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

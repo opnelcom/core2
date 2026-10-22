@@ -21,7 +21,7 @@ for (const editing of [false, true]) {
     };
     const sandbox = {
       module: { exports: {} },
-      require: name => {
+      require: name => {if(name.endsWith('/context'))return require('../api/_shared/context');
         if (name === "crypto") return require(name);
         if (name.endsWith("code-numbering")) return {
           numberedRecordStatement: (statement, numbering) => ({ ...statement, numbering }),

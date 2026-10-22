@@ -26,3 +26,5 @@ module.exports = async ctx => {
   }
   return { versions };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

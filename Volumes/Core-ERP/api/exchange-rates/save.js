@@ -18,3 +18,5 @@ module.exports = async ctx => {
   } catch (error) { return ctx.send(error.status || 400, { error: error.message }); }
   return { exchange_rate: await saveExchangeRate(ctx,exchangeRate) };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

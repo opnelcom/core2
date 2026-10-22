@@ -51,3 +51,5 @@ module.exports=async ctx=>{
   });
   return {tenant:r.rows[0]};
 };
+
+module.exports=require("../../_shared/context").withContext(module.exports);

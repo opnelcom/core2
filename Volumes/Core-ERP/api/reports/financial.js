@@ -47,6 +47,26 @@ function calculateLines(lines,amountRows){
   }));
 }
 
+// Expand formulas in the same evaluation order as calculateLines. Coefficients
+// preserve subtraction, repeated mappings and sign multipliers in drill-down.
+function lineContributions(lines, selectedId) {
+  const byCode = new Map();
+  const byId = new Map();
+  for (const line of [...lines.filter(l => l.line_type === 'account_group'), ...lines.filter(l => l.line_type === 'formula')]) {
+    const weights = new Map();
+    const sign = Number(line.sign_multiplier) || 1;
+    if (line.line_type === 'account_group') weights.set(line.financial_statement_line_id, sign);
+    else for (const [operation, factor] of [['add', 1], ['subtract', -1]]) {
+      for (const code of (line.formula_json?.[operation] || [])) {
+        for (const [id, weight] of (byCode.get(code) || [])) weights.set(id, (weights.get(id) || 0) + weight * factor * sign);
+      }
+    }
+    byCode.set(line.line_code, weights);
+    byId.set(line.financial_statement_line_id, weights);
+  }
+  return byId.get(selectedId);
+}
+
 async function financialStatement(ctx,access){
   const orgId=ctx.query.organisation_id;
   const formatId=ctx.query.format_id;
@@ -84,22 +104,19 @@ async function financialStatement(ctx,access){
 
   async function periodBounds(fromId,toId){
     const r=await ctx.broker('core_erp','query',{
-      text:`SELECT min(start_date) start_date,max(end_date) end_date
-            FROM erp_fiscal_period
-            WHERE tenant_id=$1
-              AND organisation_id=$2
-              AND fiscal_year_id=(SELECT fiscal_year_id FROM erp_fiscal_period WHERE tenant_id=$1 AND fiscal_period_id=$3::uuid)
-              AND period_number BETWEEN
-                (SELECT period_number FROM erp_fiscal_period WHERE tenant_id=$1 AND fiscal_period_id=$3::uuid)
-                AND
-                (SELECT period_number FROM erp_fiscal_period WHERE tenant_id=$1 AND fiscal_period_id=$4::uuid)`,
+      text:`SELECT first.start_date,last.end_date
+            FROM erp_fiscal_period first
+            JOIN erp_fiscal_period last ON last.tenant_id=first.tenant_id AND last.organisation_id=first.organisation_id
+              AND last.fiscal_year_id=first.fiscal_year_id AND last.period_number>=first.period_number
+            WHERE first.tenant_id=$1 AND first.organisation_id=$2
+              AND first.fiscal_period_id=$3 AND last.fiscal_period_id=$4`,
       values:[access.tenantId,orgId,fromId,toId]
     });
     if(!r.rows[0]?.start_date||!r.rows[0]?.end_date)throw Object.assign(new Error('Invalid financial statement period range'),{status:400});
     return r.rows[0];
   }
 
-  async function amounts(fromId,toId){
+  async function amounts(fromId,toId, transactionAccount = null){
     const bounds=await periodBounds(fromId,toId);
     const dateCondition=statementType==='balance'
       ? `$4::date IS NOT NULL AND fp.end_date <= $5::date`
@@ -127,28 +144,56 @@ async function financialStatement(ctx,access){
                 AND ($6::uuid IS NULL OR l.division_id IN (SELECT division_id FROM selected_division))
                 AND ${transactionVisibilitySql({tenant:'$1',organisation:'$2',division:'l.division_id',transactionType:'j.transaction_type_id',status:"CASE WHEN j.workflow_status='reversed' THEN 'approved' ELSE j.workflow_status END",email:'$7',administrator:'$9'})}
             )
-            SELECT m.financial_statement_line_id,
+            ${transactionAccount ? `SELECT l.*,j.journal_date,j.journal_number,j.transaction_heading,j.description journal_description,
+                   count(*) OVER () total_count
+            FROM visible_lines l
+            JOIN erp_journal j ON j.journal_id=l.journal_id AND j.tenant_id=$1 AND j.organisation_id=$2
+            WHERE $3::uuid IS NOT NULL AND l.gl_account_id=$10
+            ORDER BY j.journal_date,j.journal_id,l.line_number,l.journal_line_id LIMIT 100 OFFSET $11` : `SELECT m.financial_statement_line_id,a.gl_account_id,a.account_code,a.account_name,t.type_code,
                    ${accountAmountSql(statementType)} amount
             FROM visible_lines l
             JOIN erp_gl_account a ON a.gl_account_id=l.gl_account_id
             LEFT JOIN erp_gl_account_type t ON t.gl_account_type_id=a.gl_account_type_id
-            JOIN erp_financial_statement_line_account m ON m.gl_account_id=a.gl_account_id
+            LEFT JOIN erp_financial_statement_line_account m ON m.gl_account_id=a.gl_account_id
               AND m.tenant_id=$1
               AND m.organisation_id=$2
               AND m.financial_statement_format_id=$3
-            GROUP BY m.financial_statement_line_id,t.type_code`,
-      values:[access.tenantId,orgId,formatId,bounds.start_date,bounds.end_date,divisionId,access.auth.email,includeChildren,isAdministrator(access)]
+            GROUP BY m.financial_statement_line_id,a.gl_account_id,a.account_code,a.account_name,t.type_code`}`,
+      values:[access.tenantId,orgId,formatId,bounds.start_date,bounds.end_date,divisionId,access.auth.email,includeChildren,isAdministrator(access), ...(transactionAccount ? [transactionAccount, Number(ctx.query.offset || 0)] : [])]
     });
   }
 
   const current=await amounts(periodFromId,periodToId);
   const currentLines=calculateLines(lines.rows,current.rows);
+  const uniqueAccounts = new Map(current.rows.map(row => [row.gl_account_id, row]));
+  const summary = statementType === 'balance' ? Object.fromEntries(['asset','liability','equity'].map(type => [type, [...uniqueAccounts.values()].filter(row => row.type_code === type).reduce((sum,row) => sum + Number(row.amount),0)])) : null;
+  if (ctx.query.line_id) {
+    const weights = lineContributions(lines.rows, ctx.query.line_id);
+    if (!weights) return ctx.send(404, {error:'Statement line not found or not drillable'});
+    const accounts = new Map();
+    for (const row of current.rows) {
+      const weight = weights.get(row.financial_statement_line_id) || 0;
+      if (!weight) continue;
+      const entry = accounts.get(row.gl_account_id) || {...row,amount:0,coefficient:0};
+      entry.amount += Number(row.amount) * weight;
+      entry.coefficient += weight;
+      accounts.set(row.gl_account_id,entry);
+    }
+    if (!ctx.query.account_id) return {rows:[...accounts.values()].filter(row => row.coefficient !== 0),line_id:ctx.query.line_id};
+    const account = accounts.get(ctx.query.account_id);
+    if (!account || !account.coefficient) return ctx.send(404,{error:'Contributing account not found'});
+    const offset = Number(ctx.query.offset || 0);
+    if (!Number.isSafeInteger(offset) || offset < 0) return ctx.send(400,{error:'Invalid transaction page'});
+    const result = await amounts(periodFromId,periodToId,ctx.query.account_id);
+    return {account,rows:result.rows,offset,total_count:Number(result.rows[0]?.total_count || 0)};
+  }
   if(compareFromId&&compareToId){
     const comparative=await amounts(compareFromId,compareToId);
     const comparativeLines=calculateLines(lines.rows,comparative.rows);
     const byId=new Map(comparativeLines.map(row=>[row.financial_statement_line_id,row.amount]));
     return {
       report:'financial_statement',
+      summary,
       format:format.rows[0],
       rows:currentLines.map(row=>{
         const comparativeAmount=row.line_type==='header'?null:byId.get(row.financial_statement_line_id)||0;
@@ -162,7 +207,7 @@ async function financialStatement(ctx,access){
       })
     };
   }
-  return {report:'financial_statement',format:format.rows[0],rows:currentLines};
+  return {report:'financial_statement',format:format.rows[0],summary,rows:currentLines};
 }
 
 async function ledgerBalances(ctx,access){
@@ -228,3 +273,5 @@ module.exports=async ctx=>{
   if(report==='financial_statement')return financialStatement(ctx,access);
   return ctx.send(400,{error:'Unknown report'});
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

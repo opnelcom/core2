@@ -61,3 +61,5 @@ module.exports=async ctx=>{
   await require('../_shared/erp/workflow-presentation').decorateWorkflowRecords(ctx,access,r.rows,{kind:'transaction',typeTable:'erp_transaction_type',typeIdColumn:'transaction_type_id'});
   return {journals:r.rows};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

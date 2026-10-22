@@ -54,7 +54,7 @@ test("vendor and bank schemas use controlled account types and include vendor ba
 
 test("currency save persists editable format and rejects invalid settings before writing", async () => {
   const calls = [];
-  const scope = { module: { exports: {} }, require: (name) => name.endsWith("currency-format") ? currency : { authTenant: async () => ({ tenantId: "tenant" }), requireAdmin: () => null, clean: (value) => String(value ?? "").trim() } };
+  const scope = { module: { exports: {} }, require: (name) => name.endsWith('/context') ? require('../api/_shared/context') : name.endsWith("currency-format") ? currency : { authTenant: async () => ({ tenantId: "tenant" }), requireAdmin: () => null, clean: (value) => String(value ?? "").trim() } };
   vm.createContext(scope);
   vm.runInContext(fs.readFileSync(require.resolve("../api/currencies/save.js"), "utf8"), scope);
   const format_json = { symbol: "R", symbol_position: "after", thousands_separator: " ", decimal_separator: "," };

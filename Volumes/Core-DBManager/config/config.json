@@ -2,12 +2,15 @@
   "name": "core-database-management",
   "port": 3000,
   "nodeEnv": "production",
-  "saasURL": "http://core-saas:3000",
   "dbBrokerURL": "http://core-broker:3000",
   "dbBrokerProfile": "core_dbmanager",
   "dbBrokerKey": "replace-with-a-long-random-internal-key",
   "maxBodyBytes": 1048576,
   "previewRows": 100,
   "maxExportBytes": 52428800,
-  "statementTimeoutMs": 60000
+  "statementTimeoutMs": 60000,
+  "identity": {
+    "url": "http://core-saas:3000",
+    "timeoutMs": 10000
+  }
 }

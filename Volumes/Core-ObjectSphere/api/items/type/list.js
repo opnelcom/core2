@@ -29,3 +29,5 @@ module.exports=async ctx=>{
   });
   return {object_type:owner.rows[0],items:r.rows};
 };
+
+module.exports=require("../../_shared/context").withContext(module.exports);

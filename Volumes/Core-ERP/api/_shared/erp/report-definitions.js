@@ -14,6 +14,18 @@ const classes={
  accounting_object:{table:'erp_accounting_object',id:'accounting_object_id',type:'accounting_object_type_id',types:'erp_accounting_object_type',label:'Accounting object',code:'object_code',name:'object_name'},
  accounting_dimension:{table:'erp_accounting_dimension',id:'accounting_dimension_id',type:'accounting_dimension_type_id',types:'erp_accounting_dimension_type',label:'Accounting dimension',code:'dimension_code',name:'dimension_name'}
 };
+// Keep custom parent fields and one-grid datasets identical across records and transactions.
+function schemaReportFields(schema,prefix,source){
+ return Object.entries(schema.properties||{}).filter(([,v])=>v.type!=='grid').map(([key,v])=>({...field(`${prefix}${key}`,v.title||key,v.type,'json'),jsonKey:key,source}));
+}
+function addSchemaDatasets(datasets,common,key,label,schema,base){
+ const root=schemaReportFields(schema,'data:','r.additional_data');
+ datasets.push({...common,key,label,fields:[...base,...root]});
+ for(const [gridKey,grid] of Object.entries(schema.properties||{}).filter(([,v])=>v.type==='grid')){
+  datasets.push({...common,key:`${key}:${gridKey}`,label:`${label} / ${grid.title||gridKey}`,gridKey,
+   fields:[...base,...root,field('row_number','Collection row','integer','g.ordinality'),...schemaReportFields(grid.rowSchema||{},'row:','g.value')]});
+ }
+}
 async function catalogue(ctx,access,org){
  const scope=[access.tenantId,org];
  const datasets=[];
@@ -23,21 +35,23 @@ async function catalogue(ctx,access,org){
    const schema=typeof type.schema_json==='string'?JSON.parse(type.schema_json):type.schema_json||{};
    const base=[field('id','Record ID','text',`r.${meta.id}`),field('code','Code','text',`r.${meta.code}`),field('name','Name','text',`r.${meta.name}`),field('division_code','Division code','text','d.division_code'),field('division_name','Division','text','d.division_name'),...sharedRecord.map(([k,l,t])=>field(k,l,t,`r.${k}`))];
    const common={kind,typeCode:type.type_code,table:meta.table,id:`r.${meta.id}`,division:'r.owner_division_id',joins:`JOIN ${meta.types} t ON t.${meta.type}=r.${meta.type} AND t.tenant_id=r.tenant_id AND t.organisation_id=r.organisation_id JOIN erp_division d ON d.division_id=r.owner_division_id AND d.tenant_id=r.tenant_id AND d.organisation_id=r.organisation_id`,where:`t.type_code`,fields:base};
-   const props=Object.entries(schema.properties||{});
-   const root=props.filter(([,v])=>v.type!=='grid').map(([key,v])=>({...field(`data:${key}`,v.title||key,v.type,'json'),jsonKey:key,source:'r.additional_data'}));
-   datasets.push({...common,key:`${kind}:${type.type_code}`,label:`${meta.label}: ${type.type_name}`,fields:[...base,...root]});
+   const root=schemaReportFields(schema,'data:','r.additional_data');
+   addSchemaDatasets(datasets,common,`${kind}:${type.type_code}`,`${meta.label}: ${type.type_name}`,schema,base);
    datasets.push({...common,key:`assignment:${kind}:${type.type_code}`,label:`${meta.label}: ${type.type_name} / Resource assignments`,id:'ra.resource_assignment_id',assignmentKind:kind,
     joins:`${common.joins} JOIN erp_resource_assignment ra ON ra.object_id=r.${meta.id} AND ra.tenant_id=r.tenant_id AND ra.organisation_id=r.organisation_id AND ra.object_kind='${kind}' JOIN erp_resource res ON res.resource_id=ra.resource_id AND res.tenant_id=r.tenant_id AND res.organisation_id=r.organisation_id JOIN erp_resource_role rr ON rr.resource_role_id=ra.resource_role_id AND rr.tenant_id=r.tenant_id AND rr.organisation_id=r.organisation_id`,
     fields:[...base,...root,field('assignment_id','Assignment ID','text','ra.resource_assignment_id'),field('resource_code','Resource code','text','res.resource_code'),field('resource_name','Resource name','text','res.display_name'),field('resource_type','Resource type','text','res.resource_type'),field('resource_role_code','Resource role code','text','rr.role_code'),field('resource_role_name','Resource role','text','rr.role_name'),field('assignment_from','Assignment from','date','ra.valid_from'),field('assignment_to','Assignment to','date','ra.valid_to')]});
-   for(const [key,grid] of props.filter(([,v])=>v.type==='grid')){
-    datasets.push({...common,key:`${kind}:${type.type_code}:${key}`,label:`${meta.label}: ${type.type_name} / ${grid.title||key}`,gridKey:key,
-     fields:[...base,...root,field('row_number','Collection row','integer','g.ordinality'),...Object.entries(grid.rowSchema?.properties||{}).map(([column,v])=>({...field(`row:${column}`,v.title||column,v.type,'json'),jsonKey:column,source:'g.value'}))]});
-   }
+
   }
  }
- const header=[field('id','Transaction ID','text','r.journal_id'),field('journal_number','Transaction number','text','r.journal_number'),field('journal_date','Transaction date','date','r.journal_date'),field('description','Transaction description','text','r.description'),field('workflow_status','Status','text','r.workflow_status'),field('type_code','Transaction type code','text','t.type_code'),field('type_name','Transaction type','text','t.type_name'),field('currency_code','Currency','text','r.currency_code'),field('source_division_id','Source division ID','text','r.source_division_id'),field('supplier_invoice_number','Supplier invoice number','text','r.supplier_invoice_number')];
+ const header=[field('id','Transaction ID','text','r.journal_id'),field('journal_number','Transaction number','text','r.journal_number'),field('journal_date','Transaction date','date','r.journal_date'),field('description','Transaction description','text','r.description'),field('workflow_status','Status','text','r.workflow_status'),field('type_code','Transaction type code','text','t.type_code'),field('type_name','Transaction type','text','t.type_name'),field('currency_code','Currency','text','r.currency_code'),field('source_division_id','Source division ID','text','r.source_division_id'),{...field('supplier_invoice_number','Supplier invoice number','text','json'),jsonKey:'supplierInvoiceNumber',source:'r.additional_data'}];
  const txJoins='LEFT JOIN erp_transaction_type t ON t.transaction_type_id=r.transaction_type_id AND t.tenant_id=r.tenant_id AND t.organisation_id=r.organisation_id';
  datasets.push({key:'transaction',kind:'transaction',label:'Transaction / journal headers',table:'erp_journal',id:'r.journal_id',division:'r.source_division_id',joins:txJoins,fields:header});
+ const transactionTypes=await ctx.broker('core_erp','query',{text:'SELECT type_code,type_name,schema_json FROM erp_transaction_type WHERE tenant_id=$1 AND organisation_id=$2 AND is_active=true ORDER BY type_name',values:scope});
+ for(const type of transactionTypes.rows){
+  const schema=typeof type.schema_json==='string'?JSON.parse(type.schema_json):type.schema_json||{};
+  const common={kind:'transaction',typeCode:type.type_code,table:'erp_journal',id:'r.journal_id',division:'r.source_division_id',joins:txJoins};
+  addSchemaDatasets(datasets,common,`transaction:${type.type_code}`,`Transaction: ${type.type_name}`,schema,header);
+ }
  datasets.push({key:'transaction_line',kind:'transaction_line',label:'Transaction / journal lines',table:'erp_journal',id:'l.journal_line_id',division:'l.division_id',joins:`${txJoins} JOIN erp_journal_line l ON l.journal_id=r.journal_id AND l.tenant_id=r.tenant_id AND l.organisation_id=r.organisation_id JOIN erp_gl_account a ON a.gl_account_id=l.gl_account_id AND a.tenant_id=r.tenant_id AND a.organisation_id=r.organisation_id JOIN erp_division d ON d.division_id=l.division_id AND d.tenant_id=r.tenant_id AND d.organisation_id=r.organisation_id`,fields:[...header,field('line_number','Line number','integer','l.line_number'),field('line_description','Line description','text','l.description'),field('division_code','Line division code','text','d.division_code'),field('division_name','Line division','text','d.division_name'),field('gl_account_code','GL account code','text','a.account_code'),field('gl_account_name','GL account name','text','a.account_name'),field('debit_amount','Debit','currency','l.debit_amount'),field('credit_amount','Credit','currency','l.credit_amount'),field('line_currency_code','Line currency','text','l.currency_code'),field('subledger_account_id','Subledger ID','text','l.subledger_account_id')]});
  datasets.push({key:'gl_account',kind:'gl_account',label:'GL accounts (organisation-wide)',table:'erp_gl_account',id:'r.gl_account_id',joins:'LEFT JOIN erp_gl_account_type t ON t.gl_account_type_id=r.gl_account_type_id AND t.tenant_id=r.tenant_id AND t.organisation_id=r.organisation_id',fields:[field('id','GL account ID','text','r.gl_account_id'),field('account_code','Code','text','r.account_code'),field('account_name','Name','text','r.account_name'),field('type_code','Type code','text','t.type_code'),field('type_name','Type name','text','t.type_name'),field('requires_subledger','Requires subledger','boolean','r.requires_subledger'),...sharedRecord.map(([k,l,t])=>field(k,l,t,`r.${k}`))]});
  datasets.push({key:'resource',kind:'resource',label:'Resources (organisation-wide)',table:'erp_resource',id:'r.resource_id',joins:'',fields:[field('id','Resource ID','text','r.resource_id'),field('resource_code','Code','text','r.resource_code'),field('display_name','Name','text','r.display_name'),field('resource_type','Type','text','r.resource_type'),field('linked_email','Linked email','email','r.linked_email'),field('resource_description','Description','long_text','r.resource_description'),field('is_active','Active','boolean','r.is_active'),field('created_at','Created at','date_time','r.created_at'),field('updated_at','Updated at','date_time','r.updated_at')]});

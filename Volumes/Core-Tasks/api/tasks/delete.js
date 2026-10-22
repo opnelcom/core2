@@ -23,3 +23,5 @@ module.exports=async ctx=>{
   });
   return {deleted:r.rowCount};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

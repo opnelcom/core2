@@ -130,3 +130,5 @@ module.exports=async ctx=>{
   }
   return {applied};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

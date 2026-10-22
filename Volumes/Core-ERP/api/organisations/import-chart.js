@@ -33,3 +33,5 @@ module.exports=async ctx=>{
   });
   return {accounts_imported:r.rowCount};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

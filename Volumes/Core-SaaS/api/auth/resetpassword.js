@@ -11,3 +11,5 @@ module.exports=async ctx=>{
   if(!r.rowCount)return ctx.send(400,{error:'Invalid or expired reset token'});
   return {message:'Password reset complete',user:r.rows[0]};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

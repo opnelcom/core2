@@ -61,7 +61,11 @@
     if (own(condition, "value") && !literal(condition.value)) return fail("value must be a scalar literal");
     return [];
   }
-  const api = { evaluate, validate };
+  // Option conditions use the same object/row scopes as field visibility.
+  function availableOptions(field, object, row, scope = "object", schema = {}, rowSchema = {}) {
+    return (field.options || []).filter(option => !option || typeof option !== "object" || evaluate(option.showif, object, row, scope, schema, rowSchema));
+  }
+  const api = { evaluate, validate, availableOptions };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.SchemaVisibility = api;
 })(globalThis);

@@ -44,12 +44,12 @@ test('Sales workflows preserve alternative outcomes, reopening and skippable opp
   assert.equal(opportunity.steps.find(s=>s.step_code==='lost').actions[0].next_step_code,'open');
 });
 
-test('income and expense allocation remains optional and never substitutes for balance-sheet sub-ledgers',()=>{
-  for(const code of ['sales_lead','sales_opportunity']){
-    const lines=defaults.lineClassificationSeeds.filter(r=>r.type===code);
-    assert.deepEqual(lines.map(r=>r.lineCode),['cash_sale_2','customer_invoice_2','supplier_invoice_1']);
-    assert.ok(lines.every(r=>r.class==='accounting_object'&&r.requirement==='optional'&&r.valueBehaviour==='captured'));
-  }
+test('sales allocations use optional opportunities only on account-sale revenue and mandatory alternatives for supplier expense',()=>{
+  assert.ok(!defaults.objectAllocationSeeds.some(r=>r.lineCode==='cash_sale_2'));
+  assert.deepEqual(defaults.objectAllocationSeeds.find(r=>r.lineCode==='customer_invoice_2'),{lineCode:'customer_invoice_2',requirement:'optional',valueBehaviour:'captured',permittedTypes:['sales_opportunity']});
+  assert.deepEqual(defaults.objectAllocationSeeds.find(r=>r.lineCode==='supplier_invoice_1').permittedTypes,['property','cost_centre']);
+  assert.equal(defaults.objectAllocationSeeds.find(r=>r.lineCode==='supplier_invoice_1').requirement,'mandatory');
+  assert.ok(!defaults.objectAllocationSeeds.some(r=>r.permittedTypes.includes('sales_lead')));
   assert.ok(defaults.lineDefinitionSeeds.some(r=>r[0]==='customer_invoice'&&r[1]===1&&r[5]==='customer'));
 });
 

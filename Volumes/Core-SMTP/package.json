@@ -1,0 +1,12 @@
+{
+  "name": "core-smtp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "nodemailer": "6.9.16"
+  }
+}

@@ -8,3 +8,5 @@ module.exports=async ctx=>{
  if(!await canInitialiseTemplateOrganisation(ctx,{tenantId:access.tenantId,email:access.auth.email}))return ctx.send(403,{error:"ERP Setup Administrator access required"});
  return {ok:true,...await initialiseTemplate(ctx,{access,mode:"definitions",confirmed:true})};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

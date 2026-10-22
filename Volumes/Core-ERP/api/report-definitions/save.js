@@ -26,3 +26,5 @@ module.exports=async ctx=>{
   return {ok:true,report:result.rows[0]};
  }catch(e){if(e.status)return ctx.send(e.status,{error:e.message});if(e.code==='23505')return ctx.send(409,{error:'Report code is already in use'});throw e;}
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

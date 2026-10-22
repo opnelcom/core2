@@ -18,3 +18,5 @@ module.exports = async ctx => {
   });
   return { changes: result.rows };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

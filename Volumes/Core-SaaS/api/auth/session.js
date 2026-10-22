@@ -1,5 +1,6 @@
 'use strict';
 module.exports=async ctx=>{
+  ctx.res?.setHeader('cache-control','no-store');
   const a=ctx.auth();
   if(!a)return {authenticated:false,user:null};
   const r=await ctx.broker('core_saas','query',{text:`SELECT user_id,email,known_name,full_name,user_type,status,created_at,activated_at FROM core_user WHERE user_id=$1 AND status='active'`,values:[a.user_id]});
@@ -19,3 +20,5 @@ module.exports=async ctx=>{
   }
   return {authenticated:!!r.rowCount,user:r.rows[0]||null,current_tenant:currentTenant};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

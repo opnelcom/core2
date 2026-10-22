@@ -37,3 +37,5 @@ module.exports=async ctx=>{
     throw e;
   }
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

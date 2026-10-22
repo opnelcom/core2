@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Core | Landing</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="stylesheet" href="/style.css?v=20260930-erp-compact-header">
+  <link rel="stylesheet" href="/style.css?v=20261021-tenant-modal">
 </head>
 <body>
   <main>
@@ -215,10 +215,11 @@
             </div>
 
             <div id="tenant-management-grid" class="tenant-setup-grid"></div>
-            <aside id="tenant-edit-panel" class="tenant-edit-panel" hidden></aside>
           </section>
         </div>
       </section>
+
+      <dialog id="tenant-edit-panel" class="tenant-edit-panel" aria-labelledby="tenant-editor-title" hidden></dialog>
 
       <dialog id="profile-dialog" class="dialog-card">
         <form method="dialog">
@@ -265,6 +266,6 @@
 
     <div id="message" class="toast" role="status" aria-live="polite"></div>
   </main>
-  <script src="/landing.js?v=20260930-erp-compact-header"></script>
+  <script src="/landing.js?v=20261021-tenant-modal"></script>
 </body>
 </html>

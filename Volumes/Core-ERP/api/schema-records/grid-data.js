@@ -29,3 +29,5 @@ module.exports = async ctx => {
   }
   return { rows, next_offset: r.rows.length > 100 ? offset + 100 : null };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

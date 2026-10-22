@@ -15,3 +15,5 @@ module.exports = async ctx => {
   });
   return { exchange_rates: result.rows };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

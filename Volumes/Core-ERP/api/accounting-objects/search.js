@@ -38,3 +38,5 @@ module.exports=async ctx=>{
   const deniedByType=new Map(await Promise.all([...checks].map(async([id,promise])=>[id,!!(await promise)])));
   return {records:r.rows.filter(row=>!deniedByType.get(row.accounting_object_type_id))};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

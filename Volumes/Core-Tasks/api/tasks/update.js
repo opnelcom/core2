@@ -30,3 +30,5 @@ module.exports=async ctx=>{
   if(!r.rowCount)return ctx.send(404,{error:'Task not found'});
   return {task:r.rows[0]};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

@@ -43,3 +43,5 @@ module.exports=async ctx=>{
   }
   return {fiscal_year:r.rows[0]};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

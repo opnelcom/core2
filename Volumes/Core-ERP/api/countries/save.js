@@ -44,3 +44,5 @@ module.exports=async ctx=>{
   });
   return {country:r.rows[0]};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

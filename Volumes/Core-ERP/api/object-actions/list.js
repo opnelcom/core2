@@ -6,3 +6,5 @@ module.exports=async ctx=>{
  const access=await authTenant(ctx);if(access.status)return ctx.send(access.status,access.body);
  try{return await listActions(ctx,access);}catch(error){if(error.status)return ctx.send(error.status,{error:error.message});throw error;}
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

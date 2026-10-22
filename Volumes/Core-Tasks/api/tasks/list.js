@@ -16,3 +16,5 @@ module.exports=async ctx=>{
   });
   return {tasks:r.rows,statuses:['active','future','on_hold','blocked','complete','cancelled'],importance:['low','normal','high','critical']};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

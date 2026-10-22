@@ -68,3 +68,5 @@ module.exports = async (ctx) => {
   });
   return { ...metadata, rows, totals: math.totals(rows) };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

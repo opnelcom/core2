@@ -1,5 +1,6 @@
 'use strict';
 const {authTenant,isAdministrator,requireModuleAccess}=require('../_shared/erp');
+const {subledgerBalanceSql}=require('../_shared/erp/subledger-balance');
 
 module.exports=async ctx=>{
   const access=await authTenant(ctx);
@@ -13,11 +14,13 @@ module.exports=async ctx=>{
   if(moduleDenied)return ctx.send(moduleDenied.status,moduleDenied.body);
   const result=await ctx.broker('core_erp','query',{
     text:`SELECT account.*,type.type_code,type.type_name,division.division_name owner_division_name,
-                 entity.known_name legal_entity_known_name,entity.legal_name legal_entity_legal_name
+                 entity.known_name legal_entity_known_name,entity.legal_name legal_entity_legal_name,
+                 balance.transaction_balance,balance.balance_restricted,CURRENT_DATE balance_as_at
           FROM erp_subledger_account account
           JOIN erp_subledger_account_type type ON type.subledger_account_type_id=account.subledger_account_type_id
           JOIN erp_division division ON division.division_id=account.owner_division_id
           LEFT JOIN erp_legal_entity entity ON entity.legal_entity_id=account.legal_entity_id
+          ${subledgerBalanceSql()}
           WHERE account.tenant_id=$1 AND account.organisation_id=$2 AND account.subledger_account_type_id=$3 
             AND ($6::uuid IS NULL OR EXISTS (
               WITH RECURSIVE selected_scope AS (
@@ -50,3 +53,5 @@ module.exports=async ctx=>{
   await require('../_shared/erp/workflow-presentation').decorateWorkflowRecords(ctx,access,result.rows,{kind:'subledger_account',typeTable:'erp_subledger_account_type',typeIdColumn:'subledger_account_type_id'});
   return {subledger_accounts:result.rows};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

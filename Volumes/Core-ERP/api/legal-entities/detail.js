@@ -46,3 +46,5 @@ module.exports=async ctx=>{
   ]);
   return {legal_entity:entity.rows[0],identifications:identifications.rows,addresses:addresses.rows,relationships:relationships.rows,accounts:accounts.rows};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

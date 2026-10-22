@@ -23,3 +23,5 @@ module.exports=async ctx=>{
   if(user.rowCount&&ctx.config.nodeEnv!=='production')body.reset_token=token;
   return body;
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

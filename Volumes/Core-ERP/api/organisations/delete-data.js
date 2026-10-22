@@ -107,3 +107,5 @@ module.exports=async ctx=>{
   },0);
   return {ok:true,deleted,detail};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

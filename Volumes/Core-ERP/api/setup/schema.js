@@ -25,3 +25,5 @@ module.exports = async (ctx) => {
   await runSchemaSql(ctx);
   return {ok: true, initialised: true};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

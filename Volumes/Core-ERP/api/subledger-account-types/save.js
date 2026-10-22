@@ -142,3 +142,5 @@ module.exports = async (ctx) => {
   }
   return { subledger_account_type: type };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

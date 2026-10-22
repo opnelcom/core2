@@ -133,3 +133,5 @@ module.exports = async (ctx) => {
     });
   return { subledger_account: result.rows[0] };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

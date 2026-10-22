@@ -123,3 +123,5 @@ module.exports=async ctx=>{
 
   return {format};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

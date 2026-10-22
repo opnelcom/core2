@@ -20,3 +20,5 @@ module.exports=async ctx=>{
   });
   return {module_ids:result.rows.map(row=>row.module_id)};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

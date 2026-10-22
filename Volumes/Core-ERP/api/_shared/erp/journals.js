@@ -1,4 +1,5 @@
 'use strict';
+const {objectAllocationError}=require('./line-allocation');
 
 async function checkPeriodOpen(ctx,tenantId,periodId){
   const r=await ctx.broker('core_erp','query',{text:`SELECT status FROM erp_fiscal_period WHERE tenant_id=$1 AND fiscal_period_id=$2`,values:[tenantId,periodId]});
@@ -11,7 +12,9 @@ async function validateJournal(ctx,tenantId,journalId){
     text:`SELECT l.*,j.transaction_type_id,a.requires_subledger,a.required_subledger_account_type_id,sub.subledger_account_type_id,
                  definition.gl_account_id definition_gl_account_id,definition.debit_credit definition_debit_credit,
                  definition.subledger_requirement,definition.subledger_account_type_id definition_subledger_type_id,
-                 (SELECT count(*) FROM erp_transaction_line_definition_object_type requirement WHERE requirement.transaction_line_definition_id=definition.transaction_line_definition_id AND requirement.requirement='mandatory' AND NOT EXISTS (SELECT 1 FROM erp_journal_line_accounting_object allocation WHERE allocation.journal_line_id=l.journal_line_id AND allocation.accounting_object_type_id=requirement.accounting_object_type_id)) missing_object_count,
+                 definition.object_requirement,definition.object_value_behaviour,definition.default_accounting_object_id,
+                 COALESCE((SELECT jsonb_agg(jsonb_build_object('type_id',allocation.accounting_object_type_id,'value_id',allocation.accounting_object_id)) FROM erp_journal_line_accounting_object allocation WHERE allocation.journal_line_id=l.journal_line_id),'[]'::jsonb) object_allocations,
+                 COALESCE((SELECT jsonb_agg(jsonb_build_object('accounting_object_type_id',permitted.accounting_object_type_id)) FROM erp_transaction_line_definition_object_type permitted WHERE permitted.transaction_line_definition_id=definition.transaction_line_definition_id),'[]'::jsonb) permitted_object_types,
                  (SELECT count(*) FROM erp_journal_line_accounting_object source_allocation
                   JOIN erp_accounting_object source ON source.accounting_object_id=source_allocation.accounting_object_id
                   JOIN erp_accounting_object_type source_type ON source_type.accounting_object_type_id=source.accounting_object_type_id
@@ -45,8 +48,11 @@ async function validateJournal(ctx,tenantId,journalId){
     if(line.definition_debit_credit&&((Number(line.debit_amount)>0?'debit':'credit')!==line.definition_debit_credit))throw Object.assign(new Error(`Line ${line.line_number} uses the wrong debit/credit side`),{status:400});
     if(line.subledger_requirement==='mandatory'&&!line.subledger_account_id)throw Object.assign(new Error(`Line ${line.line_number} requires a subledger`),{status:400});
     if(line.subledger_requirement==='not_used'&&line.subledger_account_id)throw Object.assign(new Error(`Line ${line.line_number} does not allow a subledger`),{status:400});
-    if(line.definition_subledger_type_id&&line.subledger_account_type_id!==line.definition_subledger_type_id)throw Object.assign(new Error(`Line ${line.line_number} uses the wrong configured subledger type`),{status:400});
+    if(line.subledger_account_id&&line.definition_subledger_type_id&&line.subledger_account_type_id!==line.definition_subledger_type_id)throw Object.assign(new Error(`Line ${line.line_number} uses the wrong configured subledger type`),{status:400});
     if(Number(line.inconsistent_object_count)>0)throw Object.assign(new Error(`Line ${line.line_number} has inconsistent related accounting objects`),{status:400});
+    const selected=line.object_allocations||[];
+    const allocationError=line.definition_gl_account_id?objectAllocationError(line,line.permitted_object_types||[],selected,line.subledger_account_id):selected.length>1||(selected.length&&line.subledger_account_id)?'can select only one sub-ledger or accounting object':null;
+    if(allocationError)throw Object.assign(new Error(`Line ${line.line_number} ${allocationError}`),{status:400});
     if(Number(line.missing_object_count)>0)throw Object.assign(new Error(`Line ${line.line_number} is missing a mandatory accounting object`),{status:400});
     if(Number(line.missing_dimension_count)>0)throw Object.assign(new Error(`Line ${line.line_number} is missing a mandatory accounting dimension`),{status:400});
     if(line.requires_subledger&&!line.subledger_account_id)throw Object.assign(new Error(`Line ${line.line_number} requires a subledger`),{status:400});

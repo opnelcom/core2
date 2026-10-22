@@ -2,7 +2,7 @@
 const {requireAdmin,ensureApplicationColumns}=require('../_shared/admin');
 
 module.exports=async ctx=>{
-  const admin=requireAdmin(ctx);
+  const admin=await requireAdmin(ctx);
   if(admin.status)return ctx.send(admin.status,admin.body);
   await ensureApplicationColumns(ctx);
 
@@ -31,3 +31,5 @@ module.exports=async ctx=>{
     tenant_applications:r.results[5].rows
   };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

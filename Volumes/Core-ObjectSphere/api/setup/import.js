@@ -251,3 +251,5 @@ module.exports=async ctx=>{
     }
   };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

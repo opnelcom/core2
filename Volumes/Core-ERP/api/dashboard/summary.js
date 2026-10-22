@@ -47,3 +47,5 @@ module.exports=async ctx=>{
   ]);
   return {divisions,legal_entities:legalEntities,gl_accounts:glAccounts,subledgers,periods,journals,admin_users:adminUsers};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

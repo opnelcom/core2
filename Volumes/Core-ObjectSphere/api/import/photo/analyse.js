@@ -216,3 +216,5 @@ module.exports=async ctx=>{
     objects:drafts
   };
 };
+
+module.exports=require("../../_shared/context").withContext(module.exports);

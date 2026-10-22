@@ -90,3 +90,5 @@ module.exports = async (ctx) => {
     return ctx.send(404, { error: "Organisation not found" });
   return { organisation: result.rows[0] };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

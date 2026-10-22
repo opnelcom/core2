@@ -20,3 +20,5 @@ module.exports=async ctx=>{
   const r=await ctx.broker('core_saas','query',{text:`UPDATE core_user SET known_name=COALESCE($2,known_name),full_name=COALESCE($3,full_name),profile_photo_data_url=CASE WHEN $4::boolean THEN NULLIF($5,'') ELSE profile_photo_data_url END,updated_at=now() WHERE user_id=$1 RETURNING user_id,email,known_name,full_name,profile_photo_data_url,user_type,status,created_at,activated_at,updated_at`,values:[a.user_id,knownName||null,fullName||null,updatePhoto,profilePhotoDataUrl||'']});
   return {user:r.rows[0]};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

@@ -2,7 +2,7 @@
 const test=require("node:test"),assert=require("node:assert/strict");
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 function endpoint(name){
- const scope={module:{exports:{}},require:id=>id.endsWith('template-initialisation')?{initialiseTemplate:async(ctx,options)=>{ctx.plans=[...(ctx.plans||[]),options];return {organisation:{organisation_name:'TEMPLATE ORG'}};}}:require('../api/_shared/erp')};
+ const scope={module:{exports:{}},require:id=>id.endsWith('/context') ? require('../api/_shared/context') : id.endsWith('template-initialisation')?{initialiseTemplate:async(ctx,options)=>{ctx.plans=[...(ctx.plans||[]),options];return {organisation:{organisation_name:'TEMPLATE ORG'}};}}:require('../api/_shared/erp')};
  vm.createContext(scope);vm.runInContext(fs.readFileSync(path.join(__dirname,`../api/setup/${name}.js`),'utf8'),scope);return scope.module.exports;
 }
 const definitions=endpoint('init-template'),examples=endpoint('init-template-examples'),schema=require("../api/setup/schema");
@@ -42,7 +42,7 @@ test("definition initialisation executes with the shared status catalogue and mu
  const defaults=require('../api/_shared/erp/seeding').loadTemplateDefaults();
  assert.equal(defaults.workflowDefaults,undefined);
  const writes=[];let seeded=false;
- const scope={module:{exports:{}},require:id=>id==='./seeding'?{
+ const scope={module:{exports:{}},require:id=>id.endsWith('/context') ? require('../api/_shared/context') : id==='./seeding'?{
    loadTemplateDefaults:()=>defaults,
    seedOrganisationDefaults:async(_ctx,access,id)=>{assert.equal(access.tenantId,'tenant');assert.equal(id,'org');assert.equal(defaults.workflows.length,8);seeded=true;}
  }:id==='./access'?{canInitialiseTemplateOrganisation:async()=>true}:id.startsWith('node:')?require(id):require(path.resolve(__dirname,'../api/_shared/erp',id))};

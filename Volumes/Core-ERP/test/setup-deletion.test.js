@@ -91,7 +91,7 @@ test('endpoint requires administrator access and explicit data-loss confirmation
  const source=fs.readFileSync(require.resolve('../api/setup/delete-entry'),'utf8');
  let prepared=0;
  const access={tenantId,setupAdministrator:false};
- const sandbox={module:{exports:{}},require:name=>name.endsWith('/erp')?{authTenant:async()=>access,requireAdmin:()=>access.setupAdministrator?null:{status:403,body:{error:'Denied'}}}:{prepareSetupDeletion:async()=>{prepared++;return {commit:async()=>{}};}}};
+ const sandbox={module:{exports:{}},require:name=>name.endsWith('/context') ? require('../api/_shared/context') : name.endsWith('/erp')?{authTenant:async()=>access,requireAdmin:()=>access.setupAdministrator?null:{status:403,body:{error:'Denied'}}}:{prepareSetupDeletion:async()=>{prepared++;return {commit:async()=>{}};}}};
  vm.runInNewContext(source,sandbox);
  const ctx={req:{method:'POST'},body:{organisation_id:organisationId,kind:'division',id:recordId},send:(status,body)=>({status,body})};
  assert.equal((await sandbox.module.exports(ctx)).status,403);

@@ -16,3 +16,5 @@ module.exports=async ctx=>{
   return {reports};
  }catch(e){if(e.status)return ctx.send(e.status,{error:e.message});throw e;}
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

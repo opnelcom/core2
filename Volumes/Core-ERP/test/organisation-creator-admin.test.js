@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-function handler(access){const scope={module:{exports:{}},require(name){if(name==='../_shared/erp')return{authTenant:async()=>access,requireAdmin:a=>a.setupAdministrator?null:{status:403,body:{error:'Administrator access required'}},clean:(v,d='')=>String(v??d).trim(),nullable:v=>v||null,bool:v=>!!v};return{sanitizeOrganisationIconSvg:v=>v};}};vm.runInNewContext(fs.readFileSync(require.resolve('../api/organisations/save'),'utf8'),scope);return scope.module.exports;}
+function handler(access){const scope={module:{exports:{}},require(name){if(name.endsWith('/context'))return require('../api/_shared/context');if(name==='../_shared/erp')return{authTenant:async()=>access,requireAdmin:a=>a.setupAdministrator?null:{status:403,body:{error:'Administrator access required'}},clean:(v,d='')=>String(v??d).trim(),nullable:v=>v||null,bool:v=>!!v};return{sanitizeOrganisationIconSvg:v=>v};}};vm.runInNewContext(fs.readFileSync(require.resolve('../api/organisations/save'),'utf8'),scope);return scope.module.exports;}
 test('unauthorised user cannot create an organisation or obtain administrator access',async()=>{
   let calls=0;const result=await handler({setupAdministrator:false})({body:{organisation_code:'TEST',organisation_name:'Test'},send:(status,body)=>({status,body}),broker:async()=>{calls++;}});assert.equal(result.status,403);assert.equal(calls,0);
 });

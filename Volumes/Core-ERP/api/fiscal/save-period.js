@@ -41,3 +41,5 @@ module.exports=async ctx=>{
   if(!r.rowCount)return ctx.send(404,{error:'Fiscal period not found'});
   return {fiscal_period:r.rows[0]};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

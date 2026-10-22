@@ -325,9 +325,9 @@ module.exports = async (ctx) => {
   }
 
   if (wants.workflows) {
-    add("workflow_statuses", `INSERT INTO erp_workflow_status(tenant_id,organisation_id,status_code,status_label,description,colour,enabled_for_use,displayed)
-      SELECT tenant_id,$3,status_code,status_label,description,colour,enabled_for_use,displayed FROM erp_workflow_status WHERE tenant_id=$1 AND organisation_id=$2
-      ON CONFLICT(tenant_id,organisation_id,status_code) DO UPDATE SET status_label=excluded.status_label,description=excluded.description,colour=excluded.colour,enabled_for_use=excluded.enabled_for_use,displayed=excluded.displayed,updated_at=now()`);
+    add("workflow_statuses", `INSERT INTO erp_workflow_status(tenant_id,organisation_id,status_code,status_label,description,colour,enabled_for_use,displayed,transitional)
+      SELECT tenant_id,$3,status_code,status_label,description,colour,enabled_for_use,displayed,transitional FROM erp_workflow_status WHERE tenant_id=$1 AND organisation_id=$2
+      ON CONFLICT(tenant_id,organisation_id,status_code) DO UPDATE SET status_label=excluded.status_label,description=excluded.description,colour=excluded.colour,enabled_for_use=excluded.enabled_for_use,displayed=excluded.displayed,transitional=excluded.transitional,updated_at=now()`);
     add(
       "workflow_paths",
       `INSERT INTO erp_workflow_path(tenant_id,organisation_id,path_name,is_active,is_seeded)
@@ -491,12 +491,12 @@ module.exports = async (ctx) => {
       JOIN erp_transaction_group tg ON tg.transaction_group_id=tt.transaction_group_id
       WHERE tt.tenant_id=$1 AND tt.organisation_id=$2
     )
-    INSERT INTO erp_transaction_type(tenant_id,organisation_id,transaction_group_id,type_code,type_name,type_description,is_financial,allow_additional_lines,sort_order,is_active,default_grid_view,workflow_path_id)
-    SELECT $1,$3,target_group.transaction_group_id,source_types.type_code,source_types.type_name,source_types.type_description,source_types.is_financial,source_types.allow_additional_lines,source_types.sort_order,source_types.is_active,source_types.default_grid_view,(SELECT target_path.workflow_path_id FROM erp_workflow_path source_path JOIN erp_workflow_path target_path ON target_path.tenant_id=$1 AND target_path.organisation_id=$3 AND target_path.path_name=source_path.path_name WHERE source_path.workflow_path_id=source_types.workflow_path_id)
+    INSERT INTO erp_transaction_type(tenant_id,organisation_id,transaction_group_id,type_code,type_name,type_description,is_financial,allow_additional_lines,sort_order,is_active,default_grid_view,workflow_path_id,schema_json)
+    SELECT $1,$3,target_group.transaction_group_id,source_types.type_code,source_types.type_name,source_types.type_description,source_types.is_financial,source_types.allow_additional_lines,source_types.sort_order,source_types.is_active,source_types.default_grid_view,(SELECT target_path.workflow_path_id FROM erp_workflow_path source_path JOIN erp_workflow_path target_path ON target_path.tenant_id=$1 AND target_path.organisation_id=$3 AND target_path.path_name=source_path.path_name WHERE source_path.workflow_path_id=source_types.workflow_path_id),source_types.schema_json
     FROM source_types
     JOIN erp_transaction_group target_group ON target_group.tenant_id=$1 AND target_group.organisation_id=$3 AND target_group.group_code=source_types.group_code
     ON CONFLICT(tenant_id,organisation_id,type_code) DO UPDATE
-    SET default_grid_view=excluded.default_grid_view,transaction_group_id=excluded.transaction_group_id,type_name=excluded.type_name,type_description=excluded.type_description,is_financial=excluded.is_financial,allow_additional_lines=excluded.allow_additional_lines,sort_order=excluded.sort_order,is_active=excluded.is_active,workflow_path_id=excluded.workflow_path_id`,
+    SET schema_json=excluded.schema_json,default_grid_view=excluded.default_grid_view,transaction_group_id=excluded.transaction_group_id,type_name=excluded.type_name,type_description=excluded.type_description,is_financial=excluded.is_financial,allow_additional_lines=excluded.allow_additional_lines,sort_order=excluded.sort_order,is_active=excluded.is_active,workflow_path_id=excluded.workflow_path_id`,
     );
 
   if (wants.subledgerAccountTypes)
@@ -675,15 +675,17 @@ module.exports = async (ctx) => {
     add(
       "line_definitions",
       `WITH source_definitions AS (
-      SELECT definition.*,type.type_code,account.account_code,subledger_type.type_code subledger_type_code
+      SELECT definition.*,type.type_code,account.account_code,subledger_type.type_code subledger_type_code,object.object_code default_object_code,object_type.type_code default_object_type_code
       FROM erp_transaction_line_definition definition
       JOIN erp_transaction_type type ON type.transaction_type_id=definition.transaction_type_id
       JOIN erp_gl_account account ON account.gl_account_id=definition.gl_account_id
       LEFT JOIN erp_subledger_account_type subledger_type ON subledger_type.subledger_account_type_id=definition.subledger_account_type_id
+      LEFT JOIN erp_accounting_object object ON object.accounting_object_id=definition.default_accounting_object_id
+      LEFT JOIN erp_accounting_object_type object_type ON object_type.accounting_object_type_id=object.accounting_object_type_id
       WHERE definition.tenant_id=$1 AND definition.organisation_id=$2
     )
-    INSERT INTO erp_transaction_line_definition(tenant_id,organisation_id,transaction_type_id,line_order,line_code,debit_credit,gl_account_id,occurrence,subledger_requirement,subledger_account_type_id,amount_source,line_description)
-    SELECT $1,$3,target_type.transaction_type_id,source.line_order,source.line_code,source.debit_credit,target_account.gl_account_id,source.occurrence,source.subledger_requirement,target_subledger_type.subledger_account_type_id,source.amount_source,source.line_description
+    INSERT INTO erp_transaction_line_definition(tenant_id,organisation_id,transaction_type_id,line_order,line_code,debit_credit,gl_account_id,occurrence,subledger_requirement,subledger_account_type_id,amount_source,line_description,object_requirement,object_value_behaviour,default_accounting_object_id)
+    SELECT $1,$3,target_type.transaction_type_id,source.line_order,source.line_code,source.debit_credit,target_account.gl_account_id,source.occurrence,source.subledger_requirement,target_subledger_type.subledger_account_type_id,source.amount_source,source.line_description,source.object_requirement,source.object_value_behaviour,(SELECT o.accounting_object_id FROM erp_accounting_object o JOIN erp_accounting_object_type t ON t.accounting_object_type_id=o.accounting_object_type_id WHERE o.tenant_id=$1 AND o.organisation_id=$3 AND t.type_code=source.default_object_type_code AND o.object_code=source.default_object_code)
     FROM source_definitions source
     JOIN erp_transaction_type target_type ON target_type.tenant_id=$1 AND target_type.organisation_id=$3 AND target_type.type_code=source.type_code
     JOIN erp_gl_account target_account ON target_account.tenant_id=$1 AND target_account.organisation_id=$3 AND target_account.account_code=source.account_code AND target_account.workflow_status <> 'deleted'
@@ -694,17 +696,15 @@ module.exports = async (ctx) => {
   if (wants.lineDefinitions)
     add(
       "line_definition_objects",
-      `INSERT INTO erp_transaction_line_definition_object_type(tenant_id,organisation_id,transaction_line_definition_id,accounting_object_type_id,requirement,value_behaviour,accounting_object_id,sort_order)
-    SELECT $1,$3,target_definition.transaction_line_definition_id,target_type.accounting_object_type_id,source.requirement,source.value_behaviour,target_value.accounting_object_id,source.sort_order
+      `INSERT INTO erp_transaction_line_definition_object_type(tenant_id,organisation_id,transaction_line_definition_id,accounting_object_type_id,sort_order)
+    SELECT $1,$3,target_definition.transaction_line_definition_id,target_type.accounting_object_type_id,source.sort_order
     FROM erp_transaction_line_definition_object_type source
     JOIN erp_transaction_line_definition source_definition ON source_definition.transaction_line_definition_id=source.transaction_line_definition_id
     JOIN erp_transaction_type source_transaction_type ON source_transaction_type.transaction_type_id=source_definition.transaction_type_id
     JOIN erp_accounting_object_type source_type ON source_type.accounting_object_type_id=source.accounting_object_type_id
-    LEFT JOIN erp_accounting_object source_value ON source_value.accounting_object_id=source.accounting_object_id
     JOIN erp_transaction_type target_transaction_type ON target_transaction_type.tenant_id=$1 AND target_transaction_type.organisation_id=$3 AND target_transaction_type.type_code=source_transaction_type.type_code
     JOIN erp_transaction_line_definition target_definition ON target_definition.transaction_type_id=target_transaction_type.transaction_type_id AND target_definition.line_code=source_definition.line_code
     JOIN erp_accounting_object_type target_type ON target_type.tenant_id=$1 AND target_type.organisation_id=$3 AND target_type.type_code=source_type.type_code
-    LEFT JOIN erp_accounting_object target_value ON target_value.tenant_id=$1 AND target_value.organisation_id=$3 AND target_value.accounting_object_type_id=target_type.accounting_object_type_id AND target_value.object_code=source_value.object_code
     WHERE source.tenant_id=$1 AND source.organisation_id=$2
     ON CONFLICT DO NOTHING`,
     );
@@ -964,3 +964,5 @@ module.exports = async (ctx) => {
         wants.accountingTypes),
   };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

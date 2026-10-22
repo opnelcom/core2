@@ -5,14 +5,14 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
   function defaultLayout(type) {
-    return type?.ui_schema_json?.default_editor_layout === "stacked" ? "stacked" : "tabs";
+    return type?.ui_schema_json?.default_editor_layout === "tabs" ? "tabs" : "stacked";
   }
   function installDefaultControl(anchor, prefix) {
     const label = document.createElement("label");
     label.append(document.createTextNode("Default editor layout"));
     const select = document.createElement("select");
     select.id = `${prefix}-default-editor-layout`;
-    for (const [value, text] of [["tabs", "Tabs"], ["stacked", "Stacked"]]) {
+    for (const [value, text] of [["stacked", "Stacked"], ["tabs", "Tabs"]]) {
       const option = document.createElement("option");
       option.value = value; option.textContent = text; select.append(option);
     }
@@ -32,7 +32,14 @@
     toolbar.className = "record-editor-layout-switch";
     toolbar.setAttribute("role", "group"); toolbar.setAttribute("aria-label", "Editor layout");
     toolbar.innerHTML = '<button type="button" data-editor-layout="tabs" aria-label="Tabbed view" title="Tabbed view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 8h18v13H3zM3 8V3h6v5M9 3h6v5M15 3h6v5"/><path d="M3 3h6v5H3z" fill="currentColor"/></svg></button><button type="button" data-editor-layout="stacked" aria-label="Stacked view" title="Stacked view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m12 3 10 5-10 5L2 8zM2 12l10 5 10-5M2 16l10 5 10-5"/></svg></button>';
-    form.insertBefore(toolbar, navigation); form.insertBefore(body, footer);
+    let header = form.querySelector(":scope > .record-editor-header");
+    if (!header) {
+      header = document.createElement("header");
+      header.className = "record-editor-header";
+      const heading = form.querySelector("h2");
+      heading.before(header); header.append(heading);
+    }
+    header.append(toolbar); form.insertBefore(body, footer);
     body.append(navigation);
     form.classList.add("record-layout-editor");
     let mode = "tabs", type, active = prefix === "account" ? "identification" : "general";
@@ -117,9 +124,14 @@
     }
     function sizeToViewport() {
       if (form.hidden) return;
+      const workspace = form.closest("main")?.getBoundingClientRect();
+      form.style.setProperty("--record-editor-start", `${Math.max(16, (workspace?.top || 0) + 8)}px`);
+      form.style.setProperty("--record-editor-right", `${Math.max(16, window.innerWidth - (workspace?.right || window.innerWidth) + 16)}px`);
+      form.style.setProperty("--record-editor-width", `${Math.max(1, Math.min(820, (workspace?.width || window.innerWidth) - 32))}px`);
       form.style.setProperty("--record-editor-top", `${Math.max(0, form.getBoundingClientRect().top)}px`);
     }
     window.addEventListener("resize", sizeToViewport);
+    new MutationObserver(sizeToViewport).observe(form, { attributes: true, attributeFilter: ["hidden"] });
     toolbar.addEventListener("click", event => {
       const button = event.target.closest("[data-editor-layout]");
       if (button) setMode(button.dataset.editorLayout);

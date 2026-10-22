@@ -1,5 +1,5 @@
 module.exports=async ctx=>{
-  const a=ctx.auth();
+  const a=await ctx.auth();
   if(!a||a.user_type!=='administration_user')return ctx.send(403,{error:'Core administrator required'});
   const r=await ctx.broker('core_saas','query',{text:`
     SELECT
@@ -16,3 +16,5 @@ module.exports=async ctx=>{
   `});
   return r.rows[0];
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

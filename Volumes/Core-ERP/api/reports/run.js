@@ -22,3 +22,5 @@ module.exports=async ctx=>{
   return {...common,rows,next_offset:result.rows.length>pageSize?offset+pageSize:null};
  }catch(e){if(e.status)return ctx.send(e.status,{error:e.message});throw e;}
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

@@ -53,3 +53,5 @@ module.exports=async ctx=>{
   await require('../_shared/erp/workflow-presentation').decorateWorkflowRecords(ctx,access,r.rows,{kind:'accounting_dimension',typeTable:'erp_accounting_dimension_type',typeIdColumn:'accounting_dimension_type_id'});
   return {records:r.rows};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

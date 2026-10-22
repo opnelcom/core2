@@ -18,3 +18,5 @@ module.exports=async ctx=>{
   if(!r.rowCount)return ctx.send(404,{error:'Tax rate not found'});
   return {ok:true};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

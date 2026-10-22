@@ -1376,22 +1376,24 @@ button:hover{background:var(--brand-dark);border-color:var(--brand-dark)}
   white-space:nowrap;
 }
 .tenant-edit-panel{
-  position:absolute;
-  top:72px;
-  right:18px;
-  z-index:20;
+  position:fixed;
+  inset:0;
+  margin:auto;
   display:grid;
   gap:12px;
   width:min(860px,calc(100% - 36px));
-  max-height:calc(100vh - 180px);
+  max-height:calc(100dvh - 36px);
   overflow:auto;
   padding:18px;
   border:1px solid var(--line);
   border-radius:8px;
   background:rgba(255,255,255,.94);
+  color:var(--ink);
   box-shadow:0 18px 44px rgba(23,32,51,.20);
   backdrop-filter:blur(10px);
 }
+.tenant-edit-panel::backdrop{background:rgba(15,23,42,.45)}
+body:has(.tenant-edit-panel[open]){overflow:hidden}
 .tenant-edit-panel[hidden]{display:none}
 .tenant-edit-panel h2{
   margin:0;
@@ -1781,10 +1783,8 @@ td{color:#344054}
   .application-workspace{grid-template-rows:auto minmax(520px,calc(100vh - 220px))}
   .tenant-management-grid{grid-template-columns:1fr}
   .tenant-edit-panel{
-    position:static;
-    width:auto;
-    max-height:none;
-    margin-top:14px;
+    width:calc(100% - 24px);
+    max-height:calc(100dvh - 24px);
   }
   .auth-shell{grid-template-columns:1fr;align-items:start;gap:18px;min-height:auto}
   .brand-panel{padding-top:8px}

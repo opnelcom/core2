@@ -13,7 +13,7 @@ const resolveSample=value=>Array.isArray(value)?value.map(resolveSample):value&&
 
 test('Maintenance Order and Fleet Vehicle use valid configurable definitions and preserve allocation roles',()=>{
   for(const schema of [orderSchema,fleetSchema])assert.deepEqual(validateSchemaDefinition(schema),[]);
-  assert.deepEqual(orderSchema.properties.asset.target,{class:'subledger_account',types:['asset_ppe','asset_rou']});
+  assert.deepEqual(orderSchema.properties.asset.target,{class:'subledger_account',types:['asset']});
   assert.deepEqual(orderSchema.properties.vehicle.target,{class:'accounting_object',types:['fleet_vehicle']});
   assert.equal(fleetSchema.properties.assetAccount.target.class,'subledger_account');
   assert.equal(defaults.accountingObjectTypeMetadata.work_order.default_grid_view,'status');

@@ -45,3 +45,5 @@ module.exports=async ctx=>{
   });
   return {enabled:false,rowCount:r.rowCount};
 };
+
+module.exports=require("../../../_shared/context").withContext(module.exports);

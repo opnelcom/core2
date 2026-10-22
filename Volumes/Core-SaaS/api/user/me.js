@@ -1,1 +1,3 @@
 module.exports=async ctx=>{const a=ctx.auth();if(!a)return ctx.send(401,{error:'Authentication required'});await ctx.broker('core_saas','query',{text:`ALTER TABLE core_user ADD COLUMN IF NOT EXISTS profile_photo_data_url text`});const r=await ctx.broker('core_saas','query',{text:`SELECT user_id,email,known_name,full_name,profile_photo_data_url,user_type,status,created_at FROM core_user WHERE user_id=$1`,values:[a.user_id]});return {user:r.rows[0]};};
+
+module.exports=require("../_shared/context").withContext(module.exports);

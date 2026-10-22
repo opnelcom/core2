@@ -54,3 +54,5 @@ module.exports=async ctx=>{
   if(!r.rowCount)return ctx.send(404,{error:'Event not found'});
   return {event:r.rows[0]};
 };
+
+module.exports=require("../../_shared/context").withContext(module.exports);

@@ -165,7 +165,7 @@ async function serviceHealth(){
 }
 
 module.exports=async ctx=>{
-  const a=ctx.auth();
+  const a=await ctx.auth();
   if(!a||a.user_type!=='administration_user')return ctx.send(403,{error:'Core administrator required'});
 
   const results=await serviceHealth();
@@ -197,3 +197,5 @@ module.exports=async ctx=>{
     services:results
   };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

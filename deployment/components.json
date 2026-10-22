@@ -1,0 +1,13 @@
+[
+  {"folder":"Core-Broker","service":"core-broker","dependencies":["pg"]},
+  {"folder":"Core-SMTP","service":"core-smtp","dependencies":["nodemailer"]},
+  {"folder":"Core-SaaS","service":"core-saas","dependencies":["@core/service-client"],"probe":"/api/user/me","denied":401},
+  {"folder":"Core-Admin","service":"core-admin","dependencies":["@core/service-client","@core/identity-client"],"identity":true,"probe":"/api/admin/summary","denied":403},
+  {"folder":"Core-Monitor","service":"core-monitor","dependencies":["@core/service-client","@core/identity-client"],"identity":true,"probe":"/api/monitor/brokerprofiles","denied":403},
+  {"folder":"Core-ERP","service":"core-erp","dependencies":["@core/service-client","@core/identity-client"],"identity":true,"probe":"/api/setup/bootstrap","denied":401},
+  {"folder":"Core-ObjectSphere","service":"core-objectsphere","dependencies":["@core/service-client","@core/identity-client"],"identity":true,"probe":"/api/items/list","denied":401},
+  {"folder":"Core-Tasks","service":"core-tasks","dependencies":["@core/service-client","@core/identity-client"],"identity":true,"probe":"/api/tasks/list","denied":401},
+  {"folder":"Core-DBManager","service":"core-database-management","dependencies":["@core/service-client","@core/identity-client","pg"],"identity":true,"probe":"/api/connections/list","denied":401},
+  {"folder":"Core-Tools","service":"core-tools","dependencies":[]},
+  {"folder":"Core-Reference","service":"core-reference","dependencies":[]}
+]

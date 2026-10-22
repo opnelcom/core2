@@ -8,3 +8,5 @@ module.exports=async ctx=>{
   if(result.status)return ctx.send(result.status,result.body);
   return result;
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

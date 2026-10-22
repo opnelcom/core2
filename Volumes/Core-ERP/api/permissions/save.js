@@ -199,3 +199,5 @@ module.exports = async (ctx) => {
   await ctx.broker("core_erp", "transaction", { statements });
   return { ok: true, role: saved.rows[0] };
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

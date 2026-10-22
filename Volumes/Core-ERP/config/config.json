@@ -1,21 +1,23 @@
 {
-    "name":  "core-erp",
-    "saasURL": "http://core-saas:3000",
-    "port":  3000,
-    "logToFile":  true,
-    "fileLogMode":  "all",
-    "database":  "core_erp",
-    "dbBrokerURL":  "http://core-broker:3000",
-    "dbBrokerProfile":  "core_erp",
-    "dbBrokerKey":  "replace-with-a-long-random-internal-key",
-    "dbBrokerProfiles":  [
-                             {
-                                 "name":  "core_erp",
-                                 "key":  "replace-with-a-long-random-internal-key"
-                             }
-                         ],
-    "sessionSecret":  "replace-with-a-long-random-session-secret",
-    "maxBodyBytes":  15728640,
-    "cookieSecure":  false,
-    "nodeEnv":  "development"
+  "name": "core-erp",
+  "port": 3000,
+  "logToFile": true,
+  "fileLogMode": "all",
+  "database": "core_erp",
+  "dbBrokerURL": "http://core-broker:3000",
+  "dbBrokerProfile": "core_erp",
+  "dbBrokerKey": "replace-with-a-long-random-internal-key",
+  "dbBrokerProfiles": [
+    {
+      "name": "core_erp",
+      "key": "replace-with-a-long-random-internal-key"
+    }
+  ],
+  "maxBodyBytes": 15728640,
+  "cookieSecure": false,
+  "nodeEnv": "development",
+  "identity": {
+    "url": "http://core-saas:3000",
+    "timeoutMs": 10000
+  }
 }

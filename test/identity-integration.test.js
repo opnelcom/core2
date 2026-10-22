@@ -1,10 +1,10 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),http=require('node:http');
-const {tenantSession}=require('../tenant-session');
-const sessionEndpoint=require('../../../Volumes/Core-SaaS/api/auth/session');
+const {tenantSession}=require('../Packages/identity-client');
+const sessionEndpoint=require('../Volumes/Core-SaaS/api/auth/session');
 const tenant='10000000-0000-0000-0000-000000000001';
 const user={user_id:'10000000-0000-0000-0000-000000000002',email:'current@example.com',user_type:'administration_user'};
-const ctx=()=>({cookies:{current_tenant:tenant},config:{},req:{headers:{cookie:'session=signed; current_tenant='+tenant}}});
+const ctx=()=>({cookies:{current_tenant:tenant},config:{identity:{url:'http://identity.test',timeoutMs:10000}},req:{headers:{cookie:'session=signed; current_tenant='+tenant}}});
 const reply=data=>async()=>({ok:true,json:async()=>data});
 
 test('valid membership uses SaaS identity and omits SaaS permissions',async()=>{
@@ -17,14 +17,15 @@ test('valid membership uses SaaS identity and omits SaaS permissions',async()=>{
   assert.equal(result.auth.user_type,undefined);
   assert.equal(result.role,undefined);
   assert.equal(result.applications,undefined);
-  assert.equal(request.url,'http://core-saas:3000/api/auth/session');
+  assert.equal(request.url,'http://identity.test/api/auth/session');
   assert.equal(request.options.headers.cookie,ctx().req.headers.cookie);
   assert.equal(request.options.redirect,'error');
 });
 
 test('invalid identity, missing tenant and rejected membership fail closed',async()=>{
-  for(const data of [{authenticated:false,user:null},{authenticated:true,user:{}},{authenticated:'true',user}])
-    assert.equal((await tenantSession(ctx(),reply(data))).status,401);
+  assert.equal((await tenantSession(ctx(),reply({authenticated:false,user:null}))).status,401);
+  for(const data of [{authenticated:true,user:{}},{authenticated:'true',user}])
+    assert.equal((await tenantSession(ctx(),reply(data))).status,503);
   const noTenant=ctx();noTenant.cookies={};
   assert.equal((await tenantSession(noTenant,reply({authenticated:true,user}))).status,400);
   for(const current_tenant of [null,undefined,'another-tenant'])
@@ -54,7 +55,7 @@ test('HTTP client integrates with SaaS session endpoint and checks active identi
     res.setHeader('content-type','application/json');res.end(JSON.stringify(result));
   });
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  const request=ctx();request.config.saasURL='http://127.0.0.1:'+server.address().port;
+  const request=ctx();request.config.identity.url='http://127.0.0.1:'+server.address().port;
   try{
     assert.equal((await tenantSession(request)).auth.email,user.email);
     activeMembership=false;assert.equal((await tenantSession(request)).status,403);
@@ -64,7 +65,7 @@ test('HTTP client integrates with SaaS session endpoint and checks active identi
 });
 
 test('all application guards use membership API and ERP retains its own administrator checks',async()=>{
-  const guards=[require('../../../Volumes/Core-ERP/api/_shared/tenant').authTenant,require('../../../Volumes/Core-ERP/api/_shared/erp/auth').authTenant,require('../../../Volumes/Core-Tasks/api/_shared/tasks').authTenant,require('../../../Volumes/Core-ObjectSphere/api/_shared/items').authTenant];
+  const guards=[require('../Volumes/Core-ERP/api/_shared/tenant').authTenant,require('../Volumes/Core-ERP/api/_shared/erp/auth').authTenant,require('../Volumes/Core-Tasks/api/_shared/tasks').authTenant,require('../Volumes/Core-ObjectSphere/api/_shared/items').authTenant];
   for(const guard of guards){
     const denied={status:403,body:{error:'No access to active tenant'}};
     assert.deepEqual(await guard({tenantSession:async()=>denied,broker:async()=>{throw Error('Database access before identity check');}}),denied);
@@ -83,10 +84,11 @@ test('ObjectSphere import/export allow members without SaaS roles and reject inv
   for(const operation of ['import','export']){
     let membership={auth:user,tenantId:tenant},schemaCalls=0;
     const scope={module:{exports:{}},require(name){
+      if(name.endsWith('/context'))return {withContext:handler=>handler};
       if(name==='../_shared/items')return {authTenant:async()=>membership,ensureSchema:async()=>{schemaCalls++;}};
       return require(name);
     }};
-    vm.runInNewContext(fs.readFileSync(path.join(__dirname,`../../../Volumes/Core-ObjectSphere/api/setup/${operation}.js`),'utf8'),scope);
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname,`../Volumes/Core-ObjectSphere/api/setup/${operation}.js`),'utf8'),scope);
     const handler=scope.module.exports;
     const request={req:{method:'POST'},query:{},body:{mode:'append',export:{format:'objectsphere-tenant-export',version:1,data:{}}},send:(status,body)=>({status,body}),broker:async(profile,action,q)=>{
       assert.equal(profile,'core_objectsphere');

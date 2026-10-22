@@ -28,3 +28,5 @@ module.exports=async ctx=>{
   if(!r.rowCount)return ctx.send(404,{error:'Division not found'});
   return {division:r.rows[0]};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

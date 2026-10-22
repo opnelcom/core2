@@ -66,3 +66,5 @@ module.exports=async ctx=>{
   });
   return {setting:{has_openai_api_key:!!r.rows[0].api_key_ciphertext,openai_api_key_mask:maskKey(r.rows[0]),model:r.rows[0].model,updated_by_email:r.rows[0].updated_by_email,updated_at:r.rows[0].updated_at}};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

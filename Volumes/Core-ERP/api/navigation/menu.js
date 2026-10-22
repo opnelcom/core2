@@ -23,3 +23,5 @@ module.exports=async ctx=>{
   ]);
   return {is_administrator:administrator,roles:roles.rows,modules:modules.rows,permissions:permissions.rows};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

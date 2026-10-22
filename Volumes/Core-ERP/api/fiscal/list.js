@@ -12,3 +12,5 @@ module.exports=async ctx=>{
   ]);
   return {fiscal_years:years.rows,fiscal_periods:periods.rows};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

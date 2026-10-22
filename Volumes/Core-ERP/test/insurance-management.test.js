@@ -9,7 +9,7 @@ test("insurance configuration links every posting line to valid GLs, types and p
   const lines=seeds.lineDefinitionSeeds.filter(row=>row[0]===code);
   assert.equal(lines.filter(row=>row[7]==="required").length,2);
   assert.ok(lines.some(row=>row[2]==="debit"));assert.ok(lines.some(row=>row[2]==="credit"));
-  for(const line of lines){assert.ok(chart.has(line[3]));assert.ok(config.lineClassifications.find(row=>row.line_code===line[8]).object_types.includes("insurance_policy"));}
+  for(const line of lines){assert.ok(chart.has(line[3]));const gl=seeds.chartTemplate.find(row=>row[0]===line[3]);const allocation=seeds.objectAllocationSeeds.find(row=>row.lineCode===line[8]);if(['expense','revenue'].includes(gl[2]))assert.deepEqual(allocation.permittedTypes,[line[0].includes('recovery')?'insurance_claim':'insurance_policy']);else assert.equal(allocation,undefined);}
  }
  for(const format of seeds.financialStatementFormatSeeds){
   const codes=new Set(format.lines.flatMap(row=>row[5]?.accounts||[]));

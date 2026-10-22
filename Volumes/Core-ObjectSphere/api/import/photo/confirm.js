@@ -114,3 +114,5 @@ module.exports=async ctx=>{
 
   return ctx.send(201,{parent_item_id:parentId,created});
 };
+
+module.exports=require("../../_shared/context").withContext(module.exports);

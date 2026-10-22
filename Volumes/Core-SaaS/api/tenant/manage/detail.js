@@ -74,3 +74,5 @@ module.exports=async ctx=>{
     administrator_roles:adminRoles
   };
 };
+
+module.exports=require("../../_shared/context").withContext(module.exports);

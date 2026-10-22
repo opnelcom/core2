@@ -1,24 +1,27 @@
 {
-    "name":  "core-monitor",
-    "port":  3000,
-    "logToFile":  true,
-    "fileLogMode":  "all",
-    "dbBrokerURL":  "http://core-broker:3000",
-    "dbBrokerProfiles":  [
-                             {
-                                 "name":  "core_saas",
-                                 "key":  "replace-with-a-long-random-internal-key"
-                             },
-                             {
-                                 "name":  "core_erp",
-                                 "key":  "replace-with-a-long-random-internal-key"
-                             },
-                             {
-                                 "name":  "core_objectsphere",
-                                 "key":  "replace-with-a-long-random-internal-key"
-                             }
-                         ],
-    "sessionSecret":  "replace-with-a-long-random-session-secret",
-    "cookieSecure":  false,
-    "nodeEnv":  "development"
+  "name": "core-monitor",
+  "port": 3000,
+  "logToFile": true,
+  "fileLogMode": "all",
+  "dbBrokerURL": "http://core-broker:3000",
+  "dbBrokerProfiles": [
+    {
+      "name": "core_saas",
+      "key": "replace-with-a-long-random-internal-key"
+    },
+    {
+      "name": "core_erp",
+      "key": "replace-with-a-long-random-internal-key"
+    },
+    {
+      "name": "core_objectsphere",
+      "key": "replace-with-a-long-random-internal-key"
+    }
+  ],
+  "cookieSecure": false,
+  "nodeEnv": "development",
+  "identity": {
+    "url": "http://core-saas:3000",
+    "timeoutMs": 10000
+  }
 }

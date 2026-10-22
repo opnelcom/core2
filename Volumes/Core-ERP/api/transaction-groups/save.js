@@ -43,3 +43,5 @@ module.exports=async ctx=>{
   if(!result.rows.length)return ctx.send(404,{error:'Transaction group was not found'});
   return {ok:true,transaction_group:result.rows[0]};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);

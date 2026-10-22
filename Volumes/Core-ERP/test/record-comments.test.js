@@ -16,7 +16,7 @@ function fixture(kind,{missing=false,permissionDenied=false,moduleDenied=false,a
     requireResourcePermission:async(_ctx,_access,options)=>{permissions.push({category:'division',...options});return permissionDenied?denied:null},
     requireOrganisationResourcePermission:async(_ctx,_access,options)=>{permissions.push({category:'organisation',...options});return permissionDenied?denied:null},
   };
-  const sandbox={module:{exports:{}},require:()=>dependency};
+  const sandbox={module:{exports:{}},require: name => name.endsWith('/context') ? require('../api/_shared/context') : dependency};
   vm.runInNewContext(source,sandbox);
   const ctx={req:{method:'POST'},query:{organisation_id:org,entity_kind:kind,entity_id:id},body:{organisation_id:org,entity_kind:kind,entity_id:id,comment_text:'  Comment\nwith detail  ',created_by_email:'spoof@example.com',created_at:'2000-01-01'},send:(status,body)=>({status,body}),broker:async(profile,action,query)=>{
     assert.equal(profile,'core_erp');assert.equal(action,'query');queries.push(query);

@@ -42,3 +42,5 @@ module.exports=async ctx=>{
   ]});
   return {ok:true,organisation_id:organisationId,division_id:divisionId,include_children:includeChildren};
 };
+
+module.exports=require("../_shared/context").withContext(module.exports);
