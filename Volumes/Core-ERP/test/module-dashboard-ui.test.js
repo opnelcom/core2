@@ -30,6 +30,28 @@ test('module cards and status groups use dynamic labels and route the original t
   }finally{global.document=previous;}
 });
 
+test('overview hides zero transitional counts while preserving pending tiles and direct module access',()=>{
+  const previous=global.document;global.document={createElement:tag=>new Element(tag)};
+  try{
+    const target=new Element('div');let opened;
+    const zero={module_id:'zero',module_name:'No pending work',total:0,types:[]};
+    const pending={module_id:'pending',module_name:'Pending work',total:3,types:[]};
+    const data={modules:[zero,pending],total_records:3};
+    const options={target,data,onModule:id=>{opened=id;},onOverview(){}};
+    render(options);
+    const grid=target.children.find(child=>child.className==='module-dashboard-grid');
+    assert.equal(grid.children.length,1);assert.equal(grid.children[0].children[0].textContent,'Pending work');
+    grid.children[0].events.click();assert.equal(opened,'pending');
+    render({...options,data:{modules:[zero],total_records:0}});
+    assert.equal(target.children.some(child=>child.className==='module-dashboard-grid'),false);
+    assert.equal(target.children.at(-1).textContent,'No records in transitional statuses.');
+    render({...options,moduleId:'zero'});
+    assert.equal(target.children[0].textContent,'← All modules','zero-count modules remain accessible directly');
+    assert.ok(target.children.some(child=>child.textContent==='No records in transitional statuses.'));
+    assert.equal(data.modules.length,2,'presentation filtering must not remove modules from the supplied data');
+  }finally{global.document=previous;}
+});
+
 test('compact transaction cards format debit totals and preserve count drill-through',()=>{
   const previous=global.document;global.document={createElement:tag=>new Element(tag)};
   try{

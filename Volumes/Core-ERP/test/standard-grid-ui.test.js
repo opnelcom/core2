@@ -27,7 +27,37 @@ async function setup(browser) {
   return page;
 }
 const launch = () => chromium.launch({ headless: true, ...(process.env.SHOWIF_BROWSER_CHANNEL ? { channel: process.env.SHOWIF_BROWSER_CHANNEL } : {}) });
-test('shared headers are compact, vertically aligned and have only a bottom border at rest', { skip: !chromium }, async () => {
+test('filter controls reveal on hover and keyboard focus and retain active indicators', { skip: !chromium }, async () => {
+ const browser=await launch();try{
+  const page=await setup(browser);
+  for(const width of [1200,390]){
+   await page.setViewportSize({width,height:900});await page.mouse.move(0,0);
+   const header=page.locator('thead th').first(), filter=header.locator('[data-filter-key]');
+   await page.evaluate(()=>document.activeElement?.blur());
+   assert.equal(await filter.evaluate(node=>getComputedStyle(node).opacity),'0');
+   await header.hover();assert.equal(await filter.evaluate(node=>getComputedStyle(node).opacity),'1');
+   await page.mouse.move(0,0);await filter.focus();assert.equal(await filter.evaluate(node=>getComputedStyle(node).opacity),'1');
+   await filter.evaluate(node=>{node.blur();node.classList.add('standard-grid-filter-active');});
+   assert.equal(await filter.evaluate(node=>getComputedStyle(node).opacity),'1');
+   await filter.evaluate(node=>node.classList.remove('standard-grid-filter-active'));
+  }
+  await page.addStyleTag({content:'.standard-grid td{padding:10px}'});
+  await page.addScriptTag({content:read('object-actions.js')});
+  await page.evaluate(markup=>{
+   const actions=erpObjectActions.create({});
+   document.querySelector('tbody td').append(actions.button({code:'A',name:'Example'}));
+   const refresh=new DOMParser().parseFromString(markup,'text/html').querySelector('#refresh');document.body.append(refresh);
+  },read('index.html'));
+  for(const selector of ['.object-action-button','#refresh']){
+   const button=page.locator(selector);
+   const size=await button.boundingBox();assert.equal(size.width,34);assert.equal(size.height,34);
+   assert.ok(await button.getAttribute('aria-label'));assert.ok(await button.getAttribute('title'));
+  }
+  assert.equal(await page.locator('.object-action-button').textContent(),'…');
+  assert.equal(await page.locator('#refresh').textContent(),'');
+ }finally{await browser.close();}
+});
+test('shared headers remain compact with faint internal column separators', { skip: !chromium }, async () => {
   const browser = await launch();
   try {
     const page = await setup(browser);
@@ -43,7 +73,16 @@ test('shared headers are compact, vertically aligned and have only a bottom bord
       }));
       assert.ok(geometry.every(th => th.height <= 40), JSON.stringify(geometry));
       assert.ok(Math.max(...geometry.map(th => th.centre)) - Math.min(...geometry.map(th => th.centre)) <= 1, JSON.stringify(geometry));
-      assert.ok(geometry.every(th => th.top === '0px' && th.left === '0px' && th.right === '0px' && th.bottom === '1px' && th.resizeBorder === 'rgba(0, 0, 0, 0)'), JSON.stringify(geometry));
+      assert.ok(geometry.every((th,index) => th.top === '0px' && th.left === '0px' && th.right === (index===geometry.length-1?'0px':'1px') && th.bottom === '1px' && th.resizeBorder === 'rgba(0, 0, 0, 0)'), JSON.stringify(geometry));
+      for(const line of ['#d7ddeb','#485466']) {
+        await page.evaluate(line=>document.documentElement.style.setProperty('--line',line),line);
+        const separators=await page.locator('.standard-grid tr').evaluateAll(rows=>rows.map(row=>[...row.children].map(cell=>{
+          const style=getComputedStyle(cell);return {width:style.borderRightWidth,colour:style.borderRightColor};
+        })));
+        assert.ok(separators.every(row=>row.every((cell,index)=>cell.width===(index===row.length-1?'0px':'1px'))));
+        assert.ok(separators.every(row=>row.slice(0,-1).every(cell=>cell.colour===separators[0][0].colour)));
+        assert.match(separators[0][0].colour,/0\.45\s*\)$/);
+      }
       assert.ok(await page.locator('[data-filter-key] svg').evaluateAll(icons => icons.every(icon => getComputedStyle(icon).fill === getComputedStyle(icon).color)));
       assert.equal(await page.locator('.standard-grid-menu-trigger svg').evaluate(icon => getComputedStyle(icon).fill), 'none');
     }

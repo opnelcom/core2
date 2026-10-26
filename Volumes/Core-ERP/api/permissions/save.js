@@ -74,7 +74,7 @@ module.exports = async (ctx) => {
   await client.query("SELECT * FROM erp_user_role WHERE tenant_id=$1 AND organisation_id=$2 AND role_id=$3",[access.tenantId,orgId,roleId]);
   plan.write({text:`INSERT INTO erp_role(role_id,tenant_id,organisation_id,role_code,role_name,role_description,is_admin,is_active)
     VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(role_id) DO UPDATE SET role_name=excluded.role_name,
-      role_description=excluded.role_description,is_admin=excluded.is_admin,is_active=excluded.is_active,updated_at=now()`,
+      role_description=excluded.role_description,is_admin=excluded.is_admin,is_active=excluded.is_active`,
     values:[roleId,access.tenantId,orgId,existing.rows[0]?.role_code||roleCode,name,description,isAdmin,isActive]});
 
   const statements = [

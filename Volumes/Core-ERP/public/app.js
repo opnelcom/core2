@@ -1789,8 +1789,10 @@
   let activeWorkflowMenu = null;
   function closeWorkflowMenu({ restoreFocus = false } = {}) {
     if (!activeWorkflowMenu) return;
-    const { button, menu } = activeWorkflowMenu;
+    const { button, menu, dialog } = activeWorkflowMenu;
     activeWorkflowMenu = null;
+    dialog?.removeEventListener("close", closeWorkflowMenu);
+    menu.hidePopover?.();
     menu.hidden = true;
     menu.remove();
     button.setAttribute("aria-expanded", "false");
@@ -1798,10 +1800,15 @@
   }
   function openWorkflowMenu(button, menu) {
     closeWorkflowMenu();
-    document.body.append(menu);
+    const dialog = button.closest("dialog[open]");
+    // Keep actions inside the modal focus scope and promote above its surface.
+    (dialog || document.body).append(menu);
+    menu.setAttribute("popover", "manual");
     menu.hidden = false;
+    menu.showPopover?.();
     button.setAttribute("aria-expanded", "true");
-    activeWorkflowMenu = { button, menu };
+    activeWorkflowMenu = { button, menu, dialog };
+    dialog?.addEventListener("close", closeWorkflowMenu);
     const gap = 6;
     const margin = 8;
     const rect = button.getBoundingClientRect();
@@ -5365,7 +5372,7 @@
   function renderDashboard() {
     const data = state.orgId ? state.dashboardSummary : {modules: [], total_records: 0};
     const selected = data?.modules.find(module => module.module_id === selectedDashboardModuleId);
-    if (!$("view-dashboard").hidden) $("page-title").textContent = selected ? selected.module_name + " dashboard" : "Module dashboards";
+    if (!$("view-dashboard").hidden) $("page-title").textContent = selected ? selected.module_name + " dashboard" : "Financial overview";
     window.erpModuleDashboard.render({
       formatMoney: formatOrgMoney,
       target: $("module-dashboard"), data, moduleId: selectedDashboardModuleId,
@@ -5374,6 +5381,7 @@
       onStatus: (type, status) => openDashboardRecords(type, status).catch(error => alert(error.message)),
       onAccount: (type, account) => openReport('object_statement', {
         kind: 'subledger_account', typeId: type.type_id, objectId: account.account_id,
+        glAccountId: account.gl_account_id || null,
         dateTo: data.as_of, dateFrom: data.as_of.slice(0,8)+'01',
         divisionId: state.divisionId, includeChildren: state.includeChildren,
         divisionName: state.divisions.find(division => division.division_id === state.divisionId)?.division_name,
@@ -8585,7 +8593,17 @@
   }
   function renderWorkflowStatuses(){
     if(!$("workflow-status-list"))return;
-    table($("workflow-status-list"),[["Code",r=>r.status_code],["Label",r=>r.status_label],["Description",r=>r.description],["Enabled for Use",r=>r.enabled_for_use ? "Yes" : "No"],["Displayed",r=>r.displayed!==false ? "Yes" : "No"],["Transitional",r=>r.transitional===true ? "Yes" : "No"],["Colour",r=>workflowStatusPreviewButton(r)]],state.workflowStatuses.filter(r=>rowMatches(r,searchTerm("workflow-status-search"))),selectWorkflowStatus);
+    const workflowIds = new Set(state.workflowPaths.map(path => path.workflow_path_id));
+    const usage = new Map();
+    for (const step of state.workflowSteps) {
+      if (!workflowIds.has(step.workflow_path_id)) continue;
+      if (!usage.has(step.step_code)) usage.set(step.step_code, new Set());
+      usage.get(step.step_code).add(step.workflow_path_id);
+    }
+    const rows = state.workflowStatuses.map(status => ({
+      ...status, workflow_count: usage.get(status.status_code)?.size || 0,
+    }));
+    table($("workflow-status-list"),[["Code",r=>r.status_code],["Label",r=>r.status_label],["Colour",r=>workflowStatusPreviewButton(r)],["Description",r=>r.description],["Workflows",r=>r.workflow_count],["Enabled for Use",r=>r.enabled_for_use ? "Yes" : "No"],["Displayed",r=>r.displayed!==false ? "Yes" : "No"],["Transitional",r=>r.transitional===true ? "Yes" : "No"]],rows.filter(r=>rowMatches(r,searchTerm("workflow-status-search"))),selectWorkflowStatus);
   }
   let workflowStatusEditorSequence = 0;
   async function selectWorkflowPath(path) {
@@ -9925,7 +9943,12 @@
     const scope = [state.orgId, state.divisionId, state.includeChildren].join(":");
     const now = new Date();
     const localDate = new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
-    const summary = await api(`dashboard/modules?organisation_id=${orgId}&as_of=${localDate}`);
+    const [summary, financial] = await Promise.all([
+      api(`dashboard/modules?organisation_id=${orgId}&as_of=${localDate}`),
+      api(`dashboard/financial?organisation_id=${orgId}&as_of=${localDate}`).catch(error => ({error:error.message})),
+    ]);
+    if(financial.error)summary.financial_error=`Financial overview unavailable: ${financial.error}`;
+    else summary.financial=financial;
     if (request !== dashboardRequest || scope !== [state.orgId, state.divisionId, state.includeChildren].join(":")) return;
     state.dashboardSummary = summary;
     loadedSlices.dashboard = true;

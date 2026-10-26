@@ -89,6 +89,24 @@ test('non-administrator roles save permissions and users without a module select
  assert.equal(result.ok,true);const statements=queries.find(query=>query.action==='transaction').statements;
  assert.equal(statements.filter(query=>query.text.startsWith('INSERT INTO erp_role_permission')).length,2);
  assert.equal(statements.find(query=>query.text.startsWith('INSERT INTO erp_user_role')).values[3],'user@example.test');
+ // Execute the actual role upsert against the role schema, including its update branch.
+ const db=new DatabaseSync(':memory:');
+ try{
+  const schema=fs.readFileSync(require.resolve('../schema/erp-schema.sql'),'utf8');
+  const roleDefinition=schema.match(/CREATE TABLE IF NOT EXISTS erp_role\([\s\S]*?\n    \);/)[0];
+  db.exec(roleDefinition.replace(' DEFAULT gen_random_uuid()','').replace(' REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE',''));
+  const roleWrite=statements.find(query=>query.text.startsWith('INSERT INTO erp_role('));
+  const params=Object.fromEntries(roleWrite.values.map((value,index)=>['$'+(index+1),typeof value==='boolean'?Number(value):value]));
+  const save=db.prepare(roleWrite.text);
+  save.run(params);
+  save.run({...params,$5:'Updated capture role',$6:'Updated description'});
+  const saved=db.prepare('SELECT * FROM erp_role').all();
+  assert.equal(saved.length,1);
+  assert.equal(saved[0].role_name,'Updated capture role');
+  assert.equal(saved[0].role_description,'Updated description');
+  assert.equal(saved[0].tenant_id,'tenant');
+  assert.equal(saved[0].organisation_id,'org');
+ }finally{db.close();}
  assert.ok(queries.every(query=>!JSON.stringify(query).includes('erp_role_module')));
 });
 

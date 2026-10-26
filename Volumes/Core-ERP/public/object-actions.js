@@ -121,8 +121,9 @@
       }catch(error){if(token===epoch&&active?.menu===menu){loading.textContent=error.message;position();}}
     }
     function button(selection){
-      const button=document.createElement('button');button.type='button';button.className='secondary object-action-button';button.textContent='Actions ▾';button.setAttribute('aria-expanded','false');button.setAttribute('aria-haspopup','true');
+      const button=document.createElement('button');button.type='button';button.className='secondary object-action-button';button.textContent='…';button.setAttribute('aria-expanded','false');button.setAttribute('aria-haspopup','true');
       button.setAttribute('aria-label',`Actions for ${selection.code||'selected object'} ${selection.name||''}`);
+      button.title=button.getAttribute('aria-label');
       button.onclick=event=>{event.stopPropagation();show(button,selection).catch(error=>notify(error.message));};return button;
     }
     function editor(prefix,selection){

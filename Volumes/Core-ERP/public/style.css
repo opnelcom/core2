@@ -18,6 +18,30 @@
   --shadow: 0 12px 32px rgba(22, 32, 51, 0.09);
   --sidebar-width: 250px;
 }
+.financial-dashboard { margin-bottom: 32px; }
+.financial-dashboard-position { display: grid; grid-template-columns: minmax(0,1fr) minmax(220px,.8fr) minmax(0,1fr); gap: 16px; align-items: stretch; }
+.financial-dashboard-panel, .financial-dashboard-detail { min-width: 0; padding: 20px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.financial-dashboard h3 { margin: 0 0 12px; font-size: 16px; font-weight: 500; overflow-wrap: anywhere; }
+.financial-dashboard-total { font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; margin: 12px 0 24px; }
+.financial-dashboard-net { text-align: center; border-top: 3px solid var(--brand); }
+.financial-dashboard-group { display: block; width: 100%; padding: 12px 0; border: 0; border-radius: 0; background: transparent; color: var(--ink); text-align: left; white-space: normal; }
+.financial-dashboard-group:hover, .financial-dashboard-account:hover { background: var(--surface-soft); color: var(--ink); }
+.financial-dashboard-group[aria-pressed="true"] .financial-dashboard-group-label > span:first-child { text-decoration: underline; text-underline-offset: 4px; }
+.financial-dashboard-group-label { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; overflow-wrap: anywhere; }
+.financial-dashboard-track, .financial-dashboard-comparison-track { display: block; height: 10px; background: var(--page); margin-top: 8px; border-radius: 3px; overflow: hidden; }
+.financial-dashboard-bar { display: block; height: 100%; background: var(--accent); }
+.financial-dashboard-liability .financial-dashboard-bar, .financial-dashboard-liability-bar { background: var(--danger); }
+.financial-dashboard-comparison { margin-top: 24px; text-align: left; }
+.financial-dashboard-comparison-track { height: 24px; margin-bottom: 18px; }
+.financial-dashboard-detail { margin-top: 16px; }
+.financial-dashboard-detail-total { font-size: 20px; font-variant-numeric: tabular-nums; }
+.financial-dashboard-account { display: flex; width: 100%; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 12px 0; background: transparent; color: var(--ink); border: 0; border-top: 1px solid var(--line); border-radius: 0; text-align: left; white-space: normal; }
+.financial-dashboard-account > span:first-child { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.financial-dashboard-account small { color: var(--muted); }
+.financial-dashboard-money { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.financial-dashboard-warning { padding: 12px; border-left: 3px solid var(--danger); background: var(--surface-soft); }
+@media(max-width: 1000px) { .financial-dashboard-position { grid-template-columns: minmax(0,1fr) minmax(0,1fr); } .financial-dashboard-net { grid-row: 1; grid-column: 1 / -1; } }
+@media(max-width: 600px) { .financial-dashboard-position { grid-template-columns: minmax(0,1fr); } }
 .module-dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; }
 .module-dashboard-card { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left; padding: 20px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; min-width: 0; white-space: normal; }
 .module-dashboard-card h2 { font-size: 16px; margin: 0; overflow-wrap: anywhere; }
@@ -160,7 +184,7 @@ label {
   position: relative;
   z-index: 30;
   border-bottom: 1px solid var(--line);
-  background: var(--panel);
+  background: transparent;
 }
 .organisation-tabs-row {
   display: flex;
@@ -1087,6 +1111,10 @@ nav {
 }
 .workflow-status-menu {
   position: fixed;
+  pointer-events: auto;
+  inset: auto;
+  margin: 0;
+  color: var(--text);
   z-index: 10000;
   box-sizing: border-box;
   overflow: auto;
@@ -1559,6 +1587,28 @@ body.panels-glass .nav.menu-entry.active {
   gap: 12px;
   margin-bottom: 12px;
 }
+/* Setup grid actions stay beside their caption; the grid menu stays at the end.
+   Scope includes dynamic Setup headings without affecting business record grids. */
+:where(#view-organisations, #view-divisions, #view-fiscal, #view-countries,
+  #view-currencies, #view-taxtypes, #view-resourceroles, #view-financialformats,
+  #view-schemauitester, #view-reportdefinitions, #view-modules, #view-glaccounttypes,
+  #view-ledgerfamilies, #view-accountingobjecttypes, #view-accountingdimensiontypes,
+  #view-transactiongroups, #view-transactiontypes, #view-permissions, #view-users,
+  #view-workflowstatuses, #view-workflows) .panel-head:has(.add-record-button) {
+  display: flex;
+  justify-content: flex-start;
+}
+:where(#view-organisations, #view-divisions, #view-fiscal, #view-countries,
+  #view-currencies, #view-taxtypes, #view-resourceroles, #view-financialformats,
+  #view-schemauitester, #view-reportdefinitions, #view-modules, #view-glaccounttypes,
+  #view-ledgerfamilies, #view-accountingobjecttypes, #view-accountingdimensiontypes,
+  #view-transactiongroups, #view-transactiontypes, #view-permissions, #view-users,
+  #view-workflowstatuses, #view-workflows) .panel-head > .standard-grid-menu-trigger {
+  margin-left: auto;
+  width: 34px;
+  flex-shrink: 0;
+}
+
 .panel-head h2 {
   margin-bottom: 0;
 }
@@ -4077,6 +4127,9 @@ textarea.schema-textarea {
 .object-action-menu-item:hover { background: var(--surface-soft); }
 .object-action-menu-empty { padding: 10px 16px 10px 30px; color: var(--muted); }
 .object-action-button { width: auto; white-space: nowrap; flex: 0 0 auto; }
+.standard-grid .object-action-button { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; min-height: 34px; padding: 0; font-size: 20px; line-height: 1; }
+#refresh { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; min-height: 34px; padding: 0; }
+#refresh svg { width: 18px; height: 18px; }
 .record-editor-header--actions { position: relative; padding-right: 150px; }
 :is(#account-form, #accounting-object-form) > .object-record-action-button { position: absolute; top: 10px; right: 50px; height: 34px; min-height: 34px; z-index: 1; }
 :is(#account-form, #accounting-object-form):has(> .object-record-action-button) > .panel-close { top: 10px; right: 10px; height: 34px; min-height: 34px; z-index: 2; }
@@ -4241,7 +4294,26 @@ dialog.erp-editor-dialog::backdrop { background: rgb(18 36 47 / 38%); pointer-ev
   box-sizing: border-box; pointer-events: auto;
   box-shadow: 0 16px 48px rgb(18 36 47 / 24%);
 }
+/* Only the organisation bar is translucent; its individual tabs stay opaque. */
+:root body .workspace-context > .organisation-tabs-row,
+:root[data-theme] body .workspace-context > .organisation-tabs-row {
+  background: color-mix(in srgb, color-mix(in srgb, var(--page) 70%, var(--panel)) 50%, transparent);
+}
+:root body .organisation-tabs-row :is(.organisation-tab, .organisation-more),
+:root[data-theme] body .organisation-tabs-row :is(.organisation-tab, .organisation-more),
+:root[data-theme] body.panels-glass .organisation-tabs-row :is(.organisation-tab, .organisation-more) {
+  background: var(--panel);
+}
+:root body .organisation-tabs-row :is(.organisation-tab[aria-selected="true"], .organisation-more.active),
+:root[data-theme] body .organisation-tabs-row :is(.organisation-tab[aria-selected="true"], .organisation-more.active),
+:root[data-theme] body.panels-glass .organisation-tabs-row :is(.organisation-tab[aria-selected="true"], .organisation-more.active) {
+  border-bottom-color: var(--panel);
+}
 .erp-editor-dialog > .organisation-setup-panel-wrapper.erp-modal-surface { background: var(--panel, white); border-radius: 8px; }
+.erp-editor-dialog > .erp-modal-surface.record-layout-editor:not(#modal-specificity):not(#modal-specificity-extra) {
+  height: min(800px, calc(100dvh - 32px));
+  overflow: hidden;
+}
 .erp-editor-dialog > #intake-modal.erp-modal-surface { display: block; padding: 0; }
 
 /* Shared scalar sizing applies to setup, inline and modal editors alike. */

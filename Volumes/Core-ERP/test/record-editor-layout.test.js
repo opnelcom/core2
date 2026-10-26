@@ -69,6 +69,34 @@ test("seed layouts are defined in JSON, scoped to seeded master types and exclud
 
 let chromium;
 try { ({ chromium } = require("playwright")); } catch {}
+test('native modal record editors keep Save visible while long sections scroll', {skip:!chromium}, async()=>{
+ const browser=await chromium.launch({headless:true,...(process.env.SHOWIF_BROWSER_CHANNEL?{channel:process.env.SHOWIF_BROWSER_CHANNEL}:{})});
+ try{
+  const page=await browser.newPage();
+  for(const id of ['account-form','accounting-object-form','accounting-dimension-form'])for(const width of [1200,390]){
+   await page.setViewportSize({width,height:640});
+   await page.setContent(`<style>${fs.readFileSync(require.resolve('../public/style.css'),'utf8')}</style><form id="${id}" class="panel form record-layout-editor" hidden><div class="record-editor-header"><h2>Edit record</h2><button type="button" class="panel-close">×</button></div><div class="record-editor-body"><div style="height:1800px">Long configured sections</div></div><div class="account-editor-actions"><button type="submit">Save</button></div></form>`);
+   for(const script of ['modal-editors','movable-panels'])await page.addScriptTag({content:fs.readFileSync(require.resolve('../public/'+script),'utf8')});
+   await page.evaluate(()=>{erpModalEditors.install();erpMovablePanels.install();document.querySelector('form').hidden=false;});
+   await page.locator('dialog').waitFor({state:'visible'});
+   for(const layout of ['stacked','tabs']){
+    await page.locator('form').evaluate((form,layout)=>form.dataset.editorLayout=layout,layout);
+    const check=async()=>{
+     const geometry=await page.evaluate(()=>{
+      const form=document.querySelector('form'),body=form.querySelector('.record-editor-body'),save=form.querySelector('[type=submit]');
+      body.scrollTop=body.scrollHeight;
+      const a=form.getBoundingClientRect(),b=save.getBoundingClientRect();
+      return {scrolls:body.scrollHeight>body.clientHeight,inside:b.top>=a.top&&b.bottom<=a.bottom&&b.bottom<=innerHeight&&b.right<=innerWidth,outerScroll:form.scrollHeight>form.clientHeight+1};
+     });
+     assert.ok(geometry.scrolls);assert.ok(geometry.inside,JSON.stringify(geometry));assert.equal(geometry.outerScroll,false);
+    };
+    await check();
+    await page.evaluate(()=>erpMovablePanels.resize(document.querySelector('form'),500,400));await check();
+    await page.locator('.editor-move-handle').focus();await page.keyboard.press('ArrowDown');await check();
+   }
+  }
+ }finally{await browser.close();}
+});
 test("seeded editors retain data and grids across layouts, expand independently and scroll within fixed chrome", { skip: !chromium }, async () => {
   const browser = await chromium.launch({ headless: true, ...(process.env.SHOWIF_BROWSER_CHANNEL ? { channel: process.env.SHOWIF_BROWSER_CHANNEL } : {}) });
   try {

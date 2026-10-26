@@ -18,10 +18,12 @@ function fixture(rect, viewport = { clientWidth: 800, clientHeight: 600 }) {
   vm.createContext(scope);
   vm.runInContext(source.slice(source.indexOf("  let activeWorkflowMenu ="),
     source.indexOf("  async function moveAccountingObjectWorkflow(")), scope);
-  const button = { isConnected: true, attributes: {},
+  const button = { isConnected: true, attributes: {}, closest: () => null,
     setAttribute(name, value) { this.attributes[name] = value; },
     getBoundingClientRect: () => rect, focus() { this.focused = true; } };
   const menu = { style: {}, hidden: true, attached: false,
+    setAttribute(name, value) { this[name] = value; },
+    showPopover() { this.popoverOpen = true; }, hidePopover() { this.popoverOpen = false; },
     remove() { this.attached = false; }, contains(target) { return target === this; },
     getBoundingClientRect() { return {
       width: Math.min(190, parseFloat(this.style.maxWidth)),
@@ -72,4 +74,54 @@ test("opening another status removes the previous floating menu", () => {
   assert.equal(first.button.attributes["aria-expanded"], "false");
   first.events.resize();
   assert.equal(second.menu.attached, false);
+});
+
+
+let chromium; try {({chromium}=require('playwright'));} catch {}
+test('workflow actions appear above native transaction modals and preserve dismissal', {skip:!chromium}, async () => {
+  const browser=await chromium.launch({headless:true,channel:process.env.SHOWIF_BROWSER_CHANNEL || 'msedge'});
+  try {
+    const page=await browser.newPage();
+    const errors=[];page.on('pageerror',error=>errors.push(error.message));
+    for(const width of [1280,390]) {
+      await page.goto("about:blank");
+      await page.setViewportSize({width,height:800});
+      await page.setContent(`<form id="journal-form" class="panel form"><h2>Transaction Capture</h2><button type="button" class="panel-close" onclick="this.closest('form').hidden=true">x</button><div style="height:120px">Journal fields</div><div id="footer"></div></form>`);
+      await page.addStyleTag({path:require.resolve('../public/style.css')});
+      await page.addScriptTag({path:require.resolve('../public/modal-editors.js')});
+      await page.addScriptTag({content:`
+        const workflowDot=colour=>document.createElement('span');
+        const workflowStepLabel=row=>row.workflow_step_label;
+        const pretty=value=>value;
+        ${source.slice(source.indexOf('  let activeWorkflowMenu ='),source.indexOf('  function refreshWorkflowEditor('))}
+        window.moves=[];
+        document.getElementById('footer').append(workflowStatusButton({row:{workflow_step_label:'Submitted',available_workflow_steps:[{workflow_next_id:'reject',action_label:'Reject'},{workflow_next_id:'post',action_label:'Post'}]},onMove:id=>window.moves.push(id)}));
+        window.erpModalEditors.install();
+      `});
+      const button=page.locator('.workflow-status-button');
+      await button.click();
+      const menu=page.locator('.workflow-status-menu');
+      await menu.locator('button').last().focus();
+      assert.equal(await page.evaluate(()=>document.activeElement.textContent),'Post');
+      const geometry=await menu.evaluate(node=>{
+        const r=node.getBoundingClientRect();
+        return {top:r.top,left:r.left,right:r.right,bottom:r.bottom,topLayer:node.matches(':popover-open'),
+          modal:!!node.closest('dialog[open]'),hit:node.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))};
+      });
+      assert.ok(geometry.topLayer && geometry.modal && geometry.hit,JSON.stringify(geometry));
+      assert.ok(geometry.left>=0 && geometry.right<=width && geometry.top>=0 && geometry.bottom<=800);
+      await menu.getByRole('button',{name:'Post',exact:true}).click();
+      assert.deepEqual(await page.evaluate(()=>window.moves),['post']);
+      assert.equal(await menu.count(),0);
+      await button.click();
+      await page.keyboard.press('Escape');
+      assert.equal(await menu.count(),0);
+      assert.equal(await page.locator('dialog[open]').count(),1);
+      assert.equal(await button.evaluate(node=>node===document.activeElement),true);
+      await button.click();
+      await page.locator('.panel-close').click();
+      await page.waitForFunction(()=>!document.querySelector('dialog[open]') && !document.querySelector('.workflow-status-menu'));
+      assert.deepEqual(errors,[]);
+    }
+  } finally {await browser.close();}
 });

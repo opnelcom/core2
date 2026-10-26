@@ -25,7 +25,7 @@ test('every registered main list renders through the actual table bridge; nested
       };
     ` });
     // Counts mirror the actual list renderers and make a registration mismatch fail.
-    const counts = [4,3,6,5,5,4,5,4,7,7,7,4,4,5,7,5,4,6,7,8,7,6,4,7,7,5,8,8,4];
+    const counts = [4,3,6,5,5,4,5,4,7,7,7,4,4,5,7,5,4,6,7,8,7,6,4,7,8,5,8,8,4];
     const ids = await page.evaluate(() => erpStandardGridLists.ids);
     assert.equal(ids.length, counts.length);
     for (let index = 0; index < ids.length; index++) {
@@ -87,4 +87,44 @@ test('cached lists restore one menu on return and discard filters, widths and dr
     assert.equal(await page.locator('#grid').innerText(), 'Status board');
     assert.equal(await page.getByRole('button', { name: 'Grid options', exact: true }).count(), 0);
   } finally { await browser.close(); }
+});
+
+
+test('Setup add buttons remain beside headings at desktop and narrow widths', {skip: !chromium}, async () => {
+  const browser = await launch();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(read('index.html').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '').replace(/<link\b[^>]*>/g, ''));
+    await page.addStyleTag({content: read('style.css') + '\n' + read('standard-grid.css')});
+    await page.evaluate(() => {
+      const sections = [...document.querySelectorAll('main > .view')];
+      document.body.replaceChildren(...sections);
+      document.body.style.cssText = 'display:block;padding:16px;overflow:auto';
+      const workflow = document.createElement('section');
+      workflow.id = 'view-workflowstatuses'; workflow.className = 'view';
+      workflow.innerHTML = '<div class="panel"><div class="panel-head"><h2>Workflow Status</h2><button class="add-record-button">+</button><button class="standard-grid-menu-trigger secondary">Menu</button></div></div>';
+      document.body.append(workflow);
+    });
+    const ids = ['organisations','divisions','fiscal','countries','currencies','taxtypes','resourceroles','financialformats','reportdefinitions','modules','glaccounttypes','ledgerfamilies','accountingobjecttypes','accountingdimensiontypes','transactiongroups','transactiontypes','permissions','users','workflowstatuses'];
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({width, height:900});
+      for (const id of ids) {
+        const result = await page.evaluate(id => {
+          document.querySelectorAll('.view').forEach(v => {v.hidden = v.id !== 'view-' + id;});
+          const view = document.getElementById('view-' + id);
+          const add = view?.querySelector('.panel-head .add-record-button');
+          if (!add) return null;
+          const header = add.closest('.panel-head');
+          const heading = header.querySelector('h2,h3');
+          const a=add.getBoundingClientRect(), h=heading.getBoundingClientRect();
+          const menu=header.querySelector('.standard-grid-menu-trigger')?.getBoundingClientRect();
+          return {gap:a.left-h.right, centre:Math.abs(a.y+a.height/2-h.y-h.height/2), menu:!menu || menu.left>=a.right};
+        },id);
+        assert.ok(result, id + ' header exists');
+        assert.ok(result.gap>=8 && result.gap<=16, id + ' gap at '+width+': '+JSON.stringify(result));
+        assert.ok(result.centre<2, id + ' vertical alignment at '+width);
+        assert.ok(result.menu, id + ' menu remains right');
+      }
+    }
+  } finally {await browser.close();}
 });

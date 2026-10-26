@@ -11,6 +11,7 @@
 }
 .standard-grid th { position: relative; padding: 5px 14px 5px 8px; vertical-align: middle; border: 0; border-bottom: 1px solid var(--line); }
 .standard-grid td { overflow-wrap: anywhere; }
+.standard-grid th:not(:last-child), .standard-grid td:not(:last-child) { border-right: 1px solid color-mix(in srgb, var(--line) 45%, transparent); }
 .standard-grid .workflow-status-wrap { width: 100%; min-width: 0; max-width: 220px; }
 .standard-grid .workflow-status-button { width: 100%; max-width: 100%; min-width: 0; flex: 1 1 auto; }
 .standard-grid-heading { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 26px; }
@@ -22,6 +23,11 @@
 .standard-grid [data-filter-key] svg { fill: currentColor; }
 .standard-grid-heading .standard-grid-icon { width: 26px; min-width: 26px; min-height: 26px; border: 0; background: transparent; color: var(--muted); }
 .standard-grid-heading .standard-grid-filter-active { color: var(--brand); background: var(--badge-surface); outline: 1px solid var(--brand); }
+.standard-grid-heading [data-filter-key] { opacity: 0; }
+.standard-grid th:hover [data-filter-key], .standard-grid th:focus-within [data-filter-key], .standard-grid-heading .standard-grid-filter-active { opacity: 1; }
+@media (hover: none), (pointer: coarse) {
+  .standard-grid-heading [data-filter-key] { opacity: 1; }
+}
 .standard-grid-resize { position: absolute; right: 0; top: 0; width: 8px; height: 100%; cursor: col-resize; touch-action: none; border-right: 2px solid transparent; }
 .standard-grid-resize:hover, .standard-grid-resize:focus-visible { border-right-color: var(--line); }
 .standard-grid-number { text-align: right; font-variant-numeric: tabular-nums; }

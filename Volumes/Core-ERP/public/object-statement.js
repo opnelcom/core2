@@ -46,7 +46,7 @@ window.createObjectStatement=({api,context,openReport,openJournal,formatMoney,no
  const today=new Date(),local=new Date(today.getTime()-today.getTimezoneOffset()*60000).toISOString().slice(0,10);if(!$('statement-to').value)$('statement-to').value=local;if(!$('statement-from').value)$('statement-from').value=local.slice(0,8)+'01';
  if(selection)selectClass(selection.kind);
  const token=++epoch;const gl=await api(`gl-accounts/list?organisation_id=${encodeURIComponent(organisation)}`);if(!current(token))return;
- options('statement-gl',gl.gl_accounts||[],'gl_account_id',r=>`${r.account_code} · ${r.account_name}`,'All GL accounts');await types(selection?.typeId,selection?.objectId);
+ options('statement-gl',gl.gl_accounts||[],'gl_account_id',r=>`${r.account_code} · ${r.account_name}`,'All GL accounts');if(selection?.glAccountId)$('statement-gl').value=selection.glAccountId;await types(selection?.typeId,selection?.objectId);
  if(selection?.autoRun&&organisation===context().orgId&&!panel.hidden&&$('statement-type').value===selection.typeId&&$('statement-object').value===selection.objectId)await run();
  }
  function balance(value){return `${formatMoney(value.startsWith('-')?value.slice(1):value)} ${value.startsWith('-')?'Cr':'Dr'}`;}

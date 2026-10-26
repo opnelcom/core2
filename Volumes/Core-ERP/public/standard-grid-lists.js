@@ -31,7 +31,7 @@
     'journal-list': ['d', 't', 't', 'e', 'n', 'n'],
     'transaction-group-list': ['t', 't', 'n', 'e'],
     'transaction-reference': ['t', 't', 'e', 't', 'e', 'n', 'e'],
-    'workflow-status-list': ['t', 't', 't', 'e', 'e', 'e', 'e'],
+    'workflow-status-list': ['t', 't', 'e', 't', 'n', 'e', 'e', 'e'],
     'workflow-list': ['t', 'e', 'n', 'n', 'e'],
     'role-list': ['t', 't', 'e', 'n', 'n', 'n', 'n', 'e'],
     'erp-user-list': ['t', 't', 't', 'e', 'd', 'd', 'n', 'n'],
@@ -56,7 +56,7 @@
       assign(4, r => r.debit_total ?? null);
       assign(5, r => r.credit_total ?? null);
     }
-    if (id === 'workflow-status-list') assign(6, r => r.colour || '');
+    if (id === 'workflow-status-list') assign(2, r => r.colour || '');
     if (id === 'tax-type-list') assign(3, r => {
       const label = columns[3][1](r); return label === '' ? null : Number(String(label).replace(/%$/, ''));
     });

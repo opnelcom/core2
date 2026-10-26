@@ -11,13 +11,20 @@
     const selected=data.modules.find(module=>module.module_id===moduleId);
     if(moduleId && !selected){target.append(node('p','This module is no longer available.','empty'),button('All modules',onOverview,'secondary'));return;}
     if(!selected){
+      if(data.financial && globalThis.erpFinancialDashboard){
+        globalThis.erpFinancialDashboard.render({target,data:data.financial,formatMoney,onAccount});
+        target.append(node('h2','Module dashboards'));
+      }
+      if(data.financial_error)target.append(node('p',data.financial_error,'dashboard-description'));
       target.append(node('p','Records in transitional workflow statuses within the selected division scope.','dashboard-description'));
       if(!data.modules.length){target.append(node('p','No modules are available for your assigned roles.','empty'));return;}
+      const pendingModules=data.modules.filter(module=>Number(module.total)>0);
+      if(!pendingModules.length){target.append(node('p','No records in transitional statuses.','empty'));return;}
       const grid=node('div',undefined,'module-dashboard-grid');
-      for(const module of data.modules){
+      for(const module of pendingModules){
         const card=button('',()=>onModule(module.module_id),'module-dashboard-card');
         card.append(node('h2',module.module_name),node('strong',String(module.total),'module-dashboard-total'),
-          node('span',module.total?'Records in transitional statuses':'No records in transitional statuses'),
+          node('span','Records in transitional statuses'),
           node('span','View dashboard →','module-dashboard-link'));
         grid.append(card);
       }

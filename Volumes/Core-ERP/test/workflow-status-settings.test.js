@@ -119,3 +119,27 @@ test('all seeded statuses have descriptions and defaults, with hidden lifecycle 
     assert.equal(seeds.workflows.find(w=>w.path_name==='Sales Opportunity').steps.find(s=>s.step_code===code).enabled_for_use,false);
   }
 });
+
+
+test('status usage counts distinct workflow definitions including inactive workflows and zero usage', () => {
+  const vm = require('node:vm');
+  const source = fs.readFileSync(require.resolve('../public/app.js'), 'utf8');
+  let rendered;
+  const scope = {
+    state: {workflowPaths: [{workflow_path_id:'active',is_active:true},{workflow_path_id:'inactive',is_active:false}],
+      workflowSteps: [{workflow_path_id:'active',step_code:'draft'},{workflow_path_id:'active',step_code:'draft'},
+        {workflow_path_id:'inactive',step_code:'draft'},{workflow_path_id:'other-org',step_code:'draft'}],
+      workflowStatuses:[{status_code:'draft'},{status_code:'unused'}]},
+    $: () => ({}), rowMatches: () => true, searchTerm: () => '', selectWorkflowStatus: () => {},
+    table: (target, columns, rows) => {rendered = {columns,rows};}
+  };
+  vm.createContext(scope);
+  vm.runInContext(source.slice(source.indexOf('  function renderWorkflowStatuses(){'), source.indexOf('  let workflowStatusEditorSequence')), scope);
+  scope.renderWorkflowStatuses();
+  assert.equal(rendered.rows[0].workflow_count, 2);
+  assert.equal(rendered.rows[1].workflow_count, 0);
+  assert.equal(rendered.columns[4][0], 'Workflows');
+  scope.state.workflowSteps = [];
+  scope.renderWorkflowStatuses();
+  assert.equal(rendered.rows[0].workflow_count, 0);
+});

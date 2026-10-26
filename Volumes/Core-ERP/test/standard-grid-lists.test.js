@@ -32,3 +32,14 @@ test('numeric-looking country identifiers remain text while rate/count columns a
   const roles = lists.build('role-list', Array.from({ length: 8 }, (_, i) => ['Column ' + i, () => i]), context);
   assert.equal(roles.columns[3].type, 'number'); assert.equal(roles.columns[7].type, 'enum');
 });
+
+
+test('workflow usage is numeric for sorting, filters and exports', () => {
+  const columns = ['Code', 'Label', 'Colour', 'Description', 'Workflows', 'Enabled', 'Displayed', 'Transitional']
+    .map((label, index) => [label, row => index === 4 ? row.workflow_count : '']);
+  const config = lists.build('workflow-status-list', columns, context);
+  const rows = [{workflow_count: 2}, {workflow_count: 12}, {workflow_count: 0}];
+  assert.equal(config.columns[4].type, 'number');
+  assert.deepEqual(grid.filterRows(rows, config.columns, {'column-4': {min: '10'}}), [rows[1]]);
+  assert.equal(config.columns[4].exportValue(rows[2]), 0);
+});

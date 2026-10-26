@@ -6,9 +6,9 @@
     <title>Core ERP</title>
     <link
       rel="stylesheet"
-      href="/erp/style.css?v=20261023-standard-grid"
+      href="/erp/style.css?v=20261026-financial-left-bars"
     />
-    <link rel="stylesheet" href="/erp/standard-grid.css?v=20261026-solid-filters" />
+    <link rel="stylesheet" href="/erp/standard-grid.css?v=20261026-hover-filters" />
     <script>
       (function () {
         try {
@@ -194,7 +194,7 @@
             <p id="page-subtitle" hidden></p>
           </div>
           <div class="topbar-actions">
-            <button id="refresh">Refresh</button>
+            <button id="refresh" type="button" aria-label="Refresh" title="Refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true" focusable="false"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 6M4 12l2 6a7 7 0 0 0 12-1"/></svg></button>
           </div>
         </header>
         <div id="alert" class="alert" hidden>
@@ -2147,16 +2147,17 @@
     <script src="/erp/schema-visibility.js?v=20261021-conditional-options"></script>
     <script src="/erp/workflow-grid-visibility.js?v=20261021-compact-grids"></script>
     <script src="/erp/standard-grid.js?v=20261023-grid-tools"></script>
-    <script src="/erp/standard-grid-lists.js?v=20261023-list-rollout"></script>
+    <script src="/erp/standard-grid-lists.js?v=20261026-status-column"></script>
     <script src="/erp/object-grid-views.js?v=20261023-grid-tools"></script>
-    <script src="/erp/module-dashboard.js?v=20261021-balances"></script>
-    <script src="/erp/object-statement.js?v=20261021-output"></script>
-    <script src="/erp/object-actions.js?v=20261021-allocation-picker-popover"></script>
+    <script src="/erp/financial-dashboard.js?v=20261026-type-record-balances"></script>
+    <script src="/erp/module-dashboard.js?v=20261026-pending-tiles"></script>
+    <script src="/erp/object-statement.js?v=20261026-gl-selection"></script>
+    <script src="/erp/object-actions.js?v=20261026-compact-actions"></script>
     <script src="/erp/record-editor-layout.js?v=20261021-stacked-default"></script>
     <script src="/erp/editor-conventions.js?v=20261022"></script>
     <script src="/erp/modal-editors.js?v=20261022-sizing"></script>
     <script src="/erp/movable-panels.js?v=20261022-editor-sizing"></script>
     <script src="/erp/organisation-users.js?v=20261022-user-minus"></script>
-    <script src="/erp/app.js?v=20261023-grid-tools"></script>
+    <script src="/erp/app.js?v=20261026-financial-overview"></script>
   </body>
 </html>
