@@ -1,4 +1,5 @@
 'use strict';
+const {hasUserDivisionAccess}=require('./user-access');
 
 const {isAdministrator}=require('./access');
 const {authTenant}=require('./auth');
@@ -70,8 +71,6 @@ async function moveWorkflowObject(ctx,access,{kind,id,actionId,comment=''}) {
   access=await authTenant(ctx,row.organisation_id);
   if(access.status)return access;
   if(!row.workflow_path_id)return {status:400,body:{error:'Object type does not have a workflow path'}};
-  const moduleDenied=await require('./access').requireModuleAccess(ctx,access,{organisationId:row.organisation_id,resourceKind:kind+'_type',resourceCode:row.object_type_id});
-  if(moduleDenied)return moduleDenied;
   const transition=await ctx.broker('core_erp','query',{
     text:`SELECT next.next_step_code,next.action_label
           FROM erp_workflow_next next
@@ -88,6 +87,7 @@ async function moveWorkflowObject(ctx,access,{kind,id,actionId,comment=''}) {
   });
   if(!transition.rowCount)return {status:400,body:{error:'Workflow move is not configured for the current step'}};
   if(!await hasWorkflowActionRole(ctx,access,row.organisation_id,actionId))return {status:403,body:{error:'You do not hold an assigned permission role for this workflow action'}};
+  if(!await hasUserDivisionAccess(ctx,access,row.organisation_id,row.owner_division_id))return {status:403,body:{error:'A current assignment to this division is required'}};
   const targetCode=transition.rows[0].next_step_code;
   const administrator=isAdministrator(access);
   const permitted=administrator?{rowCount:1}:await ctx.broker('core_erp','query',{

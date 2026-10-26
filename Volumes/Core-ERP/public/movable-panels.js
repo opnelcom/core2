@@ -69,6 +69,7 @@
       position(record, rect.left, rect.top, rect.width, rect.height);
     }
     function register(candidate) {
+      if (candidate.matches(".erp-editor-dialog, #transaction-type-form")) return;
       // Resource roles have a floating wrapper; fiscal editors are already separate panel surfaces.
       const panel = candidate.closest(".organisation-setup-panel-wrapper") || candidate;
       if (panel.closest(".movable-editor") && !records.has(panel)) return;

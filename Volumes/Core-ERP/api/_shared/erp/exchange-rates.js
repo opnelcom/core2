@@ -1,4 +1,5 @@
 'use strict';
+const {organisationUserAccessSql}=require('./user-access');
 const math = require('../../../public/exchange-rate-math');
 const {randomUUID}=require('node:crypto');
 const {createTransactionPlan}=require('./transaction-plan');
@@ -32,6 +33,7 @@ async function executeExchangeRateSave(client, input, plan = null) {
   if (!organisation.rows.length) throw fail(404, 'Organisation not found');
   const admin = await client.query(`SELECT 1 FROM erp_user_role ur JOIN erp_role r ON r.role_id=ur.role_id
     WHERE ur.tenant_id=$1 AND ur.organisation_id=$2 AND lower(ur.email)=lower($3)
+      AND ${organisationUserAccessSql({tenant:'$1',organisation:'$2',email:'$3'})}
       AND r.is_admin=true AND r.is_active=true AND ur.valid_from<=CURRENT_DATE
       AND (ur.valid_to IS NULL OR ur.valid_to>=CURRENT_DATE)`, [...scope, email]);
   if (!admin.rows.length) throw fail(403, 'Administrator access required');

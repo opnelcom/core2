@@ -15,7 +15,7 @@ const templateResetTables = [
   'erp_accounting_object', 'erp_accounting_dimension', 'erp_gl_account', 'erp_subledger_account',
   'erp_accounting_object_type', 'erp_accounting_dimension_type', 'erp_gl_account_type', 'erp_subledger_account_type',
   'erp_workflow_action_role', 'erp_workflow_next', 'erp_workflow_path_status', 'erp_workflow_path', 'erp_workflow_status',
-  'erp_user_role', 'erp_role_permission', 'erp_role', 'erp_report',
+  'erp_user_division', 'erp_user_role', 'erp_role_permission', 'erp_role', 'erp_report',
   'erp_resource', 'erp_resource_role', 'erp_module',
   'erp_legal_entity_relationship', 'erp_legal_entity_address', 'erp_legal_entity_identification', 'erp_legal_entity',
   'erp_fiscal_period', 'erp_fiscal_year', 'erp_tax_rate', 'erp_tax_type',

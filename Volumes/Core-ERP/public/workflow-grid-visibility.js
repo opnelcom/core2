@@ -19,7 +19,11 @@
       input.type = 'checkbox';
       label.append(input, document.createTextNode('Show hidden records'));
       const filters = target.closest('.object-grid-panel')?.querySelector('.object-grid-filters');
-      if (filters) filters.append(label);
+      if (filters) {
+        const tools = filters.querySelector('.object-grid-tools');
+        if (tools) tools.before(label);
+        else filters.append(label);
+      }
       else target.before(label);
       control = { label, input };
       controls.set(target, control);

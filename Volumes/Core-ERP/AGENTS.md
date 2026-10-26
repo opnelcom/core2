@@ -7,6 +7,8 @@
 - Standardisation is important. Prefer reusable code and established application patterns over duplicated or feature-specific implementations.
 - Distinguish the owner's intended business rules from the current implementation. If they conflict, explain the discrepancy and confirm the proposed resolution before changing behaviour.
 
+- All ERP record edit panels must use the shared native modal editor controller, including dynamically created editors. Transaction Type setup is the sole inline editor exception. Preserve existing close/save handling, focus containment, and movable/resizable editor controls.
+
 - Standardise panel and dialog dismissal on the accessible × close button. Do not add Cancel buttons. Closing does not undo saved changes; preserve existing dismissal behaviour and unsaved-change handling.
 
 ### Change presentation and confirmation

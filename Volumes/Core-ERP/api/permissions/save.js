@@ -7,6 +7,10 @@ const {
   bool,
 } = require("../_shared/erp");
 
+const {randomUUID}=require('node:crypto');
+const {createTransactionPlan}=require('../_shared/erp/transaction-plan');
+const {validateRoleUsers}=require('../_shared/erp/user-assignments');
+
 function roleCodeFromName(value) {
   return (
     clean(value)
@@ -37,24 +41,18 @@ module.exports = async (ctx) => {
   const transactionPermissions = Array.isArray(ctx.body.transaction_permissions)
     ? ctx.body.transaction_permissions
     : [];
-  const roleUsers = Array.isArray(ctx.body.role_users)
+  const requestedRoleUsers = Array.isArray(ctx.body.role_users)
     ? ctx.body.role_users
     : [];
-  const moduleIds = [
-    ...new Set(
-      (Array.isArray(ctx.body.module_ids) ? ctx.body.module_ids : [])
-        .map(String)
-        .filter(Boolean),
-    ),
-  ];
   if (!orgId || !name)
     return ctx.send(400, {
       error: "organisation_id and role name are required",
     });
-  if (!isAdmin && !moduleIds.length)
-    return ctx.send(400, {
-      error: "At least one module is required for a non-administrator role",
-    });
+  const plan=createTransactionPlan(ctx,['erp_role','erp_role_permission','erp_user_role','erp_organisation_user']);
+  const client=plan.client;
+  let roleUsers;
+  try {roleUsers=await validateRoleUsers(client,{tenantId:access.tenantId,organisationId:orgId,roleId:id,rows:requestedRoleUsers});}
+  catch(error){if(error.status)return ctx.send(error.status,{error:error.message});throw error;}
   const reportPermissions = Array.isArray(ctx.body.report_permissions) ? ctx.body.report_permissions : [];
   if (ctx.body.report_permissions !== undefined && !Array.isArray(ctx.body.report_permissions))
     return ctx.send(400,{error:"Report permissions must be a list"});
@@ -64,61 +62,20 @@ module.exports = async (ctx) => {
       return ctx.send(400, {error:"Report grants require a report, a division and View access"});
     const reportIds = [...new Set(reportPermissions.map(row => row.resource_code))];
     const divisionIds = [...new Set(reportPermissions.map(row => row.division_id))];
-    const reports = await ctx.broker("core_erp", "query", {text:"SELECT report_id FROM erp_report WHERE tenant_id=$1 AND organisation_id=$2 AND report_id=ANY($3::uuid[])",values:[access.tenantId,orgId,reportIds]});
-    const divisions = await ctx.broker("core_erp", "query", {text:"SELECT division_id FROM erp_division WHERE tenant_id=$1 AND organisation_id=$2 AND division_id=ANY($3::uuid[]) AND workflow_status<>'deleted'",values:[access.tenantId,orgId,divisionIds]});
+    const reports = await client.query("SELECT report_id FROM erp_report WHERE tenant_id=$1 AND organisation_id=$2 AND report_id=ANY($3::uuid[])",[access.tenantId,orgId,reportIds]);
+    const divisions = await client.query("SELECT division_id FROM erp_division WHERE tenant_id=$1 AND organisation_id=$2 AND division_id=ANY($3::uuid[]) AND workflow_status<>'deleted'",[access.tenantId,orgId,divisionIds]);
     if(reports.rows.length!==reportIds.length||divisions.rows.length!==divisionIds.length)
       return ctx.send(400,{error:"Report grants must belong to this organisation and use available divisions"});
   }
-  if (moduleIds.length) {
-    const modules = await ctx.broker("core_erp", "query", {
-      text: `SELECT module_id FROM erp_module WHERE tenant_id=$1 AND organisation_id=$2 AND module_id=ANY($3::uuid[]) AND is_active=true`,
-      values: [access.tenantId, orgId, moduleIds],
-    });
-    if (modules.rows.length !== moduleIds.length)
-      return ctx.send(400, {
-        error:
-          "Every selected module must be active and belong to this organisation",
-      });
-  }
-
   const roleCode = id ? null : roleCodeFromName(name);
-  const saved = id
-    ? await ctx.broker("core_erp", "query", {
-        text: `UPDATE erp_role
-              SET role_name=$3,role_description=$4,is_admin=$5,is_active=$6
-              WHERE tenant_id=$1 AND organisation_id=$2 AND role_id=$7
-              RETURNING *`,
-        values: [
-          access.tenantId,
-          orgId,
-          name,
-          description,
-          isAdmin,
-          isActive,
-          id,
-        ],
-      })
-    : await ctx.broker("core_erp", "query", {
-        text: `INSERT INTO erp_role(tenant_id,organisation_id,role_code,role_name,role_description,is_admin,is_active)
-              VALUES($1,$2,$3,$4,$5,$6,$7)
-              ON CONFLICT(tenant_id,organisation_id,role_code) DO UPDATE
-              SET role_name=excluded.role_name,
-                  role_description=excluded.role_description,
-                  is_admin=excluded.is_admin,
-                  is_active=excluded.is_active
-              RETURNING *`,
-        values: [
-          access.tenantId,
-          orgId,
-          roleCode,
-          name,
-          description,
-          isAdmin,
-          isActive,
-        ],
-      });
-  if (!saved.rows.length) return ctx.send(404, { error: "Role was not found" });
-  const roleId = saved.rows[0].role_id;
+  const existing=await client.query(`SELECT * FROM erp_role WHERE tenant_id=$1 AND organisation_id=$2 AND ${id?'role_id=$3::uuid':'role_code=$3'}`,[access.tenantId,orgId,id||roleCode]);
+  if(id&&!existing.rows.length)return ctx.send(404,{error:'Role was not found'});
+  const roleId=existing.rows[0]?.role_id||randomUUID();
+  await client.query("SELECT * FROM erp_user_role WHERE tenant_id=$1 AND organisation_id=$2 AND role_id=$3",[access.tenantId,orgId,roleId]);
+  plan.write({text:`INSERT INTO erp_role(role_id,tenant_id,organisation_id,role_code,role_name,role_description,is_admin,is_active)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(role_id) DO UPDATE SET role_name=excluded.role_name,
+      role_description=excluded.role_description,is_admin=excluded.is_admin,is_active=excluded.is_active,updated_at=now()`,
+    values:[roleId,access.tenantId,orgId,existing.rows[0]?.role_code||roleCode,name,description,isAdmin,isActive]});
 
   const statements = [
     {
@@ -129,17 +86,7 @@ module.exports = async (ctx) => {
       text: `DELETE FROM erp_user_role WHERE tenant_id=$1 AND organisation_id=$2 AND role_id=$3`,
       values: [access.tenantId, orgId, roleId],
     },
-    {
-      text: `DELETE FROM erp_role_module WHERE role_id=$1`,
-      values: [roleId],
-    },
   ];
-  moduleIds.forEach((moduleId) =>
-    statements.push({
-      text: `INSERT INTO erp_role_module(role_id,module_id) VALUES($1,$2)`,
-      values: [roleId, moduleId],
-    }),
-  );
   const addPermission = (kind, row) => {
     const divisionId = nullable(row.division_id);
     const resourceCode = clean(
@@ -196,8 +143,9 @@ module.exports = async (ctx) => {
     });
   });
 
-  await ctx.broker("core_erp", "transaction", { statements });
-  return { ok: true, role: saved.rows[0] };
+  statements.forEach(statement=>plan.write(statement));
+  await plan.commit();
+  return {ok:true,role:{role_id:roleId,role_name:name}};
 };
 
 module.exports=require("../_shared/context").withContext(module.exports);

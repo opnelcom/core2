@@ -96,7 +96,8 @@
         buttons.push(button);
         label.append(button);
       }
-      const tools = toolbar.classList.contains("object-grid-toolbar") && toolbar.querySelector(".panel-actions");
+      const tools = toolbar.parentElement?.querySelector(".object-grid-tools") ||
+        (toolbar.classList.contains("object-grid-toolbar") && toolbar.querySelector(".panel-actions"));
       if (tools) tools.append(label);
       else toolbar.prepend(label);
       control = { label, buttons, view: "columnar" };
@@ -115,9 +116,14 @@
     }
     if (!enabled || control.view === "columnar") {
       target.classList.remove("object-status-grid-wrap");
-      table(target, columns, rows, onOpen, true);
+      if (options.standardGrid) {
+        globalThis.erpStandardGrid.render({ ...options.standardGrid, target, toolbar, rows, onOpen,
+          contextKey, beforeChange, columns: options.standardGrid.columns.map((column, index) =>
+            ({ ...column, label: columns[index][0], render: columns[index][1] })) });
+      } else table(target, columns, rows, onOpen, true);
       return;
     }
+    globalThis.erpStandardGrid?.suspend(target);
     target.replaceChildren();
     target.classList.add("grid-wrap", "object-status-grid-wrap");
     if (!rows.length) {

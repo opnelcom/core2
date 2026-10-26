@@ -27,6 +27,7 @@ function fixture(){
       .replaceAll('bool_or(', 'max(').replaceAll('CURRENT_DATE',"'2026-10-21'");
     return db.prepare(sql).get({$1:'tenant',$2:'org',$4:'viewer',$5:Number(admin),$6:division,$7:Number(children),$8:account});
   }
+ require('./fixtures/user-access').grantUserAccess(db,{tenantId:'tenant',organisationId:'org',email:'viewer'});
   return {db,post,balance};
 }
 test('posted cumulative signed balance excludes future, drafts, other accounts and foreign scope',()=>{

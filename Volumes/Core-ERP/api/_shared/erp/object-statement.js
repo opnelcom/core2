@@ -1,7 +1,8 @@
 'use strict';
+const {userDivisionAccessSql}=require('./user-access');
 const {validDate}=require('./trial-balance');
 const {transactionVisibilitySql}=require('./transaction-visibility');
-const {requireBusinessAccess,requireModuleAccess,hasResourcePermission,isAdministrator}=require('./access');
+const {requireBusinessAccess,hasResourcePermission,isAdministrator}=require('./access');
 const classes=require('./object-classes');
 const {postedLineScopeSql}=require('./posted-line-scope');
 function fail(message,status=400){throw Object.assign(new Error(message),{status});}
@@ -18,7 +19,7 @@ function validate(query){
 }
 // Trusted table/column metadata only; all selection values are parameters.
 function objectVisibilitySql(meta,kind,{tenant='$1',organisation='$2',email='$7',administrator='$8'}={}){
- return `(${administrator}::boolean OR EXISTS (
+ return `(${userDivisionAccessSql({tenant,organisation,email,division:"o.owner_division_id"})} AND (${administrator}::boolean OR EXISTS (
  WITH RECURSIVE ancestors AS (
  SELECT division_id,parent_division_id,0 depth FROM erp_division WHERE tenant_id=${tenant} AND organisation_id=${organisation} AND division_id=o.owner_division_id
  UNION ALL SELECT p.division_id,p.parent_division_id,c.depth+1 FROM erp_division p JOIN ancestors c ON c.parent_division_id=p.division_id WHERE p.tenant_id=${tenant} AND p.organisation_id=${organisation})
@@ -28,9 +29,7 @@ function objectVisibilitySql(meta,kind,{tenant='$1',organisation='$2',email='$7'
  AND rp.valid_from<=CURRENT_DATE AND (rp.valid_to IS NULL OR rp.valid_to>=CURRENT_DATE)
  AND rp.resource_kind='${kind}' AND (rp.resource_code=o.${meta.type}::text OR rp.resource_code='*') AND rp.workflow_status IN ('view','*')
  AND (s.depth=0 OR rp.applies_to_children=true)
- AND EXISTS(SELECT 1 FROM erp_user_role module_user JOIN erp_role module_role ON module_role.role_id=module_user.role_id JOIN erp_role_module rm ON rm.role_id=module_role.role_id JOIN ${meta.types}_module link ON link.module_id=rm.module_id
- WHERE module_user.tenant_id=${tenant} AND module_user.organisation_id=${organisation} AND lower(module_user.email)=lower(${email}) AND module_role.is_active=true
- AND module_user.valid_from<=CURRENT_DATE AND (module_user.valid_to IS NULL OR module_user.valid_to>=CURRENT_DATE) AND link.${meta.type}=o.${meta.type})))`;
+)))`;
 }
 function statementSql(kind){
  const m=classes[kind];if(!m)fail('Unsupported object class');
@@ -69,7 +68,6 @@ async function runStatement(ctx,access){
  const denied=await requireBusinessAccess(ctx,access,q.organisation_id);if(denied)fail(denied.body.error,denied.status);
  const record=await ctx.broker('core_erp','query',{text:`SELECT o.${m.id} object_id,o.${m.type} object_type_id,o.${m.code} object_code,o.${m.name} object_name,o.owner_division_id,t.type_name,org.organisation_name,org.base_currency_code FROM ${m.table} o JOIN ${m.types} t ON t.${m.type}=o.${m.type} AND t.tenant_id=o.tenant_id AND t.organisation_id=o.organisation_id JOIN erp_organisation org ON org.organisation_id=o.organisation_id AND org.tenant_id=o.tenant_id WHERE o.tenant_id=$1 AND o.organisation_id=$2 AND o.${m.id}=$3 AND o.${m.type}=$4`,values:[access.tenantId,q.organisation_id,q.object_id,q.object_type_id]});
  const object=record.rows[0];if(!object)fail('Object not found for the selected organisation and type',404);
- const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:q.organisation_id,resourceKind:`${q.object_class}_type`,resourceCode:q.object_type_id});if(moduleDenied)fail(moduleDenied.body.error,moduleDenied.status);
  if(!await hasResourcePermission(ctx,access,{organisationId:q.organisation_id,divisionId:object.owner_division_id,resourceKind:q.object_class,resourceCode:q.object_type_id,workflowStatus:'view'}))fail('You do not have permission to view this object',403);
  if(q.gl_account_id){const gl=await ctx.broker('core_erp','query',{text:'SELECT account_code,account_name FROM erp_gl_account WHERE tenant_id=$1 AND organisation_id=$2 AND gl_account_id=$3',values:[access.tenantId,q.organisation_id,q.gl_account_id]});if(!gl.rows.length)fail('GL account not found in this organisation',404);object.gl_account=gl.rows[0];}
  const result=await ctx.broker('core_erp','query',{text:statementSql(q.object_class),values:[access.tenantId,q.organisation_id,q.date_from,q.date_to,q.object_id,children,access.auth.email,isAdministrator(access),q.gl_account_id||null,offset,q.division_id||null,q.include_child_divisions==='1']});

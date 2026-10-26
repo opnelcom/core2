@@ -1,4 +1,5 @@
 'use strict';
+const {organisationUserAccessSql,hasUserDivisionAccess}=require('./user-access');
 
 function isAdministrator(access){
   return access?.setupAdministrator===true;
@@ -21,9 +22,6 @@ async function hasSetupAdministratorAssignment(ctx,tenantId){
           JOIN erp_role role ON role.role_id=ur.role_id
           WHERE ur.tenant_id=$1
             AND role.is_admin=true
-            AND role.is_active=true
-            AND ur.valid_from<=CURRENT_DATE
-            AND (ur.valid_to IS NULL OR ur.valid_to>=CURRENT_DATE)
           LIMIT 1`,
     values:[tenantId]
   });
@@ -34,14 +32,17 @@ async function canBootstrapSetup(ctx,tenantId){
   return !await hasSetupAdministratorAssignment(ctx,tenantId);
 }
 
-async function isTenantSetupAdministrator(ctx,{tenantId,email}){
+async function isTenantSetupAdministrator(ctx,{tenantId,email,allowUserSchemaUpgrade=false}){
   if(!tenantId||!email||!await setupAccessTablesExist(ctx))return false;
+  const userTable=allowUserSchemaUpgrade?await ctx.broker('core_erp','query',{text:"SELECT to_regclass('erp_organisation_user') user_table"}):null;
+  const userScope=allowUserSchemaUpgrade&&!userTable.rows[0]?.user_table?'true':organisationUserAccessSql({tenant:'ur.tenant_id',organisation:'ur.organisation_id',email:'ur.email'});
   const result=await ctx.broker('core_erp','query',{
     text:`SELECT 1
           FROM erp_user_role ur
           JOIN erp_role role ON role.role_id=ur.role_id
           WHERE ur.tenant_id=$1
             AND lower(ur.email)=lower($2)
+            AND ${userScope}
             AND role.is_admin=true
             AND role.is_active=true
             AND ur.valid_from<=CURRENT_DATE
@@ -57,8 +58,10 @@ async function canInitialiseTemplateOrganisation(ctx,{tenantId,email}){
   return isTenantSetupAdministrator(ctx,{tenantId,email});
 }
 
-async function isSetupAdministrator(ctx,{tenantId,organisationId,email}){
+async function isSetupAdministrator(ctx,{tenantId,organisationId,email,allowUserSchemaUpgrade=false}){
   if(!tenantId||!organisationId||!email||!await setupAccessTablesExist(ctx))return false;
+  const userTable=allowUserSchemaUpgrade?await ctx.broker('core_erp','query',{text:"SELECT to_regclass('erp_organisation_user') user_table"}):null;
+  const userScope=allowUserSchemaUpgrade&&!userTable.rows[0]?.user_table?'true':organisationUserAccessSql({tenant:'ur.tenant_id',organisation:'ur.organisation_id',email:'ur.email'});
   const result=await ctx.broker('core_erp','query',{
     text:`SELECT 1
           FROM erp_user_role ur
@@ -66,6 +69,7 @@ async function isSetupAdministrator(ctx,{tenantId,organisationId,email}){
           WHERE ur.tenant_id=$1
             AND ur.organisation_id=$2
             AND lower(ur.email)=lower($3)
+            AND ${userScope}
             AND role.is_admin=true
             AND role.is_active=true
             AND ur.valid_from<=CURRENT_DATE
@@ -84,6 +88,8 @@ function requireAdmin(access){
 }
 
 async function hasResourcePermission(ctx,access,{organisationId,divisionId,resourceKind,resourceCode,workflowStatus}){
+  if(!organisationId||!divisionId)return false;
+  if(!await hasUserDivisionAccess(ctx,access,organisationId,divisionId))return false;
   if(isAdministrator(access))return true;
   if(!organisationId||!divisionId||!resourceKind||!resourceCode||!workflowStatus)return false;
   const result=await ctx.broker('core_erp','query',{
@@ -163,7 +169,6 @@ async function requireBusinessAccess(ctx,access,organisationId){
   const result=await ctx.broker('core_erp','query',{
     text:`SELECT 1 FROM erp_user_role ur
           JOIN erp_role role ON role.role_id=ur.role_id
-          JOIN erp_role_module rm ON rm.role_id=role.role_id
           JOIN erp_role_permission rp ON rp.role_id=role.role_id
           WHERE ur.tenant_id=$1 AND ur.organisation_id=$2 AND lower(ur.email)=lower($3)
             AND role.is_active=true AND ur.valid_from<=CURRENT_DATE AND (ur.valid_to IS NULL OR ur.valid_to>=CURRENT_DATE)
@@ -175,28 +180,4 @@ async function requireBusinessAccess(ctx,access,organisationId){
   return {status:403,body:{error:'Business-data access is required'}};
 }
 
-async function requireModuleAccess(ctx,access,{organisationId,resourceKind,resourceCode}){
-  if(isAdministrator(access))return null;
-  const links={
-    subledger_account_type:{table:'erp_subledger_account_type_module',condition:'link.subledger_account_type_id=$4::uuid'},
-    accounting_object_type:{table:'erp_accounting_object_type_module',condition:'link.accounting_object_type_id=$4::uuid'},
-    accounting_dimension_type:{table:'erp_accounting_dimension_type_module',condition:'link.accounting_dimension_type_id=$4::uuid'},
-    transaction_type:{table:'erp_transaction_type_module',condition:'link.transaction_type_id=$4::uuid'}
-  };
-  const link=links[resourceKind];
-  if(!link||!organisationId||!resourceCode)return {status:403,body:{error:'Module access is required for this ERP resource'}};
-  const result=await ctx.broker('core_erp','query',{
-    text:`SELECT 1 FROM erp_user_role ur JOIN erp_role role ON role.role_id=ur.role_id
-          WHERE ur.tenant_id=$1 AND ur.organisation_id=$2 AND lower(ur.email)=lower($3)
-          AND role.is_active=true AND ur.valid_from<=CURRENT_DATE AND (ur.valid_to IS NULL OR ur.valid_to>=CURRENT_DATE)
-          AND EXISTS (
-            SELECT 1 FROM erp_role_module rm JOIN ${link.table} link ON link.module_id=rm.module_id
-            WHERE rm.role_id=role.role_id AND ${link.condition}
-          ) LIMIT 1`,
-    values:[access.tenantId,organisationId,access.auth.email,resourceCode]
-  });
-  if(result.rowCount)return null;
-  return {status:403,body:{error:'Your assigned roles do not provide access to a module linked to this ERP resource'}};
-}
-
-module.exports={isAdministrator,setupAccessTablesExist,hasSetupAdministratorAssignment,canBootstrapSetup,isTenantSetupAdministrator,canInitialiseTemplateOrganisation,isSetupAdministrator,requireAdmin,hasResourcePermission,requireResourcePermission,hasOrganisationResourcePermission,requireOrganisationResourcePermission,requireBusinessAccess,requireModuleAccess};
+module.exports={isAdministrator,setupAccessTablesExist,hasSetupAdministratorAssignment,canBootstrapSetup,isTenantSetupAdministrator,canInitialiseTemplateOrganisation,isSetupAdministrator,requireAdmin,hasResourcePermission,requireResourcePermission,hasOrganisationResourcePermission,requireOrganisationResourcePermission,requireBusinessAccess};

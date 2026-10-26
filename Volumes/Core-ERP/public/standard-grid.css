@@ -1,0 +1,47 @@
+/* Shared list-grid control. Product colours inherit the current ERP theme. */
+.standard-grid-wrap .standard-grid { table-layout: fixed; min-width: 100%; }
+.standard-grid-list-toolbar { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+.object-grid-panel .object-grid-filters > .grid-search { flex: 1 1 180px; max-width: 340px; }
+.object-grid-tools { display: flex; align-items: center; flex-wrap: nowrap; gap: 8px; margin-left: auto; }
+.object-grid-tools .object-grid-view-control { margin: 0; gap: 8px; }
+.object-grid-tools > button { width: auto; height: 34px; min-height: 34px; padding-top: 0; padding-bottom: 0; }
+.object-grid-tools > .standard-grid-menu-trigger { width: 34px; padding-left: 7px; padding-right: 7px; }
+@media (max-width: 620px) {
+  .object-grid-panel .object-grid-filters > .grid-search { flex-basis: 100%; max-width: none; }
+}
+.standard-grid th { position: relative; padding: 5px 14px 5px 8px; vertical-align: middle; border: 0; border-bottom: 1px solid var(--line); }
+.standard-grid td { overflow-wrap: anywhere; }
+.standard-grid .workflow-status-wrap { width: 100%; min-width: 0; max-width: 220px; }
+.standard-grid .workflow-status-button { width: 100%; max-width: 100%; min-width: 0; flex: 1 1 auto; }
+.standard-grid-heading { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 26px; }
+.standard-grid-heading > span, .standard-grid-sort { flex: 1; min-width: 0; }
+.standard-grid .standard-grid-sort { background: transparent; color: var(--muted); border: 0; border-radius: 0; min-height: 26px; padding: 0; text-align: left; font: inherit; letter-spacing: inherit; text-transform: inherit; white-space: normal; }
+.standard-grid .standard-grid-sort:hover { color: var(--brand); background: transparent; }
+.standard-grid-icon { display: inline-flex; align-items: center; justify-content: center; width: 30px; min-width: 30px; min-height: 30px; padding: 5px; }
+.standard-grid-icon svg { width: 18px; height: 18px; flex: none; }
+.standard-grid [data-filter-key] svg { fill: currentColor; }
+.standard-grid-heading .standard-grid-icon { width: 26px; min-width: 26px; min-height: 26px; border: 0; background: transparent; color: var(--muted); }
+.standard-grid-heading .standard-grid-filter-active { color: var(--brand); background: var(--badge-surface); outline: 1px solid var(--brand); }
+.standard-grid-resize { position: absolute; right: 0; top: 0; width: 8px; height: 100%; cursor: col-resize; touch-action: none; border-right: 2px solid transparent; }
+.standard-grid-resize:hover, .standard-grid-resize:focus-visible { border-right-color: var(--line); }
+.standard-grid-number { text-align: right; font-variant-numeric: tabular-nums; }
+.standard-grid-summary { padding: 10px 0; font-size: 12px; color: var(--muted); }
+.standard-grid-popover { position: fixed; inset: auto; margin: 0; width: min(340px, calc(100vw - 16px)); max-height: calc(100dvh - 16px); box-sizing: border-box; overflow: auto; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); box-shadow: var(--shadow); }
+.standard-grid-popover-heading { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-right: 28px; margin-bottom: 14px; font-weight: 500; }
+.standard-grid-popover .standard-grid-close { top: -6px; right: -6px; }
+.standard-grid-filter-fields { display: grid; gap: 12px; min-width: 0; }
+.standard-grid-filter-fields > input[type="search"] { width: 100%; min-width: 0; min-height: 34px; }
+.standard-grid-filter-fields p { margin: 0; font-size: 12px; }
+.standard-grid-selection-tools { display: flex; align-items: center; gap: 6px; }
+.standard-grid-selection-count { margin-left: auto; color: var(--muted); font-size: 12px; }
+.standard-grid-enum-options { display: grid; gap: 8px; max-height: 220px; overflow-y: auto; }
+.standard-grid-enum-options label.check { display: flex; gap: 8px; align-items: flex-start; overflow-wrap: anywhere; }
+.standard-grid-enum-options label[hidden] { display: none; }
+.standard-grid-popover-footer { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; }
+.standard-grid-popover-footer > button { flex: 0 0 auto; width: auto; min-width: 72px; min-height: 34px; padding: 8px 12px; text-align: center; }
+.standard-grid-menu { width: min(220px, calc(100vw - 16px)); }
+.standard-grid-menu > button { display: block; width: 100%; text-align: left; margin-top: 6px; }
+@media (pointer: coarse) {
+  .standard-grid-heading .standard-grid-icon, .standard-grid-icon { min-width: 44px; min-height: 44px; }
+  .standard-grid-resize { width: 12px; }
+}

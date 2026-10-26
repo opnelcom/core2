@@ -1,5 +1,5 @@
 "use strict";
-const { requireModuleAccess, hasResourcePermission, hasOrganisationResourcePermission } = require("./access");
+const { hasResourcePermission, hasOrganisationResourcePermission } = require("./access");
 const {workflowUseSql}=require('./workflow-configuration');
 const { referenceFields } = require("./schema-grids");
 
@@ -20,7 +20,6 @@ async function canReadReference(ctx, access, organisationId, kind, row) {
     return await hasOrganisationResourcePermission(ctx, access, { organisationId, resourceKind: kind, resourceCode: "*", workflowStatus: "view" }) ||
       await hasOrganisationResourcePermission(ctx, access, { organisationId, resourceKind: kind, resourceCode: "*", workflowStatus: "manage" });
   }
-  if (await requireModuleAccess(ctx, access, { organisationId, resourceKind: `${kind}_type`, resourceCode: row.type_id })) return false;
   return hasResourcePermission(ctx, access, { organisationId, divisionId: row.owner_division_id, resourceKind: kind, resourceCode: row.type_id, workflowStatus: "view" });
 }
 

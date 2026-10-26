@@ -66,6 +66,7 @@ function fixture({ administrator = false, permission = null, lineDivision = "roo
       },
     });
   }
+ require('./fixtures/user-access').grantUserAccess(db,{tenantId:'tenant',organisationId:'org',email:'user@example.com'});
   return { db,run };
 }
 

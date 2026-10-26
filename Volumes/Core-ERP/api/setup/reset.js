@@ -28,10 +28,6 @@ module.exports = async (ctx) => {
       USING erp_transaction_type parent
       WHERE link.transaction_type_id=parent.transaction_type_id
         AND parent.tenant_id=$1`,
-    `DELETE FROM erp_role_module link
-      USING erp_role parent
-      WHERE link.role_id=parent.role_id
-        AND parent.tenant_id=$1`,
     `DELETE FROM erp_resource_assignment WHERE tenant_id=$1`,
     `DELETE FROM erp_object_type_resource_role WHERE tenant_id=$1`,
     `DELETE FROM erp_resource_role_module link
@@ -47,7 +43,9 @@ module.exports = async (ctx) => {
     `DELETE FROM erp_financial_statement_line WHERE tenant_id=$1`,
     `DELETE FROM erp_financial_statement_format WHERE tenant_id=$1`,
     `DELETE FROM erp_organisation_openai_setting WHERE tenant_id=$1`,
+    `DELETE FROM erp_user_division WHERE tenant_id=$1`,
     `DELETE FROM erp_user_role WHERE tenant_id=$1`,
+    `DELETE FROM erp_organisation_user WHERE tenant_id=$1`,
     `DELETE FROM erp_role_permission WHERE tenant_id=$1`,
     `DELETE FROM erp_report WHERE tenant_id=$1`,
     `DELETE FROM erp_role WHERE tenant_id=$1`,

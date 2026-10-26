@@ -32,7 +32,7 @@ test('module groups start collapsed, omit empty groups and retain module and act
   assert.match(html, /aria-expanded="false"/);
   assert.match(html, /id="module-cash-transaction-group-payments"[^>]*hidden/);
   assert.match(html, /data-transaction-type="payment"/);
-  assert.match(html, /data-transaction-type="restricted"/);
+  assert.doesNotMatch(html, /data-transaction-type="restricted"/);
   assert.match(html, /menu-entry--depth-3/);
   assert.doesNotMatch(html, /Other module|Inactive|Empty/);
 });
@@ -57,4 +57,13 @@ test('nested group controls expand and collapse their own content', () => {
   ctx.bindMenu(menu, 'module');
   button.onclick(); assert.equal(content.hidden, false); assert.equal(attrs['aria-expanded'], 'true');
   button.onclick(); assert.equal(content.hidden, true); assert.equal(attrs['aria-expanded'], 'false');
+});
+
+
+test('module menus combine transaction grants from multiple roles while role menus keep their own grants',()=>{
+ const ctx=context();ctx.state.navigation.permissions.push({role_id:'second',resource_kind:'transaction',resource_code:'restricted'});
+ const combined=ctx.resourcesForModules(new Set(['cash']),{menuScope:'module-cash'}).join('');
+ assert.match(combined,/data-transaction-type="payment"/);assert.match(combined,/data-transaction-type="restricted"/);
+ const separate=ctx.resourcesForModules(new Set(['cash']),{role:{role_id:'second'},menuScope:'role-second'}).join('');
+ assert.match(separate,/data-transaction-type="restricted"/);assert.doesNotMatch(separate,/data-transaction-type="payment"/);
 });

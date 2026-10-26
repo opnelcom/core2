@@ -1,5 +1,5 @@
 'use strict';
-const {authTenant,clean,requireModuleAccess,requireResourcePermission}=require('../../_shared/erp');
+const {authTenant,clean,requireResourcePermission}=require('../../_shared/erp');
 
 const entityKinds=new Set(['gl_account','subledger_account','journal','legal_entity','accounting_object']);
 
@@ -19,18 +19,17 @@ async function requireEntity(ctx,access,orgId,kind,id,workflowStatus='view'){
   };
   const [table,column]=tables[kind]||[];
   if(!table)return false;
+  const scoped={accounting_object:['accounting_object_type_id','owner_division_id','accounting_object'],subledger_account:['subledger_account_type_id','owner_division_id','subledger_account'],journal:['transaction_type_id','source_division_id','transaction']}[kind];
   const r=await ctx.broker('core_erp','query',{
-    text:`SELECT ${kind==='accounting_object'?'accounting_object_type_id,owner_division_id':'1'} FROM ${table}
+    text:`SELECT ${scoped?scoped.slice(0,2).join(','):'1'} FROM ${table}
           WHERE tenant_id=$1 AND organisation_id=$2 AND ${column}=$3
           AND workflow_status <> 'deleted'`,
     values:[access.tenantId,orgId,id]
   });
   if(!r.rowCount)return false;
-  if(kind==='accounting_object'){
+  if(scoped){
     const object=r.rows[0];
-    const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:orgId,resourceKind:'accounting_object_type',resourceCode:object.accounting_object_type_id});
-    if(moduleDenied)return moduleDenied;
-    const denied=await requireResourcePermission(ctx,access,{organisationId:orgId,divisionId:object.owner_division_id,resourceKind:'accounting_object',resourceCode:object.accounting_object_type_id,workflowStatus});
+    const denied=await requireResourcePermission(ctx,access,{organisationId:orgId,divisionId:object[scoped[1]],resourceKind:scoped[2],resourceCode:object[scoped[0]],workflowStatus});
     if(denied)return denied;
   }
   return true;

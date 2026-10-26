@@ -87,7 +87,6 @@ async function seedOrganisationDefaults(ctx, access, organisationId) {
     customerSchema,
     customerUiSchema,
     roleSeeds,
-    roleModuleSeeds = {},
     rolePermissionSeeds,
     resourceRoleSeeds = [],
     resourceRoleModuleSeeds = {},
@@ -723,44 +722,6 @@ async function seedOrganisationDefaults(ctx, access, organisationId) {
             resource_code,
             workflow_status,
           }),
-        ),
-      ),
-    ],
-  });
-  await ctx.broker("core_erp", "query", {
-    text: `WITH requested AS (
-            SELECT role_code,module_code FROM jsonb_to_recordset($3::jsonb) AS row(role_code text,module_code text)
-          ), role_modules AS (
-            SELECT r.role_id,m.module_id FROM requested requested_role
-            JOIN erp_role r ON r.tenant_id=$1 AND r.organisation_id=$2 AND r.role_code=requested_role.role_code
-            JOIN erp_module m ON m.tenant_id=$1 AND m.organisation_id=$2 AND (requested_role.module_code='*' OR m.module_code=requested_role.module_code)
-            UNION
-            SELECT rp.role_id,sm.module_id FROM erp_role_permission rp
-            JOIN erp_subledger_account_type st ON st.tenant_id=rp.tenant_id AND st.organisation_id=rp.organisation_id AND (rp.resource_code='*' OR st.type_code=rp.resource_code OR st.subledger_account_type_id::text=rp.resource_code)
-            JOIN erp_subledger_account_type_module sm ON sm.subledger_account_type_id=st.subledger_account_type_id
-            WHERE rp.tenant_id=$1 AND rp.organisation_id=$2 AND rp.resource_kind='subledger_account'
-            UNION
-            SELECT rp.role_id,om.module_id FROM erp_role_permission rp
-            JOIN erp_accounting_object_type_module om ON om.accounting_object_type_id::text=rp.resource_code OR rp.resource_code='*'
-            JOIN erp_accounting_object_type ot ON ot.accounting_object_type_id=om.accounting_object_type_id AND ot.tenant_id=rp.tenant_id AND ot.organisation_id=rp.organisation_id
-            WHERE rp.tenant_id=$1 AND rp.organisation_id=$2 AND rp.resource_kind='accounting_object'
-            UNION
-            SELECT rp.role_id,dm.module_id FROM erp_role_permission rp
-            JOIN erp_accounting_dimension_type_module dm ON dm.accounting_dimension_type_id::text=rp.resource_code OR rp.resource_code='*'
-            JOIN erp_accounting_dimension_type dt ON dt.accounting_dimension_type_id=dm.accounting_dimension_type_id AND dt.tenant_id=rp.tenant_id AND dt.organisation_id=rp.organisation_id
-            WHERE rp.tenant_id=$1 AND rp.organisation_id=$2 AND rp.resource_kind='accounting_dimension'
-            UNION
-            SELECT rp.role_id,tm.module_id FROM erp_role_permission rp
-            JOIN erp_transaction_type_module tm ON rp.resource_code='*' OR tm.transaction_type_id::text=rp.resource_code
-            WHERE rp.tenant_id=$1 AND rp.organisation_id=$2 AND rp.resource_kind='transaction'
-          )
-          INSERT INTO erp_role_module(role_id,module_id) SELECT DISTINCT role_id,module_id FROM role_modules ON CONFLICT DO NOTHING`,
-    values: [
-      access.tenantId,
-      organisationId,
-      JSON.stringify(
-        Object.entries(roleModuleSeeds).flatMap(([role_code, moduleCodes]) =>
-          moduleCodes.map((module_code) => ({ role_code, module_code })),
         ),
       ),
     ],

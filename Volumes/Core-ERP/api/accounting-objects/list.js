@@ -1,6 +1,7 @@
 'use strict';
+const {userDivisionAccessSql}=require('../_shared/erp/user-access');
 const {workflowActionRoleSql}=require('../_shared/erp/workflow-action-roles');
-const {authTenant,isAdministrator,requireModuleAccess}=require('../_shared/erp');
+const {authTenant,isAdministrator}=require('../_shared/erp');
 
 module.exports=async ctx=>{
   const access=await authTenant(ctx);
@@ -10,8 +11,6 @@ module.exports=async ctx=>{
   const activeDivisionId=ctx.query.active_division_id||null;
   const includeChildren=ctx.query.include_child_divisions==='1';
   if(!orgId||!typeId)return ctx.send(400,{error:'organisation_id and accounting_object_type_id are required'});
-  const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:orgId,resourceKind:'accounting_object_type',resourceCode:typeId});
-  if(moduleDenied)return ctx.send(moduleDenied.status,moduleDenied.body);
   const administrator=isAdministrator(access);
   const r=await ctx.broker('core_erp','query',{
     text:`SELECT o.*,t.type_code,t.type_name,d.division_name owner_division_name,
@@ -62,7 +61,8 @@ module.exports=async ctx=>{
           LEFT JOIN erp_workflow_step step ON step.workflow_path_id=t.workflow_path_id AND step.step_code=o.workflow_status
           LEFT JOIN erp_accounting_object parent ON parent.tenant_id=o.tenant_id AND parent.organisation_id=o.organisation_id AND parent.accounting_object_id=o.parent_accounting_object_id
           LEFT JOIN erp_accounting_object_type parent_type ON parent_type.accounting_object_type_id=parent.accounting_object_type_id
-          WHERE o.tenant_id=$1 AND o.organisation_id=$2 AND o.accounting_object_type_id=$3
+          WHERE o.tenant_id=$1 AND o.organisation_id=$2
+          AND ${userDivisionAccessSql({tenant:'$1',organisation:'$2',email:'$4',division:'o.owner_division_id'})} AND o.accounting_object_type_id=$3
           
           AND ($6::uuid IS NULL OR EXISTS (
             WITH RECURSIVE selected_scope AS (

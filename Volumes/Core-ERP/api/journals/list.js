@@ -1,5 +1,7 @@
 'use strict';
-const {authTenant,requireModuleAccess}=require('../_shared/erp');
+const {transactionVisibilitySql}=require('../_shared/erp/transaction-visibility');
+const {userDivisionAccessSql}=require('../_shared/erp/user-access');
+const {authTenant}=require('../_shared/erp');
 
 module.exports=async ctx=>{
   const access=await authTenant(ctx);
@@ -9,10 +11,6 @@ module.exports=async ctx=>{
   const transactionTypeId=ctx.query.transaction_type_id||null;
   const activeDivisionId=ctx.query.active_division_id||null;
   const includeChildren=ctx.query.include_child_divisions==='1';
-  if(transactionTypeId){
-    const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:orgId,resourceKind:'transaction_type',resourceCode:transactionTypeId});
-    if(moduleDenied)return ctx.send(moduleDenied.status,moduleDenied.body);
-  }
   const r=await ctx.broker('core_erp','query',{
     text:`SELECT j.*,tt.type_name transaction_type_name,fp.period_code,d.division_name source_division_name,
                  COALESCE(sum(l.debit_amount),0) debit_total,COALESCE(sum(l.credit_amount),0) credit_total
@@ -21,7 +19,8 @@ module.exports=async ctx=>{
           JOIN erp_fiscal_period fp ON fp.fiscal_period_id=j.fiscal_period_id
           JOIN erp_division d ON d.division_id=j.source_division_id
           LEFT JOIN erp_journal_line l ON l.journal_id=j.journal_id
-          WHERE j.tenant_id=$1 AND j.organisation_id=$2 
+          WHERE j.tenant_id=$1 AND j.organisation_id=$2
+          AND ${userDivisionAccessSql({tenant:'$1',organisation:'$2',email:'$3',division:'j.source_division_id'})}
           AND ($4::uuid IS NULL OR j.transaction_type_id=$4::uuid)
           AND ($5::uuid IS NULL OR EXISTS (
             WITH RECURSIVE selected_scope AS (
@@ -32,28 +31,9 @@ module.exports=async ctx=>{
             )
             SELECT 1 FROM selected_scope WHERE division_id=j.source_division_id
           ))
-          AND (
-            EXISTS (
-              WITH RECURSIVE ancestors AS (
-                SELECT division_id,parent_division_id FROM erp_division WHERE division_id=j.source_division_id
-                UNION ALL
-                SELECT parent.division_id,parent.parent_division_id
-                FROM erp_division parent
-                JOIN ancestors child ON child.parent_division_id=parent.division_id
-              )
-              SELECT 1
-              FROM erp_user_role ur
-              JOIN erp_role role ON role.role_id=ur.role_id
-              JOIN erp_role_permission rp ON rp.role_id=role.role_id
-              JOIN ancestors scope ON scope.division_id=rp.division_id
-              WHERE ur.tenant_id=$1 AND ur.organisation_id=$2 AND lower(ur.email)=lower($3)
-              AND role.is_active=true AND ur.valid_from <= CURRENT_DATE AND (ur.valid_to IS NULL OR ur.valid_to >= CURRENT_DATE)
-              AND rp.resource_kind='transaction'
-              AND (rp.workflow_status='view' OR rp.workflow_status='*' OR rp.workflow_status=j.workflow_status)
-              AND (rp.resource_code=j.transaction_type_id::text OR rp.resource_code='*')
-            )
-            OR lower(j.created_by_email)=lower($3)
-          )
+          AND ${transactionVisibilitySql({tenant:'$1',organisation:'$2',division:'j.source_division_id',transactionType:'j.transaction_type_id',status:'j.workflow_status',email:'$3',administrator:'false'})}
+          AND NOT EXISTS(SELECT 1 FROM erp_journal_line access_line WHERE access_line.tenant_id=j.tenant_id AND access_line.organisation_id=j.organisation_id AND access_line.journal_id=j.journal_id
+            AND NOT ${transactionVisibilitySql({tenant:'$1',organisation:'$2',division:'access_line.division_id',transactionType:'j.transaction_type_id',status:'j.workflow_status',email:'$3',administrator:'false'})})
           GROUP BY j.journal_id,tt.type_name,fp.period_code,d.division_name
           ORDER BY j.journal_date DESC,j.created_at DESC`,
     values:[access.tenantId,orgId,access.auth.email,transactionTypeId,activeDivisionId,includeChildren]

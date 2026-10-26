@@ -18,6 +18,7 @@ test("record and transaction toolbars align, wrap, retain controls and restore R
       .replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, "").replace(/<link\b[^>]*>/g, "");
     await page.setContent(html);
     await page.addStyleTag({ path: require.resolve("../public/style.css") });
+    await page.addStyleTag({ path: require.resolve("../public/standard-grid.css") });
     await page.evaluate(() => {
       const main = document.querySelector("main");
       document.body.replaceChildren(main);
@@ -25,6 +26,7 @@ test("record and transaction toolbars align, wrap, retain controls and restore R
     });
     await page.addStyleTag({ content: "body{display:block;overflow:auto;height:auto}main{padding:12px;overflow:visible}.view>.split{display:block}" });
     await page.addScriptTag({ path: require.resolve("../public/workflow-grid-visibility.js") });
+    await page.addScriptTag({ path: require.resolve("../public/standard-grid.js") });
     await page.addScriptTag({ path: require.resolve("../public/object-grid-views.js") });
     await page.addScriptTag({ content: `
       const $=id=>document.getElementById(id);
@@ -39,7 +41,7 @@ test("record and transaction toolbars align, wrap, retain controls and restore R
         document.querySelectorAll('.view').forEach(item=>item.hidden=item.id!=='view-'+view);
         syncObjectGridContext(1,view);
         const target=$(prefix+'-list'),toolbar=$(prefix+'-grid-title').closest('.panel-head');
-        erpObjectGridViews.render({target,toolbar,enabled:!gl,columns:[],rows:[{workflow_status:'draft'}],statuses:[],steps:[],workflowPath:()=>null,table:()=>{},onOpen:()=>{},code:()=> 'ONE',name:()=> 'Example',workflowButton:()=>document.createElement('button')});
+        erpObjectGridViews.render({target,toolbar,enabled:!gl,columns:[],rows:[{workflow_status:'draft'}],statuses:[],steps:[],workflowPath:()=>null,table:()=>erpStandardGrid.render({target,toolbar,contextKey:prefix,columns:[{key:'code',label:'Code',type:'text',value:()=> 'ONE'}],rows:[{}]}),onOpen:()=>{},code:()=> 'ONE',name:()=> 'Example',workflowButton:()=>document.createElement('button')});
         syncObjectGridContext(1,view);
       };
     ` });
@@ -49,16 +51,26 @@ test("record and transaction toolbars align, wrap, retain controls and restore R
         // Exercise repeated render and both grid modes: controls must not duplicate.
         await page.evaluate(([v,p])=>{exerciseGrid(v,p);exerciseGrid(v,p);}, [view,prefix]);
         const toolbar = page.locator(`#${prefix}-grid-title`).locator("..");
+        const panel = toolbar.locator('..');
+        const filters = panel.locator('.object-grid-filters');
         assert.equal(await toolbar.locator(":scope > button").first().textContent(), `+ Add ${type}`);
-        assert.equal(await toolbar.locator("#refresh").count(), 1);
-        assert.equal(await toolbar.locator(".object-grid-view-control").count(), 1);
-        const boxes = await toolbar.locator("#refresh, .object-grid-view-control button").evaluateAll(nodes=>nodes.map(node=>{const r=node.getBoundingClientRect();return {y:r.y,h:r.height,right:r.right};}));
+        assert.equal(await toolbar.locator("#refresh, .object-grid-view-control, .standard-grid-menu-trigger").count(), 0);
+        assert.equal(await filters.locator("#refresh").count(), 1);
+        assert.equal(await filters.locator(".object-grid-view-control").count(), 1);
+        assert.equal(await filters.locator('.standard-grid-menu-trigger').count(), 1);
+        const boxes = await filters.locator("#refresh, .object-grid-view-control button, .standard-grid-menu-trigger").evaluateAll(nodes=>nodes.map(node=>{const r=node.getBoundingClientRect();return {y:r.y,h:r.height,right:r.right};}));
         assert.equal(boxes[0].h, 34); assert.equal(boxes[1].h, 34);
         if (width===1440) assert.equal(boxes[0].y, boxes[1].y, `${view}: ${JSON.stringify(await toolbar.evaluate(node=>({html:node.outerHTML,width:node.clientWidth})))}`);
         assert.ok(boxes.every(box=>box.right<=width));
-        await toolbar.getByRole("button", {name:"Status",exact:true}).click();
+        if (width===1440) {
+          const searchBox=await filters.locator('.grid-search').count()?await filters.locator('.grid-search').boundingBox():null;
+          if(searchBox){assert.ok(searchBox.width<=340); assert.ok(Math.abs(searchBox.y+searchBox.height/2-(boxes[0].y+boxes[0].h/2))<1);}
+          const hiddenBox=await filters.locator('label.check').boundingBox(); assert.ok(Math.abs(hiddenBox.y+hiddenBox.height/2-(boxes[0].y+boxes[0].h/2))<1);
+        }
+        if(view==='accounts') assert.equal(await toolbar.locator('#intake-account-document').count(),1);
+        await filters.getByRole("button", {name:"Status",exact:true}).click();
         assert.equal(await page.locator(`#${prefix}-list .object-status-column`).count(), 1);
-        await toolbar.getByRole("button", {name:"Columnar",exact:true}).click();
+        await filters.getByRole("button", {name:"Columnar",exact:true}).click();
         const visibility = page.locator(`#${view==='accounts'?'view-accounts':'view-'+view} label.check`).filter({hasText:'Show hidden records'});
         await visibility.locator("input").check();
         assert.equal(await visibility.locator("input").isChecked(), true);

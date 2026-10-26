@@ -3,7 +3,7 @@ const {authTenant}=require('../_shared/erp');
 
 module.exports=async ctx=>{
   if(ctx.req.method!=='POST')return ctx.send(405,{error:'POST required'});
-  const access=await authTenant(ctx);
+  const access=await authTenant(ctx,null,{allowBootstrap:true});
   if(access.status)return ctx.send(access.status,access.body);
   const orgId=ctx.body.organisation_id;
   if(!orgId)return ctx.send(400,{error:'organisation_id is required'});
@@ -15,15 +15,14 @@ module.exports=async ctx=>{
       WHERE ur.tenant_id=$1
         AND ur.organisation_id=$2
         AND role.is_admin=true
-        AND role.is_active=true
-        AND ur.valid_from <= CURRENT_DATE
-        AND (ur.valid_to IS NULL OR ur.valid_to >= CURRENT_DATE)`,
+`,
     values:[access.tenantId,orgId]
   });
   if(Number(existing.rows[0]?.count)||0){
     return ctx.send(409,{error:'This organisation already has a Security Administrator'});
   }
 
+  await ctx.broker('core_erp','query',{text:`INSERT INTO erp_organisation_user(tenant_id,organisation_id,email) VALUES($1,$2,lower($3)) ON CONFLICT(tenant_id,organisation_id,email) DO NOTHING`,values:[access.tenantId,orgId,access.auth.email]});
   const role=await ctx.broker('core_erp','query',{
     text:`INSERT INTO erp_role(tenant_id,organisation_id,role_code,role_name,role_description,is_admin,is_active)
       VALUES($1,$2,'security_administrator','Security Administrator','Setup administration only, without master data, transaction or report access.',true,true)

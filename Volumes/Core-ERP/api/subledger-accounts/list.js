@@ -1,5 +1,6 @@
 'use strict';
-const {authTenant,isAdministrator,requireModuleAccess}=require('../_shared/erp');
+const {userDivisionAccessSql}=require('../_shared/erp/user-access');
+const {authTenant,isAdministrator}=require('../_shared/erp');
 const {subledgerBalanceSql}=require('../_shared/erp/subledger-balance');
 
 module.exports=async ctx=>{
@@ -10,8 +11,6 @@ module.exports=async ctx=>{
   const activeDivisionId=ctx.query.active_division_id||null;
   const includeChildren=ctx.query.include_child_divisions==='1';
   if(!orgId||!typeId)return ctx.send(400,{error:'organisation_id and subledger_account_type_id are required'});
-  const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:orgId,resourceKind:'subledger_account_type',resourceCode:typeId});
-  if(moduleDenied)return ctx.send(moduleDenied.status,moduleDenied.body);
   const result=await ctx.broker('core_erp','query',{
     text:`SELECT account.*,type.type_code,type.type_name,division.division_name owner_division_name,
                  entity.known_name legal_entity_known_name,entity.legal_name legal_entity_legal_name,
@@ -21,7 +20,8 @@ module.exports=async ctx=>{
           JOIN erp_division division ON division.division_id=account.owner_division_id
           LEFT JOIN erp_legal_entity entity ON entity.legal_entity_id=account.legal_entity_id
           ${subledgerBalanceSql()}
-          WHERE account.tenant_id=$1 AND account.organisation_id=$2 AND account.subledger_account_type_id=$3 
+          WHERE account.tenant_id=$1 AND account.organisation_id=$2
+          AND ${userDivisionAccessSql({tenant:'$1',organisation:'$2',email:'$4',division:'account.owner_division_id'})} AND account.subledger_account_type_id=$3
             AND ($6::uuid IS NULL OR EXISTS (
               WITH RECURSIVE selected_scope AS (
                 SELECT division_id FROM erp_division WHERE tenant_id=$1 AND organisation_id=$2 AND division_id=$6::uuid

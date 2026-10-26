@@ -1,4 +1,5 @@
 'use strict';
+const {userDivisionAccessSql}=require('../_shared/erp/user-access');
 const {authTenant}=require('../_shared/erp');
 
 module.exports=async ctx=>{
@@ -16,8 +17,8 @@ module.exports=async ctx=>{
             FROM erp_division child JOIN tree ON child.parent_division_id=tree.division_id
             WHERE child.tenant_id=$1 AND child.organisation_id=$2 AND child.workflow_status <> 'deleted'
           )
-          SELECT * FROM tree ORDER BY path`,
-    values:[access.tenantId,orgId]
+          SELECT * FROM tree WHERE ($4::boolean OR ${userDivisionAccessSql({tenant:'$1',organisation:'$2',email:'$3',division:'tree.division_id'})}) ORDER BY path`,
+    values:[access.tenantId,orgId,access.auth.email,access.setupAdministrator]
   });
   return {divisions:r.rows};
 };

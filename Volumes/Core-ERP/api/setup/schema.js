@@ -17,6 +17,7 @@ module.exports = async (ctx) => {
     tenantId,
     organisationId,
     email: auth.email,
+    allowUserSchemaUpgrade:true,
   });
   if (!bootstrapAllowed && !setupAdministrator)
     return ctx.send(403, {

@@ -809,28 +809,6 @@ module.exports = async (ctx) => {
       SET role_name=excluded.role_name,role_description=excluded.role_description,is_admin=excluded.is_admin,is_active=excluded.is_active`,
     );
     add(
-      "cleared_role_modules",
-      `DELETE FROM erp_role_module target_link
-      USING erp_role target_role, erp_role source_role
-      WHERE target_link.role_id=target_role.role_id
-        AND target_role.tenant_id=$1
-        AND target_role.organisation_id=$3
-        AND source_role.tenant_id=$1
-        AND source_role.organisation_id=$2
-        AND source_role.role_code=target_role.role_code`,
-    );
-    add(
-      "role_modules",
-      `INSERT INTO erp_role_module(role_id,module_id)
-      SELECT target_role.role_id,target_module.module_id
-      FROM erp_role_module source_link
-      JOIN erp_role source_role ON source_role.role_id=source_link.role_id
-      JOIN erp_role target_role ON target_role.tenant_id=$1 AND target_role.organisation_id=$3 AND target_role.role_code=source_role.role_code
-      JOIN erp_module source_module ON source_module.module_id=source_link.module_id
-      JOIN erp_module target_module ON target_module.tenant_id=$1 AND target_module.organisation_id=$3 AND target_module.module_code=source_module.module_code
-      WHERE source_role.tenant_id=$1 AND source_role.organisation_id=$2 ON CONFLICT DO NOTHING`,
-    );
-    add(
       "cleared_role_permissions",
       `DELETE FROM erp_role_permission target_permission
       USING erp_role target_role, erp_role source_role
@@ -901,6 +879,15 @@ module.exports = async (ctx) => {
                OR (source_permissions.resource_kind='accounting_object' AND target_object_type.accounting_object_type_id IS NOT NULL)
                OR (source_permissions.resource_kind='accounting_dimension' AND target_dimension_type.accounting_dimension_type_id IS NOT NULL)
                OR (source_permissions.resource_kind='transaction' AND target_transaction_type.transaction_type_id IS NOT NULL)))`,
+    );
+    add(
+      "organisation_users",
+      `INSERT INTO erp_organisation_user(tenant_id,organisation_id,email,known_name,full_name,title,description,is_enabled,valid_from,valid_to)
+      SELECT $1,$3,source_user.email,source_user.known_name,source_user.full_name,source_user.title,source_user.description,source_user.is_enabled,source_user.valid_from,source_user.valid_to
+      FROM erp_organisation_user source_user
+      WHERE source_user.tenant_id=$1 AND source_user.organisation_id=$2
+        AND EXISTS(SELECT 1 FROM erp_user_role source_assignment WHERE source_assignment.tenant_id=$1 AND source_assignment.organisation_id=$2 AND lower(source_assignment.email)=source_user.email)
+      ON CONFLICT(tenant_id,organisation_id,email) DO NOTHING`,
     );
     add(
       "user_roles",

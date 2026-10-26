@@ -6,8 +6,9 @@
     <title>Core ERP</title>
     <link
       rel="stylesheet"
-      href="/erp/style.css?v=20261022-transaction-field-rows"
+      href="/erp/style.css?v=20261023-standard-grid"
     />
+    <link rel="stylesheet" href="/erp/standard-grid.css?v=20261026-solid-filters" />
     <script>
       (function () {
         try {
@@ -1751,7 +1752,7 @@
               </div>
               <div class="permission-section" id="role-tab-reports" hidden>
                 <h2>Report permissions</h2>
-                <p>Assign individual reports by division. Module assignments control navigation and do not grant report access.</p>
+                <p>Assign individual reports by division. Module navigation follows assigned permissions and does not grant report access.</p>
                 <div id="report-permission-lines"></div>
               </div>
               <div class="permission-section" id="role-tab-transaction" hidden>
@@ -1775,6 +1776,33 @@
               </div>
             </form>
           </div>
+        </section>
+        <section id="view-users" class="view" data-organisation-setup="true" hidden>
+          <div class="panel"><div class="panel-head"><h2>Users</h2><button type="button" id="add-erp-user" class="add-record-button" aria-label="Add user">+</button></div>
+            <input id="erp-user-search" class="grid-search" placeholder="Search users" aria-label="Search users" />
+            <div id="erp-user-list"></div>
+          </div>
+          <form id="erp-user-form" class="panel form organisation-setup-editor" hidden>
+            <h2 id="erp-user-heading">Edit user</h2><input type="hidden" id="erp-user-id" />
+            <div class="tabs" role="tablist" aria-label="User details">
+              <button type="button" class="tab active" data-user-tab="identification" id="erp-user-button-identification" role="tab" aria-selected="true" aria-controls="erp-user-tab-identification">Identification</button>
+              <button type="button" class="tab" data-user-tab="roles" id="erp-user-button-roles" role="tab" aria-selected="false" aria-controls="erp-user-tab-roles">Roles</button>
+              <button type="button" class="tab" data-user-tab="divisions" id="erp-user-button-divisions" role="tab" aria-selected="false" aria-controls="erp-user-tab-divisions">Divisions</button>
+            </div>
+            <div id="erp-user-tab-identification" class="erp-field-rows" role="tabpanel" aria-labelledby="erp-user-button-identification">
+              <label><span>Email</span><input type="email" id="erp-user-email" required maxlength="254" /></label>
+              <label><span>Known name</span><input id="erp-user-known_name" /></label>
+              <label><span>Full name</span><input id="erp-user-full_name" /></label>
+              <label><span>Title</span><input id="erp-user-title" /></label>
+              <label><span>Description</span><textarea id="erp-user-description" rows="3"></textarea></label>
+              <label class="check"><input type="checkbox" id="erp-user-enabled" checked />Enabled</label>
+              <label><span>Valid from</span><input type="date" id="erp-user-valid_from" /></label>
+              <label><span>Valid to</span><input type="date" id="erp-user-valid_to" /></label>
+            </div>
+            <div id="erp-user-tab-roles" role="tabpanel" aria-labelledby="erp-user-button-roles" hidden><div class="panel-head"><h3>Assigned roles</h3><button type="button" id="erp-user-add-role" class="add-record-button" aria-label="Add role assignment">+</button></div><div class="erp-user-assignment-scroll"><table class="data-grid"><thead><tr><th>Role</th><th>Valid from</th><th>Valid to</th><th>Actions</th></tr></thead><tbody id="erp-user-roles-rows"></tbody></table></div></div>
+            <div id="erp-user-tab-divisions" role="tabpanel" aria-labelledby="erp-user-button-divisions" hidden><div class="panel-head"><h3>Assigned divisions</h3><button type="button" id="erp-user-add-division" class="add-record-button" aria-label="Add division assignment">+</button></div><div class="erp-user-assignment-scroll"><table class="data-grid"><thead><tr><th>Division</th><th>Valid from</th><th>Valid to</th><th>Actions</th></tr></thead><tbody id="erp-user-divisions-rows"></tbody></table></div></div>
+            <div class="actions"><button type="submit">Save user</button></div>
+          </form>
         </section>
         <section id="view-schemauitester" class="view" hidden>
           <div class="schema-ui-tester-layout">
@@ -2118,12 +2146,17 @@
     <script src="/erp/record-comments.js?v=20261013"></script>
     <script src="/erp/schema-visibility.js?v=20261021-conditional-options"></script>
     <script src="/erp/workflow-grid-visibility.js?v=20261021-compact-grids"></script>
-    <script src="/erp/object-grid-views.js?v=20261021-compact-grids"></script>
+    <script src="/erp/standard-grid.js?v=20261023-grid-tools"></script>
+    <script src="/erp/standard-grid-lists.js?v=20261023-list-rollout"></script>
+    <script src="/erp/object-grid-views.js?v=20261023-grid-tools"></script>
     <script src="/erp/module-dashboard.js?v=20261021-balances"></script>
     <script src="/erp/object-statement.js?v=20261021-output"></script>
     <script src="/erp/object-actions.js?v=20261021-allocation-picker-popover"></script>
     <script src="/erp/record-editor-layout.js?v=20261021-stacked-default"></script>
-    <script src="/erp/movable-panels.js?v=20261015"></script>
-    <script src="/erp/app.js?v=20261022-transaction-field-rows"></script>
+    <script src="/erp/editor-conventions.js?v=20261022"></script>
+    <script src="/erp/modal-editors.js?v=20261022-sizing"></script>
+    <script src="/erp/movable-panels.js?v=20261022-editor-sizing"></script>
+    <script src="/erp/organisation-users.js?v=20261022-user-minus"></script>
+    <script src="/erp/app.js?v=20261023-grid-tools"></script>
   </body>
 </html>

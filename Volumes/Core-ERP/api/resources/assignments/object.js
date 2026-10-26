@@ -4,7 +4,6 @@ const {
   isAdministrator,
   hasResourcePermission,
   hasOrganisationResourcePermission,
-  requireModuleAccess,
 } = require("../../_shared/erp");
 
 const targets = {
@@ -84,19 +83,6 @@ module.exports = async (ctx) => {
       error:
         "Object view permission is required to view its resource assignments",
     });
-  const moduleKind = {
-    subledger_account: "subledger_account_type",
-    accounting_object: "accounting_object_type",
-    accounting_dimension: "accounting_dimension_type",
-  }[objectKind];
-  if (moduleKind) {
-    const moduleDenied = await requireModuleAccess(ctx, access, {
-      organisationId,
-      resourceKind: moduleKind,
-      resourceCode: object.object_type_id,
-    });
-    if (moduleDenied) return ctx.send(moduleDenied.status, moduleDenied.body);
-  }
   const [assignments, mappings] = await Promise.all([
     ctx.broker("core_erp", "query", {
       text: `SELECT assignment.resource_assignment_id,assignment.resource_role_id,role.role_name,

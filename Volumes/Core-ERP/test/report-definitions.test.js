@@ -34,9 +34,9 @@ test('unknown fields, relationships, parameters and bad types fail closed',async
  assert.throws(()=>scalar('2026-02-30','date','Date'),/valid/);assert.equal(scalar(false,'boolean','Boolean'),'false');assert.throws(()=>scalar('1.2','integer','Integer'),/whole/);
 });
 test('report grants admit only authorized descendants and require selected division even for administrators',async()=>{
- const queries=[];const ctx={broker:async(profile,action,q)=>{queries.push(q);if(q.text.includes('WITH RECURSIVE scope'))return {rows:[{division_id:id(3)},{division_id:id(4)}]};return {rowCount:q.values[2]===id(3)?1:0};}};
+ const queries=[];const ctx={broker:async(profile,action,q)=>{queries.push(q);if(q.text.includes('WITH RECURSIVE scope'))return {rows:[{division_id:id(3)},{division_id:id(4)}]};return {rowCount:q.text.includes('access_division')?(q.values[3]===id(3)?1:0):(q.values[2]===id(3)?1:0)};}};
  const options={organisationId:id(2),divisionId:id(3),reportId:id(5),includeChildren:true};
- assert.deepEqual(await reportScope(ctx,access,options),[id(3)]);assert.equal(queries[1].values[3],'report');assert.equal(queries[1].values[4],id(5));
+ assert.deepEqual(await reportScope(ctx,access,options),[id(3)]);assert.equal(queries[2].values[3],'report');assert.equal(queries[2].values[4],id(5));
  const absent={broker:async()=>({rows:[]})};await assert.rejects(reportScope(absent,{...access,setupAdministrator:true},options),/unavailable/);
  const denied={broker:async(p,a,q)=>q.text.includes('WITH RECURSIVE scope')?{rows:[{division_id:id(3)}]}:{rowCount:0}};await assert.rejects(reportScope(denied,access,options),e=>e.status===403);
 });

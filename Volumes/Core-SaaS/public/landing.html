@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Core | Landing</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="stylesheet" href="/style.css?v=20261021-tenant-modal">
+  <link rel="stylesheet" href="/style.css?v=20261023-tenant-theme-variables">
 </head>
 <body>
   <main>
@@ -83,7 +83,7 @@
             <div id="current-tenant-banner" class="current-tenant-banner" aria-live="polite"></div>
           </section>
           <section class="home-collection" aria-labelledby="application-home-heading">
-            <h2 id="application-home-heading" class="home-collection-heading">Applications</h2>
+            <h2 id="application-home-heading" class="home-collection-heading">Tenant Applications</h2>
             <div id="application-home-list" class="application-home-list"></div>
           </section>
           <section class="home-collection" aria-labelledby="tenant-home-heading">
@@ -199,21 +199,6 @@
               <button id="new-tenant-toggle" class="square-action" type="button" aria-label="Create tenant">+</button>
             </div>
 
-            <div id="new-tenant-panel" class="new-tenant-panel" hidden>
-              <div class="tenant-new-grid">
-                <div>
-                  <label for="new-tenant-name">New tenant</label>
-                  <input id="new-tenant-name" placeholder="Tenant name">
-                </div>
-                <div>
-                  <label for="new-tenant-theme">Theme</label>
-                  <select id="new-tenant-theme"></select>
-                </div>
-                <div id="new-tenant-icon-editor" class="tenant-icon-editor-new"></div>
-                <button id="create-tenant-submit" class="primary-action compact" type="button">Create tenant</button>
-              </div>
-            </div>
-
             <div id="tenant-management-grid" class="tenant-setup-grid"></div>
           </section>
         </div>
@@ -266,6 +251,6 @@
 
     <div id="message" class="toast" role="status" aria-live="polite"></div>
   </main>
-  <script src="/landing.js?v=20261021-tenant-modal"></script>
+  <script src="/landing.js?v=20261023-shared-tenant-modal"></script>
 </body>
 </html>

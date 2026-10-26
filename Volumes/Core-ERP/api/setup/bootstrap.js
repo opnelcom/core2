@@ -57,7 +57,7 @@ module.exports=async ctx=>{
     userContext={organisation_id:tenantContext.rows[0]?.organisation_id||null,organisations:organisationContexts.rows};
   }
   const canBootstrap=await canBootstrapSetup(ctx,access.tenantId);
-  const canInitialiseTemplate=canBootstrap||await isTenantSetupAdministrator(ctx,{tenantId:access.tenantId,email:access.auth.email});
+  const canInitialiseTemplate=canBootstrap||await isTenantSetupAdministrator(ctx,{tenantId:access.tenantId,email:access.auth.email,allowUserSchemaUpgrade:true});
   return {
     tenant_id:access.tenantId,
     user_id:access.auth.user_id,

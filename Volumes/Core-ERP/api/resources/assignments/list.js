@@ -1,4 +1,5 @@
 "use strict";
+const {userDivisionAccessSql}=require("../../_shared/erp/user-access");
 const {
   authTenant,
   isAdministrator,
@@ -38,22 +39,6 @@ module.exports = async (ctx) => {
     return ctx.send(403, {
       error: "Organisation-wide Resource view permission is required",
     });
-  if (!isAdministrator(access)) {
-    const module = await ctx.broker("core_erp", "query", {
-      text: `SELECT 1 FROM erp_user_role user_role
-            JOIN erp_role role ON role.role_id=user_role.role_id
-            JOIN erp_role_module assigned_module ON assigned_module.role_id=role.role_id
-            JOIN erp_resource_role_module resource_module ON resource_module.module_id=assigned_module.module_id
-            WHERE user_role.tenant_id=$1 AND user_role.organisation_id=$2 AND lower(user_role.email)=lower($3)
-              AND user_role.valid_from<=CURRENT_DATE AND (user_role.valid_to IS NULL OR user_role.valid_to>=CURRENT_DATE)
-              AND role.is_active=true AND resource_module.resource_role_id=$4 LIMIT 1`,
-      values: [access.tenantId, organisationId, access.auth.email, resourceRoleId],
-    });
-    if (!module.rowCount)
-      return ctx.send(403, {
-        error: "A module linked to this Resource Role is required",
-      });
-  }
   const result = await ctx.broker("core_erp", "query", {
     text: `WITH RECURSIVE scope AS (
             SELECT division_id FROM erp_division WHERE tenant_id=$1 AND organisation_id=$2 AND division_id=$3
@@ -115,6 +100,7 @@ module.exports = async (ctx) => {
             AND assignment.object_kind=objects.object_kind AND assignment.object_id=objects.object_id
             AND assignment.resource_role_id=$5
           LEFT JOIN erp_resource resource ON resource.resource_id=assignment.resource_id
+          WHERE objects.owner_division_id IS NULL OR ${userDivisionAccessSql({tenant:'$1',organisation:'$2',email:'$6',division:'objects.owner_division_id'})}
           ORDER BY owner.division_code NULLS FIRST,objects.object_type_name,objects.object_code,
                    assignment.valid_from NULLS FIRST,resource.display_name`,
     values: [
@@ -123,6 +109,7 @@ module.exports = async (ctx) => {
       divisionId,
       includeChildren,
       resourceRoleId,
+      access.auth.email,
     ],
   });
   return { assignments: result.rows };

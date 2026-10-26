@@ -3,14 +3,9 @@ const {
   authTenant,
   requireResourcePermission,
   requireOrganisationResourcePermission,
-  requireModuleAccess,
 } = require("../../_shared/erp");
 
-const moduleKinds = {
-  subledger_account: "subledger_account_type",
-  accounting_object: "accounting_object_type",
-  accounting_dimension: "accounting_dimension_type",
-};
+const objectKinds = new Set(["gl_account", "subledger_account", "accounting_object", "accounting_dimension"]);
 
 module.exports = async (ctx) => {
   const access = await authTenant(ctx);
@@ -21,21 +16,13 @@ module.exports = async (ctx) => {
   const divisionId = ctx.query.division_id;
   if (
     !organisationId ||
-    !(objectKind === "gl_account" || moduleKinds[objectKind]) ||
+    !objectKinds.has(objectKind) ||
     !objectTypeId ||
     (objectKind !== "gl_account" && !divisionId)
   )
     return ctx.send(400, {
       error: "Organisation, object kind, object type and division are required",
     });
-  if (objectKind !== "gl_account") {
-    const moduleDenied = await requireModuleAccess(ctx, access, {
-      organisationId,
-      resourceKind: moduleKinds[objectKind],
-      resourceCode: objectTypeId,
-    });
-    if (moduleDenied) return ctx.send(moduleDenied.status, moduleDenied.body);
-  }
   const permissionDenied = objectKind === "gl_account"
     ? await requireOrganisationResourcePermission(ctx, access, {
         organisationId,

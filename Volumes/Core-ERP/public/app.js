@@ -49,6 +49,8 @@
     roles: [],
     rolePermissions: [],
     roleUsers: [],
+    organisationUsers: [],
+    userDivisions: [],
     resourceRoles: [],
     resourceRoleMappings: [],
     resources: [],
@@ -124,6 +126,7 @@
     "workflows",
     "workflowstatuses",
     "permissions",
+    "users",
     "resourceroles",
   ]);
   const resourceAssignmentEditors = new Map();
@@ -876,7 +879,6 @@
     "accounting-object-type-modules",
     "accounting-dimension-type-modules",
     "transaction-type-modules",
-    "role-modules",
   ]);
   function selectedModuleIds(id) {
     const target = $(id);
@@ -913,30 +915,6 @@
       item.selected = wanted.has(item.value);
     });
   }
-  function ensureRoleModuleTabSection() {
-    const form = $("role-form");
-    const tabs = form?.querySelector(".tabs");
-    if (!form || !tabs) return null;
-    if (!tabs.querySelector('[data-role-tab="modules"]')) {
-      const tab = document.createElement("button");
-      tab.type = "button";
-      tab.className = "tab";
-      tab.dataset.roleTab = "modules";
-      tab.textContent = "Modules";
-      tabs.insertBefore(tab, tabs.querySelector('[data-role-tab="master"]'));
-      tab.addEventListener("click", () => showRoleTab("modules"));
-    }
-    if (!$("role-tab-modules")) {
-      const section = document.createElement("div");
-      section.className = "permission-section";
-      section.id = "role-tab-modules";
-      section.hidden = true;
-      section.innerHTML =
-        '<div class="panel-head"><h2>Modules</h2></div><div id="role-module-picker"></div>';
-      $("role-tab-users").insertAdjacentElement("afterend", section);
-    }
-    return $("role-module-picker");
-  }
   function installModuleField(formId, selectId) {
     const form = $(formId);
     if (!form || $(selectId)) return;
@@ -947,11 +925,9 @@
     if (isChecklist) wrapper.className = "module-scope-field";
     const caption = document.createElement(isChecklist ? "span" : "span");
     caption.textContent =
-      selectId === "role-modules"
-        ? "Available modules"
-        : selectId === "transaction-type-modules"
-          ? "Applicable modules"
-          : "Modules";
+      selectId === "transaction-type-modules"
+        ? "Applicable modules"
+        : "Modules";
     wrapper.append(caption);
     const control = isChecklist
       ? document.createElement("div")
@@ -964,10 +940,6 @@
       control.size = 5;
     }
     wrapper.append(control);
-    if (selectId === "role-modules") {
-      ensureRoleModuleTabSection()?.append(wrapper);
-      return;
-    }
     const active = [...form.querySelectorAll("label")].find((item) =>
       item.textContent.includes("Active"),
     );
@@ -1728,10 +1700,23 @@
     o.textContent = label;
     select.insertBefore(o, select.firstChild);
   }
-  function table(target, columns, rows, onClick, visibilityPrepared = false) {
+  function table(target, columns, rows, onClick, visibilityPrepared = false, gridOptions = {}) {
     if (!visibilityPrepared && globalThis.erpWorkflowGridVisibility) {
       const sourceRows = rows;
-      rows = window.erpWorkflowGridVisibility.prepare(target, sourceRows, state.workflowStatuses, () => table(target, columns, sourceRows, onClick));
+      rows = window.erpWorkflowGridVisibility.prepare(target, sourceRows, state.workflowStatuses, () => table(target, columns, sourceRows, onClick, false, gridOptions));
+    }
+    const standard = globalThis.erpStandardGridLists?.build(target.id, columns, { workflowLabel: workflowStepLabel, dateOnly });
+    if (standard) {
+      window.erpStandardGrid.render({ ...standard, ...gridOptions, target, rows, onOpen: onClick,
+        toolbar: window.erpStandardGridLists.toolbar(target), exportName: target.id.replace(/-list$/, ""),
+        contextKey: JSON.stringify([state.orgId, state.divisionId, state.includeChildren, target.id,
+          target.id === "account-list" ? selectedAccountScopeCode :
+          target.id === "accounting-object-list" ? selectedAccountingObjectTypeId :
+          target.id === "accounting-dimension-list" ? selectedAccountingDimensionTypeId :
+          target.id === "journal-list" ? selectedTransactionTypeId : ""]),
+        beforeChange: () => { closeWorkflowMenu(); objectActions.close(); },
+      });
+      return;
     }
     if (!rows.length) {
       const search = target.closest('.view')?.dataset.organisationSetup ? target.closest('.panel')?.querySelector('.grid-search') : null;
@@ -2184,8 +2169,9 @@
     const target = $("division-tree");
     if (!target) return;
     const children = new Map();
+    const visibleDivisionIds=new Set(state.divisions.map(division=>division.division_id));
     state.divisions.forEach((division) => {
-      const key = division.parent_division_id || "";
+      const key = visibleDivisionIds.has(division.parent_division_id) ? division.parent_division_id : "";
       if (!children.has(key)) children.set(key, []);
       children.get(key).push(division);
     });
@@ -2353,6 +2339,10 @@
   }
   function show(view) {
     objectActions.close();
+    document.querySelectorAll('[data-standard-grid]').forEach(target => {
+      if (target.closest('.view')?.id !== `view-${view}`) window.erpStandardGrid?.leave(target);
+      else window.erpStandardGrid?.resume(target);
+    });
     if (view !== "reports") objectStatement.hide();
     if (view !== "journals" && view !== "reports") {
       trialBalanceReturn = null;
@@ -2923,26 +2913,21 @@
       ? state.navigation.permissions.filter(
           (permission) => permission.role_id === role.role_id,
         )
-      : [];
+      : state.navigation.permissions;
     const masterAllowed = (type) =>
-      !role ||
+      state.navigation.is_administrator ||
       permissions.some(
         (permission) =>
           permission.resource_kind === "subledger_account" &&
           (permission.resource_code === "*" ||
             permission.resource_code === type.subledger_account_type_id),
       );
-    const anyMaster =
-      !role ||
-      permissions.some((permission) =>
-        [
-          "subledger_account",
-          "accounting_object",
-          "accounting_dimension",
-        ].includes(permission.resource_kind),
-      );
+    const dimensionAllowed = (type) =>
+      state.navigation.is_administrator || permissions.some(permission =>
+        permission.resource_kind === "accounting_dimension" &&
+        (permission.resource_code === "*" || permission.resource_code === type.accounting_dimension_type_id));
     const accountingObjectAllowed = (type) =>
-      !role ||
+      state.navigation.is_administrator ||
       permissions.some(
         (permission) =>
           permission.resource_kind === "accounting_object" &&
@@ -2950,7 +2935,7 @@
             permission.resource_code === type.accounting_object_type_id),
       );
     const transactionAllowed = (type) =>
-      !role ||
+      state.navigation.is_administrator ||
       permissions.some(
         (permission) =>
           permission.resource_kind === "transaction" &&
@@ -2984,7 +2969,7 @@
           ),
         ),
       ...state.accountingDimensionTypes
-        .filter((row) => row.is_active !== false && linked(row) && anyMaster)
+        .filter((row) => row.is_active !== false && linked(row) && dimensionAllowed(row))
         .map((row) =>
           resourceMenuItem(
             row.type_name,
@@ -3187,7 +3172,7 @@
           id: "security",
           label: "Permissions",
           icon: "security",
-          items: [["Permissions", 'data-view="permissions"', "role"], ["Workflow Status", 'data-view="workflowstatuses"', "workflow"], ["Workflows", 'data-view="workflows"', "workflow"]],
+          items: [["Permissions", 'data-view="permissions"', "role"], ["Users", 'data-view="users"', "role"], ["Workflow Status", 'data-view="workflowstatuses"', "workflow"], ["Workflows", 'data-view="workflows"', "workflow"]],
         },
       );
     }
@@ -3895,7 +3880,9 @@
     const accountingTypeField = label.matches('.accounting-type-editor > .setup-type-panel[data-panel="definition"] > label');
     const recordField = label.closest(".erp-field-rows, #account-form, #accounting-object-form, #accounting-dimension-form, #report-definition-form") && !label.closest(".schema-grid");
     if (accountingTypeField || (recordField || label.closest(".code-numbering-fields, #account-identification-panel, #account-detail-fields, .accounting-record-general, .accounting-record-editor .account-schema-fields, .schema-design-preview, #resource-form, #module-form, #transaction-type-form") || label.matches("#gl-account-type-form > .setup-type-panel > label")) && !label.classList.contains("check")) {
-      let caption = label.querySelector(":scope > .account-field-caption, :scope > .tx-field-label");
+      let caption = label.querySelector(":scope > .account-field-caption, :scope > .tx-field-label") ||
+        [...label.children].find(node => node.tagName === "SPAN" && !node.classList.contains("required-marker") && !node.querySelector("input, select, textarea, button"));
+      if (caption) caption.classList.add("account-field-caption");
       if (!caption) {
         caption = document.createElement("span");
         caption.className = "account-field-caption";
@@ -5310,6 +5297,7 @@
       "workflow-form",
       "workflow-status-form",
       "role-form",
+      "erp-user-form",
       "account-form",
       "accounting-object-form",
       "accounting-dimension-form",
@@ -5777,13 +5765,14 @@
       }],
       ["Fiscal year", year => year.fiscal_year_code], ["Start date", year => dateOnly(year.start_date)],
       ["End date", year => dateOnly(year.end_date)], ["Status", year => pretty(year.status)], ["Actions", year => fiscalRecordActions("year", year)]
-    ], years, selectFiscalYear);
-    const rows = [...target.querySelectorAll("tbody > tr")];
-    years.forEach((year, index) => {
-      if (!isExpanded(year)) return;
-      const row = document.createElement("tr"), cell = document.createElement("td"); cell.colSpan = 6; cell.className = "period-cell";
-      renderPeriodGrid(cell, year); row.append(cell); rows[index].after(row);
-    });
+    ], years, selectFiscalYear, false, { afterRows: ({body, rows: displayed}) => {
+      const rows = [...body.children];
+      displayed.forEach((year, index) => {
+        if (!isExpanded(year)) return;
+        const row = document.createElement("tr"), cell = document.createElement("td"); cell.colSpan = 6; cell.className = "period-cell";
+        renderPeriodGrid(cell, year); row.append(cell); rows[index].after(row);
+      });
+    } });
   }
   function renderCountries() {
     const rows = (state.countries || []).filter((row) =>
@@ -5940,26 +5929,13 @@
       rowMatches(row, term),
     );
     const target = $("ledger-family-list");
-    if (!rows.length) {
-      target.innerHTML =
-        '<p class="empty">No subledger account types match the search.</p>';
-      return;
-    }
-    const el = document.createElement("table");
-    el.className = "ledger-family-table";
-    el.innerHTML =
-      "<thead><tr><th>Code</th><th>Name</th><th>Description</th><th>Workflow</th><th>Modules</th><th>Legal entity</th><th>Active</th></tr></thead>";
-    const body = document.createElement("tbody");
-    rows.forEach((type) => {
-      const row = document.createElement("tr");
-      row.className = "click-row";
-      row.innerHTML = `<td>${type.type_code}</td><td>${type.type_name}</td><td>${type.type_description || ""}</td><td>${workflowPathForType(type)?.path_name || ""}</td><td>${moduleNames(type)}</td><td>${type.requires_legal_entity ? "Required" : "Optional"}</td><td>${type.is_active ? "Yes" : "No"}</td>`;
-      row.addEventListener("click", () => selectLedgerFamily(type));
-      body.append(row);
-    });
-    el.append(body);
-    target.innerHTML = "";
-    target.append(el);
+    table(target, [
+      ["Code", type => type.type_code], ["Name", type => type.type_name],
+      ["Description", type => type.type_description || ""],
+      ["Workflow", type => workflowPathForType(type)?.path_name || ""], ["Modules", moduleNames],
+      ["Legal entity", type => type.requires_legal_entity ? "Required" : "Optional"],
+      ["Active", type => type.is_active ? "Yes" : "No"],
+    ], rows, selectLedgerFamily);
   }
   function renderGlAccountTypes() {
     const rows = state.glAccountTypes.filter((row) =>
@@ -6478,24 +6454,33 @@
     toolbar.prepend(add);
     add.after(recordCount);
     recordCount.hidden = false;
-    const tools = toolbar.querySelector(".panel-actions");
-    tools.prepend($("refresh"));
-    const gridView = toolbar.querySelector(".object-grid-view-control");
-    if (gridView) tools.append(gridView);
     const search = $(`${context.prefix}-search`);
+    const panel = toolbar.parentElement;
+    let filters = panel.querySelector(".object-grid-filters");
+    if (!filters) {
+      filters = document.createElement("div");
+      filters.className = "object-grid-filters";
+      (search || $(`${context.prefix}-list`)).before(filters);
+      if (search) filters.append(search);
+    }
     if (search) {
       search.placeholder = "Search by code or name";
       search.setAttribute("aria-label", `Search ${title} by code or name`);
-      let filters = toolbar.parentElement.querySelector(".object-grid-filters");
-      if (!filters) {
-        filters = document.createElement("div");
-        filters.className = "object-grid-filters";
-        search.before(filters);
-        filters.append(search);
-      }
-      const visibility = $(`${context.prefix}-list`).previousElementSibling;
-      if (visibility?.matches("label.check")) filters.append(visibility);
     }
+    const visibility = $(`${context.prefix}-list`).previousElementSibling;
+    if (visibility?.matches("label.check")) filters.append(visibility);
+    let gridTools = filters.querySelector(".object-grid-tools");
+    if (!gridTools) {
+      gridTools = document.createElement("div");
+      gridTools.className = "object-grid-tools";
+      filters.append(gridTools);
+    }
+    // Reuse existing controls and their listeners; business actions stay above.
+    gridTools.append($("refresh"));
+    const gridView = panel.querySelector(".object-grid-view-control");
+    if (gridView) gridTools.append(gridView);
+    const standardGridMenu = panel.querySelector(".standard-grid-menu-trigger");
+    if (standardGridMenu) gridTools.append(standardGridMenu);
   }
   function renderAccounts() {
     const family = selectedAccountScopeCode || "gl";
@@ -9311,17 +9296,12 @@
     if (expanded) setExpandedTransactionTypeLine(row);
   }
   async function selectRole(role) {
-    const moduleData = await api(
-      `permissions/role-modules?organisation_id=${state.orgId}&role_id=${role.role_id}`,
-    );
     $("role-form").hidden = false;
     $("role-id").value = role.role_id;
     $("role-name").value = role.role_name;
     $("role-description").value = role.role_description || "";
     $("role-admin").checked = !!role.is_admin;
     $("role-active").checked = !!role.is_active;
-    fillModuleSelect("role-modules", moduleData.module_ids || []);
-    syncRoleModuleRequirement();
     renderMasterPermissionTree(
       state.rolePermissions.filter((p) => p.role_id === role.role_id),
     );
@@ -9342,19 +9322,14 @@
     $("role-form").reset();
     $("role-id").value = "";
     $("role-active").checked = true;
-    fillModuleSelect("role-modules");
-    syncRoleModuleRequirement();
     renderMasterPermissionTree([]);
     renderMasterPermissionTree([], "reports");
     renderPermissionLines("transaction", []);
     renderRoleUserLines([]);
     showRoleTab("users");
   }
-  function syncRoleModuleRequirement() {
-    $("role-modules").required = !$("role-admin").checked;
-  }
   function showRoleTab(tab) {
-    ["users", "modules", "master", "transaction", "reports"].forEach((name) => {
+    ["users", "master", "transaction", "reports"].forEach((name) => {
       $(`role-tab-${name}`).hidden = name !== tab;
       document
         .querySelectorAll("[data-role-tab]")
@@ -9833,6 +9808,8 @@
       );
     row.querySelector("button").addEventListener("click", () => row.remove());
   }
+  const organisationUserEditor=window.erpOrganisationUsers.create({state,api,table,dateOnly,
+    refresh:async()=>{await ensurePermissions(true);await loadMenuData(true);buildAlternativeMenus();renderRoles();},onError:alert});
   function renderRoleUserLines(lines = []) {
     $("role-user-lines").innerHTML =
       '<div class="role-user-line-grid"><div class="role-user-line role-user-line-head"><span>Email</span><span>Valid From</span><span>Valid To</span><span>Actions</span></div></div>';
@@ -9847,15 +9824,17 @@
     const row = document.createElement("div");
     row.className = "role-user-line";
     row.innerHTML =
-      '<input class="role-user-email" type="email" placeholder="user@example.com"><input class="role-user-from" type="date"><input class="role-user-to" type="date"><button type="button" class="secondary">Remove</button>';
+      '<select class="role-user-email" aria-label="User" required></select><input class="role-user-from" type="date"><input class="role-user-to" type="date"><button type="button" class="secondary">Remove</button>';
     grid.append(row);
-    row.querySelector(".role-user-email").value = line.email || "";
+    window.erpOrganisationUsers.fillUserSelect(row.querySelector(".role-user-email"),state.organisationUsers,line.email||"");
     row.querySelector(".role-user-from").value =
       dateOnly(line.valid_from) || today();
     row.querySelector(".role-user-to").value = dateOnly(line.valid_to);
     row.querySelector("button").addEventListener("click", () => row.remove());
   }
   function resetOrgLoadedState() {
+    organisationUserEditor.reset();
+    state.organisationUsers=[];state.userDivisions=[];
     $("accounting-object-form").hidden = true;
     selectedAccountingObject = null;
     exchangeRateEditor.reset();
@@ -10118,9 +10097,10 @@
     if (!state.orgId || (loadedSlices.permissions && !force)) return;
     await Promise.all([ensureDivisions(), loadMenuData()]);
     await ensureReportDefinitions();
-    const permissions = await api(
-      `permissions/list?organisation_id=${state.orgId}`,
-    );
+    const orgId=state.orgId;
+    const [permissions,users] = await Promise.all([api(`permissions/list?organisation_id=${orgId}`),api(`users/list?organisation_id=${orgId}`)]);
+    if(orgId!==state.orgId)return;
+    state.organisationUsers=users.users||[];state.userDivisions=users.user_divisions||[];
     state.roles = permissions.roles || [];
     state.rolePermissions = permissions.role_permissions || [];
     state.roleUsers = permissions.role_users || [];
@@ -10202,6 +10182,8 @@
     } else if (view === "workflows") {
       await loadMenuData();
       renderWorkflows();
+    } else if (view === "users") {
+      await ensurePermissions();organisationUserEditor.render();
     } else if (view === "permissions") {
       await ensurePermissions();
       renderRoles();
@@ -10313,6 +10295,7 @@
     renderRoles();
   }
   function resetScreenState() {
+    document.querySelectorAll('[data-standard-grid]').forEach(target => window.erpStandardGrid?.destroy(target));
     selectedDashboardModuleId = "";
     dashboardRequest++;
     clearDashboardRecordFilters();
@@ -11996,7 +11979,6 @@
   $("add-master-permission").hidden = true;
   $("add-transaction-permission").hidden = true;
   $("add-role-user").addEventListener("click", () => addRoleUserLine());
-  $("role-admin").addEventListener("change", syncRoleModuleRequirement);
   document
     .querySelectorAll("[data-role-tab]")
     .forEach((button) =>
@@ -12028,12 +12010,6 @@
       valid_from: row.querySelector(".role-user-from").value,
       valid_to: row.querySelector(".role-user-to").value,
     }));
-    const moduleIds = selectedModuleIds("role-modules");
-    if (!$("role-admin").checked && !moduleIds.length) {
-      showRoleTab("modules");
-      alert("At least one module is required for a non-administrator role");
-      return;
-    }
     await api("permissions/save", {
       method: "POST",
       body: JSON.stringify({
@@ -12043,7 +12019,6 @@
         role_description: $("role-description").value,
         is_admin: $("role-admin").checked,
         is_active: $("role-active").checked,
-        module_ids: moduleIds,
         master_permissions,
         report_permissions,
         transaction_permissions,
@@ -12096,7 +12071,6 @@
     "accounting-dimension-type-modules",
   );
   installModuleField("transaction-type-form", "transaction-type-modules");
-  installModuleField("role-form", "role-modules");
   installModuleIconEditor();
   installWorkflowUi();
   installSetupTypeEditors();
@@ -12131,6 +12105,8 @@
   addPanelCloseButtons();
   installOrganisationSetupUi();
   installSetupDeleteControls();
+  window.erpEditorConventions.install();
+  window.erpModalEditors.install();
   window.erpMovablePanels.install();
   syncRequiredMarkers();
   initSidebarResize();

@@ -1,5 +1,5 @@
 'use strict';
-const {authTenant,clean,requireModuleAccess,requireResourcePermission,requireOrganisationResourcePermission}=require('../erp');
+const {authTenant,clean,requireResourcePermission,requireOrganisationResourcePermission}=require('../erp');
 
 // Identifiers are drawn only from this fixed application-owned map.
 const records={
@@ -30,8 +30,7 @@ async function commentContext(ctx,input){
   if(definition.type){
     options.divisionId=record.owner_division_id;
     options.resourceCode=record[definition.type];
-    denied=await requireModuleAccess(ctx,access,{organisationId,resourceKind:`${kind}_type`,resourceCode:options.resourceCode});
-    if(!denied)denied=await requireResourcePermission(ctx,access,options);
+    denied=await requireResourcePermission(ctx,access,options);
   }else denied=await requireOrganisationResourcePermission(ctx,access,options);
   return denied||{access,organisationId,kind,id};
 }

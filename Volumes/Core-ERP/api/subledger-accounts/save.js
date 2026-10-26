@@ -6,7 +6,6 @@ const { objectSaveStatements } = require("../_shared/erp/object-versions");
 const {
   authTenant,
   defaultWorkflowStepCode,
-  requireModuleAccess,
   requireResourcePermission,
   prepareResourceAssignments,
   clean,
@@ -33,12 +32,6 @@ module.exports = async (ctx) => {
       error:
         "Organisation, owner division, subledger account type, code and name are required",
     });
-  const moduleDenied = await requireModuleAccess(ctx, access, {
-    organisationId: orgId,
-    resourceKind: "subledger_account_type",
-    resourceCode: typeId,
-  });
-  if (moduleDenied) return ctx.send(moduleDenied.status, moduleDenied.body);
   const permissionDenied = await requireResourcePermission(ctx, access, {
     organisationId: orgId,
     divisionId,

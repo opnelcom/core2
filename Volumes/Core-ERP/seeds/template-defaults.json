@@ -8445,35 +8445,6 @@
       false
     ]
   ],
-  "roleModuleSeeds": {
-    "erp_admin": [
-      "*"
-    ],
-    "maintenance_requester": [
-      "maintenance"
-    ],
-    "maintenance_coordinator": [
-      "maintenance"
-    ],
-    "maintenance_technician": [
-      "maintenance"
-    ],
-    "maintenance_manager": [
-      "maintenance"
-    ],
-    "claims_administrator": [
-      "insurance_management"
-    ],
-    "claims_manager": [
-      "insurance_management"
-    ],
-    "claims_finance_officer": [
-      "insurance_management"
-    ],
-    "organisation_sales_user": [
-      "sales"
-    ]
-  },
   "resourceRoleSeeds": [
     [
       "account_owner",

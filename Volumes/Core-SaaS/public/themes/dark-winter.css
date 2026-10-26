@@ -1,0 +1,202 @@
+/* Dark Winter: forest river at nightfall; uses the existing SaaS theme structure. */
+:root{
+  --theme-brand:#9fb4a5;
+  --theme-brand-dark:#23362e;
+  --theme-accent:#c2d1c7;
+  --theme-header-tint:rgba(159,180,165,.10);
+  --theme-page:#0b1114;
+  --theme-panel:#182125;
+  --theme-panel-soft:#222e31;
+  --theme-ink:#edf2ef;
+  --theme-muted:#b6c3be;
+  --theme-line:rgba(174,197,185,.26);
+  --theme-glow:rgba(159,180,165,.10);
+  --theme-success:#9bccad;
+  --theme-danger:#ff9aa6;
+  --theme-shadow:0 12px 32px rgba(0,0,0,.32),inset 0 1px 0 rgba(224,237,229,.06);
+  --theme-page-overlay:linear-gradient(180deg,rgba(7,12,15,.10) 0%,rgba(7,12,15,.04) 48%,rgba(7,12,15,.18) 100%);
+  --theme-page-opacity:1;
+  --theme-header-photo:url("/themes/assets/dark-winter-background.png");
+  --theme-header-position:center 48%;
+  --theme-header-image:linear-gradient(145deg,#182125,#0b1114);
+  --theme-body-background:var(--theme-page-overlay),var(--theme-header-photo),var(--theme-page);
+  --theme-body-background-size:cover;
+  --theme-shell-background:var(--theme-page);
+  --theme-header-background:linear-gradient(135deg,rgba(24,33,37,.94),rgba(16,25,29,.92));
+  --theme-header-overlay:linear-gradient(90deg,rgba(24,33,37,.96),rgba(16,25,29,.94));
+  --theme-header-shadow:0 1px 0 rgba(174,197,185,.16),0 8px 24px rgba(0,0,0,.24);
+  --theme-panel-background:linear-gradient(145deg,rgba(34,46,49,.90),rgba(20,29,33,.90));
+  --theme-panel-color:var(--theme-ink);
+  --theme-tabs-background:rgba(24,35,39,.92);
+  --theme-input-background:#111b1f;
+  --theme-link-color:#c2d1c7;
+  --theme-button-background:linear-gradient(135deg,#9fb4a5,#88a291);
+  --theme-button-border:#9fb4a5;
+  --theme-button-color:#102019;
+  --theme-button-hover-background:#c2d1c7;
+  --theme-button-hover-border:#c2d1c7;
+  --theme-button-hover-color:#102019;
+  --theme-secondary-background:rgba(24,35,39,.88);
+  --theme-secondary-border:rgba(174,197,185,.26);
+  --theme-secondary-hover-background:#2d4038;
+  --theme-secondary-hover-color:#edf2ef;
+  --theme-secondary-hover-border:#91ab9a;
+  --theme-toolbar-color:#c2d1c7;
+  --theme-app-active-background:linear-gradient(135deg,#b4c7ba,#91ab9a);
+  --theme-app-active-color:#102019;
+  --theme-app-active-border:#c2d1c7;
+  --theme-app-active-shadow:0 2px 8px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.20);
+  --theme-application-card-shadow:0 2px 3px rgba(0,0,0,.24),0 12px 24px -9px rgba(0,0,0,.42);
+  --theme-application-card-hover-shadow:0 3px 4px rgba(0,0,0,.28),0 16px 28px -9px rgba(0,0,0,.50);
+  --theme-brand-mark-background:linear-gradient(135deg,#344e40,#789582);
+  --theme-brand-mark-color:#edf2ef;
+  --theme-brand-mark-shadow:0 8px 24px rgba(0,0,0,.24);
+  --theme-toast-success:#28503b;
+  --theme-backdrop-background:rgba(3,8,11,.72);
+  --theme-table-background:transparent;
+  --theme-table-color:var(--theme-ink);
+  --theme-th-background:rgba(159,180,165,.12);
+  --theme-td-border:rgba(174,197,185,.20);
+  --theme-grid-background:rgba(32,46,43,.84);
+  --theme-grid-border:rgba(174,197,185,.26);
+  --theme-grid-color:var(--theme-muted);
+  --theme-grid-hover-background:#2d4038;
+  --theme-grid-hover-border:#91ab9a;
+  --theme-grid-hover-color:var(--theme-ink);
+  --theme-application-home-hover-background:rgba(42,58,53,.94);
+  --theme-application-home-hover-backdrop:blur(14px) saturate(110%);
+  --theme-home-heading-color:var(--theme-ink);
+}
+body{
+  --ink:var(--theme-ink);
+  --muted:var(--theme-muted);
+  --line:var(--theme-line);
+  --panel:var(--theme-panel);
+  --page:var(--theme-page);
+  --brand:var(--theme-brand);
+  --brand-dark:var(--theme-brand-dark);
+  --accent:var(--theme-accent);
+  --success:var(--theme-success);
+  --danger:var(--theme-danger);
+  --shadow:var(--theme-shadow);
+  color:var(--theme-ink);
+  background:var(--theme-body-background);
+  background-size:var(--theme-body-background-size);
+  background-attachment:fixed;
+}
+.landing-shell{background:var(--theme-shell-background)}
+.landing-header{
+  border-color:var(--theme-line);
+  background:var(--theme-header-background) !important;
+  box-shadow:var(--theme-header-shadow);
+}
+.landing-header::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  background-image:var(--theme-header-overlay),var(--theme-header-photo,var(--theme-header-image));
+  background-repeat:no-repeat;
+  background-position:var(--theme-header-position,right center);
+  background-size:cover;
+  opacity:.95;
+}
+.application-home-item:hover{
+  background:var(--theme-application-home-hover-background);
+  backdrop-filter:var(--theme-application-home-hover-backdrop);
+}
+.landing-home .content-heading .eyebrow,.landing-home .content-heading h1{color:var(--theme-home-heading-color)}
+.auth-card,.management-panel,.table-panel,.proof-grid div,.tenant-grid-panel,.tenant-list-panel,.tenant-detail-panel,.dialog-card,.profile-menu,.empty-state,.application-home-item,.tenant-setup-grid,.tenant-user-grid,.tenant-application-grid,.tenant-application-users,.application-frame{
+  background:var(--theme-panel-background);
+  border-color:var(--theme-line);
+  color:var(--theme-panel-color);
+  box-shadow:var(--theme-shadow);
+  backdrop-filter:blur(18px) saturate(110%);
+}
+.tabs,.tenant-tabs,.tenant-grid-tabs,.tenant-new-grid,.tenant-grid-expanded,.result,.assignment-item{
+  background:var(--theme-tabs-background);
+  border-color:var(--theme-line);
+  box-shadow:inset 0 1px 0 rgba(224,237,229,.06);
+}
+input,select,.application-select{
+  background:var(--theme-input-background);
+  border-color:var(--theme-line);
+  color:var(--theme-ink);
+}
+input::placeholder{color:#9aada3}
+label,.lead,.microcopy,.profile-copy small,.proof-grid span,.application-home-copy small,.session-user,td,.tenant-grid-head,.tenant-child-head,th{color:var(--theme-muted)}
+a,.eyebrow,.link-button,.secondary-action,.secondary-form-action,.icon-action,.home-action,.grid-expand,.tenant-tab,.tenant-grid-tab,.tab-button{color:var(--theme-link-color)}
+button,.primary-action,.square-action,.add-grid-button{
+  background:var(--theme-button-background);
+  border-color:var(--theme-button-border);
+  color:var(--theme-button-color);
+  box-shadow:var(--theme-shadow);
+}
+button:hover,.primary-action:hover,.square-action:hover,.add-grid-button:hover{
+  background:var(--theme-button-hover-background);
+  border-color:var(--theme-button-hover-border);
+  color:var(--theme-button-hover-color);
+}
+.secondary-action,.secondary-form-action,.icon-action,.home-action,.logo-button,.profile-button,.tab-button,.tenant-tab,.tenant-grid-tab,.grid-expand,.profile-menu button{
+  background:var(--theme-secondary-background);
+  border-color:var(--theme-secondary-border);
+}
+.logo-button,.logo-button:hover,.logo-button:focus-visible{border-color:transparent}
+.application-icon-button,.application-launcher-panel .home-action{color:var(--theme-toolbar-color)}
+.secondary-action:hover,.secondary-form-action:hover,.icon-action:hover,.home-action:hover,.logo-button:hover,.profile-button:hover,.tab-button:hover,.tab-button.active,.tenant-tab:hover,.tenant-tab.active,.tenant-grid-tab:hover,.tenant-grid-tab.active,.grid-expand:hover,.application-home-item:hover,.tenant-list-item:hover,.tenant-list-item.active,.profile-menu button:hover{
+  background:var(--theme-secondary-hover-background);
+  color:var(--theme-secondary-hover-color);
+  border-color:var(--theme-secondary-hover-border);
+}
+.application-home-item,
+.application-home-item:hover{
+  outline:1px solid rgba(174,197,185,.12);
+}
+.brand-mark,.avatar:not(.has-photo){
+  background:var(--theme-brand-mark-background);
+  color:var(--theme-brand-mark-color);
+  box-shadow:var(--theme-brand-mark-shadow);
+}
+.toast.success{background:var(--theme-toast-success)}
+.dialog-card::backdrop{background:var(--theme-backdrop-background)}
+table,.tenant-list-item{background:var(--theme-table-background);color:var(--theme-table-color)}
+th,.tenant-grid-head,.tenant-child-head{background:var(--theme-th-background)}
+td,.tenant-child-row,.tenant-grid-row,.tenant-grid-expanded,.tenant-app-user-row{border-color:var(--theme-td-border)}
+.grid-expand{
+  background:var(--theme-grid-background);
+  border-color:var(--theme-grid-border);
+  color:var(--theme-grid-color);
+}
+.grid-expand:hover{
+  background:var(--theme-grid-hover-background);
+  border-color:var(--theme-grid-hover-border);
+  color:var(--theme-grid-hover-color);
+}
+.application-icon-button.active,
+.application-icon-button.active:hover,
+.application-icon-button.active:focus-visible,
+.application-launcher-panel .home-action.active,
+.application-launcher-panel .home-action.active:hover,
+.application-launcher-panel .home-action.active:focus-visible{
+  background:var(--theme-app-active-background) !important;
+  border:1px solid var(--theme-app-active-border) !important;
+  color:var(--theme-app-active-color) !important;
+  box-shadow:var(--theme-app-active-shadow) !important;
+  text-shadow:none;
+}
+.application-icon-button.active .app-icon.toolbar,
+.application-launcher-panel .home-action.active .home-icon.toolbar{
+  color:var(--theme-app-active-color);
+}
+.application-icon-button.active .application-icon-label,
+.application-launcher-panel .home-action.active .home-label{
+  color:var(--theme-app-active-color);
+  font-weight:700;
+}
+
+
+/* Reuse the home surface hooks; retain the shared layout and blur. */
+#landing-home{
+  --home-tile-background:rgba(24,35,39,.84);
+  --home-tile-hover-background:rgba(42,58,53,.94);
+}

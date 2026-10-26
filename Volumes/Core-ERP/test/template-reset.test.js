@@ -10,7 +10,7 @@ test('template reset covers scoped application tables and deletes children befor
   const calls=[];
   await resetTemplateData({query:async(text,values)=>calls.push({text,values})},'tenant','template');
   for(const [,table,body] of definitions){
-    if(table==='erp_organisation'||!body.includes('organisation_id'))continue;
+    if(table==='erp_organisation'||table==='erp_organisation_user'||!body.includes('organisation_id'))continue;
     assert.ok(templateResetTables.includes(table),`${table} must be reset`);
     for(const ref of body.matchAll(/REFERENCES (erp_[a-z_]+)\([^)]*\)([^,\n]*)/g)){
       const parent=ref[1];

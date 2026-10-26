@@ -1529,12 +1529,7 @@ body.panels-glass .nav.menu-entry.active {
 }
 #transaction-type-form > .setup-type-panel[data-panel="definition"] {
   grid-template-columns: minmax(0, 1fr);
-  gap: 14px;
-}
-#transaction-type-form > .setup-type-panel[data-panel="definition"] > label:not(.check) > :is(input, select, textarea) {
-  width: 100%;
-  max-width: 620px;
-  min-width: 0;
+  gap: 9px;
 }
 #transaction-type-form > .setup-type-panel[data-panel="scope"] {
   min-height: 280px;
@@ -4169,10 +4164,11 @@ textarea.schema-textarea {
 
 /* Native popup shows codes and labels; closed controls show only the label. */
 .schema-choice-control { position: relative; display: block; min-width: 0; width: 100%; font-size: 13px; }
-.schema-choice-control > select { width: 100%; color: transparent; appearance: none; }
+/* Only the overlay paints the closed value, including under theme/disabled overrides. */
+.schema-choice-control > select { width: 100%; color: transparent !important; appearance: none; }
 .schema-choice-control::after { content: ""; position: absolute; right: 12px; top: calc(50% - 4px); width: 6px; height: 6px; border-right: 1.5px solid var(--control-ink); border-bottom: 1.5px solid var(--control-ink); transform: rotate(45deg); pointer-events: none; }
 .schema-choice-control > select option { color: var(--control-ink); background: var(--panel); }
-.schema-choice-label { position: absolute; inset: 0 30px 0 12px; display: flex; align-items: center; overflow: hidden; white-space: nowrap; pointer-events: none; color: var(--control-ink); }
+.schema-choice-label { position: absolute; inset: 0 30px 0 12px; display: block; align-content: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; color: var(--control-ink); }
 
 /* Compact statement presentation, scoped to avoid changing other report grids. */
 .statement-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-right: 38px; margin-bottom: 14px; }
@@ -4221,3 +4217,38 @@ textarea.schema-textarea {
 .statement-journal-detail { position: relative; padding: 8px 42px 8px 10px; }
 .statement-journal-detail h3 { margin: 4px 0 8px; }
 @media (max-width: 700px) { .financial-statement-summary { grid-template-columns: 1fr; } }
+
+/* Organisation-user assignments share the existing grid and field-row layouts. */
+#erp-user-form .actions { justify-content: flex-end; }
+#erp-user-form .erp-user-assignment-scroll { overflow-x: auto; }
+#erp-user-form .data-grid { min-width: 560px; }
+#erp-user-form .data-grid select { min-width: 160px; width: 100%; }
+#erp-user-form .data-grid input[type="date"] { min-width: 130px; }
+
+/* All record editors share native modal focus and background isolation. */
+dialog.erp-editor-dialog {
+  position: fixed; inset: 0; margin: 0; padding: 16px;
+  width: 100vw; height: 100dvh; max-width: none; max-height: none;
+  border: 0; background: transparent; box-sizing: border-box;
+  overflow: hidden; pointer-events: none;
+}
+dialog.erp-editor-dialog[open] { display: grid; place-items: center; }
+dialog.erp-editor-dialog::backdrop { background: rgb(18 36 47 / 38%); pointer-events: auto; }
+.erp-editor-dialog > .erp-modal-surface:not(#modal-specificity):not(#modal-specificity-extra) {
+  position: relative; inset: auto; margin: 0; z-index: auto;
+  width: min(var(--erp-editor-width, 520px), 100%); max-width: 100%; min-width: 0;
+  height: auto; max-height: calc(100dvh - 32px); overflow: auto;
+  box-sizing: border-box; pointer-events: auto;
+  box-shadow: 0 16px 48px rgb(18 36 47 / 24%);
+}
+.erp-editor-dialog > .organisation-setup-panel-wrapper.erp-modal-surface { background: var(--panel, white); border-radius: 8px; }
+.erp-editor-dialog > #intake-modal.erp-modal-surface { display: block; padding: 0; }
+
+/* Shared scalar sizing applies to setup, inline and modal editors alike. */
+:is(.erp-field-rows, #transaction-type-form) .detail-field { grid-column: 1 / -1; }
+:is(.erp-field-rows, #transaction-type-form) .detail-field--short > :is(input, select, textarea) { width: min(100%, 180px); max-width: 180px; }
+:is(.erp-field-rows, #transaction-type-form) .detail-field--medium > :is(input, select, textarea) { width: min(100%, 340px); max-width: 340px; }
+:is(.erp-field-rows, #transaction-type-form) .detail-field--wide > :is(input, select, textarea) { width: min(100%, 500px); max-width: 500px; }
+:is(.erp-field-rows, #transaction-type-form) .detail-field--full > :is(input, select, textarea) { width: 100%; }
+.erp-identification-fields { display: grid; gap: 9px; min-width: 0; }
+#erp-user-form { gap: 20px; }

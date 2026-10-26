@@ -13,6 +13,7 @@ function context(method='GET',body={},options={}){
       calls.push(query);
       if(query.text.includes('to_regclass'))return {rows:[{favourite_table:options.missingTable?null:'erp_user_menu_favourite'}]};
       if(query.text.includes('SELECT item_key'))return {rows:[{item_key:'["view","dashboard"]'}]};
+      if(query.text.includes('FROM erp_organisation_user'))return {rowCount:1,rows:[]};
       if(query.text.includes('FROM erp_organisation'))return {rowCount:options.missingOrg?0:1,rows:[]};
       return {rowCount:1,rows:[]};
     }

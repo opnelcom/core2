@@ -1,0 +1,202 @@
+/* Winter Ice: misty alpine lake; uses the existing SaaS theme structure. */
+:root{
+  --theme-brand:#397db8;
+  --theme-brand-dark:#193654;
+  --theme-accent:#90c9ed;
+  --theme-header-tint:rgba(144,201,237,.16);
+  --theme-page:#e9f0f5;
+  --theme-panel:#f5f9fc;
+  --theme-panel-soft:#edf5fb;
+  --theme-ink:#172f52;
+  --theme-muted:#425e79;
+  --theme-line:rgba(112,159,195,.44);
+  --theme-glow:rgba(91,163,217,.14);
+  --theme-success:#216b4c;
+  --theme-danger:#ad3044;
+  --theme-shadow:0 8px 24px rgba(32,62,87,.12),inset 0 1px 0 rgba(255,255,255,.72);
+  --theme-page-overlay:linear-gradient(180deg,rgba(235,243,250,.30) 0%,rgba(235,243,250,.16) 46%,rgba(227,237,245,.10) 100%);
+  --theme-page-opacity:1;
+  --theme-header-photo:url("/themes/assets/winter-ice-background.png");
+  --theme-header-position:center 48%;
+  --theme-header-image:linear-gradient(145deg,#e9f0f5,#c8d9e5);
+  --theme-body-background:var(--theme-page-overlay),var(--theme-header-photo),var(--theme-page);
+  --theme-body-background-size:cover;
+  --theme-shell-background:var(--theme-page);
+  --theme-header-background:linear-gradient(135deg,rgba(248,252,255,.94),rgba(225,239,250,.88));
+  --theme-header-overlay:linear-gradient(90deg,rgba(245,250,255,.98),rgba(232,243,252,.95));
+  --theme-header-shadow:0 1px 0 rgba(112,159,195,.28),0 6px 20px rgba(32,62,87,.08);
+  --theme-panel-background:linear-gradient(145deg,rgba(250,253,255,.88),rgba(229,241,252,.82));
+  --theme-panel-color:var(--theme-ink);
+  --theme-tabs-background:rgba(241,248,253,.88);
+  --theme-input-background:#f8fbfe;
+  --theme-link-color:#214f7b;
+  --theme-button-background:linear-gradient(135deg,#397db8,#286699);
+  --theme-button-border:#286699;
+  --theme-button-color:#ffffff;
+  --theme-button-hover-background:#214f7b;
+  --theme-button-hover-border:#214f7b;
+  --theme-button-hover-color:#ffffff;
+  --theme-secondary-background:rgba(242,249,255,.88);
+  --theme-secondary-border:rgba(112,159,195,.44);
+  --theme-secondary-hover-background:#d5eafa;
+  --theme-secondary-hover-color:#172f52;
+  --theme-secondary-hover-border:#5997c8;
+  --theme-toolbar-color:#214f7b;
+  --theme-app-active-background:linear-gradient(135deg,#c2e8ff,#7cc2f2);
+  --theme-app-active-color:#12365b;
+  --theme-app-active-border:#6bb2e5;
+  --theme-app-active-shadow:0 2px 8px rgba(57,125,184,.22),inset 0 1px 0 rgba(255,255,255,.74);
+  --theme-application-card-shadow:0 2px 3px rgba(32,62,87,.08),0 12px 24px -9px rgba(57,99,135,.24);
+  --theme-application-card-hover-shadow:0 3px 4px rgba(32,62,87,.12),0 16px 28px -9px rgba(57,99,135,.32);
+  --theme-brand-mark-background:linear-gradient(135deg,#214f7b,#397db8);
+  --theme-brand-mark-color:#ffffff;
+  --theme-brand-mark-shadow:0 8px 24px rgba(57,125,184,.20);
+  --theme-toast-success:#216b4c;
+  --theme-backdrop-background:rgba(20,40,60,.42);
+  --theme-table-background:transparent;
+  --theme-table-color:var(--theme-ink);
+  --theme-th-background:rgba(144,201,237,.20);
+  --theme-td-border:rgba(112,159,195,.30);
+  --theme-grid-background:rgba(230,241,250,.80);
+  --theme-grid-border:rgba(112,159,195,.36);
+  --theme-grid-color:var(--theme-muted);
+  --theme-grid-hover-background:#d5eafa;
+  --theme-grid-hover-border:#5997c8;
+  --theme-grid-hover-color:var(--theme-ink);
+  --theme-application-home-hover-background:rgba(234,246,255,.94);
+  --theme-application-home-hover-backdrop:blur(14px) saturate(110%);
+  --theme-home-heading-color:var(--theme-ink);
+}
+body{
+  --ink:var(--theme-ink);
+  --muted:var(--theme-muted);
+  --line:var(--theme-line);
+  --panel:var(--theme-panel);
+  --page:var(--theme-page);
+  --brand:var(--theme-brand);
+  --brand-dark:var(--theme-brand-dark);
+  --accent:var(--theme-accent);
+  --success:var(--theme-success);
+  --danger:var(--theme-danger);
+  --shadow:var(--theme-shadow);
+  color:var(--theme-ink);
+  background:var(--theme-body-background);
+  background-size:var(--theme-body-background-size);
+  background-attachment:fixed;
+}
+.landing-shell{background:var(--theme-shell-background)}
+.landing-header{
+  border-color:var(--theme-line);
+  background:var(--theme-header-background) !important;
+  box-shadow:var(--theme-header-shadow);
+}
+.landing-header::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  background-image:var(--theme-header-overlay),var(--theme-header-photo,var(--theme-header-image));
+  background-repeat:no-repeat;
+  background-position:var(--theme-header-position,right center);
+  background-size:cover;
+  opacity:.95;
+}
+.application-home-item:hover{
+  background:var(--theme-application-home-hover-background);
+  backdrop-filter:var(--theme-application-home-hover-backdrop);
+}
+.landing-home .content-heading .eyebrow,.landing-home .content-heading h1{color:var(--theme-home-heading-color)}
+.auth-card,.management-panel,.table-panel,.proof-grid div,.tenant-grid-panel,.tenant-list-panel,.tenant-detail-panel,.dialog-card,.profile-menu,.empty-state,.application-home-item,.tenant-setup-grid,.tenant-user-grid,.tenant-application-grid,.tenant-application-users,.application-frame{
+  background:var(--theme-panel-background);
+  border-color:var(--theme-line);
+  color:var(--theme-panel-color);
+  box-shadow:var(--theme-shadow);
+  backdrop-filter:blur(18px) saturate(110%);
+}
+.tabs,.tenant-tabs,.tenant-grid-tabs,.tenant-new-grid,.tenant-grid-expanded,.result,.assignment-item{
+  background:var(--theme-tabs-background);
+  border-color:var(--theme-line);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.60);
+}
+input,select,.application-select{
+  background:var(--theme-input-background);
+  border-color:var(--theme-line);
+  color:var(--theme-ink);
+}
+input::placeholder{color:#60788d}
+label,.lead,.microcopy,.profile-copy small,.proof-grid span,.application-home-copy small,.session-user,td,.tenant-grid-head,.tenant-child-head,th{color:var(--theme-muted)}
+a,.eyebrow,.link-button,.secondary-action,.secondary-form-action,.icon-action,.home-action,.grid-expand,.tenant-tab,.tenant-grid-tab,.tab-button{color:var(--theme-link-color)}
+button,.primary-action,.square-action,.add-grid-button{
+  background:var(--theme-button-background);
+  border-color:var(--theme-button-border);
+  color:var(--theme-button-color);
+  box-shadow:var(--theme-shadow);
+}
+button:hover,.primary-action:hover,.square-action:hover,.add-grid-button:hover{
+  background:var(--theme-button-hover-background);
+  border-color:var(--theme-button-hover-border);
+  color:var(--theme-button-hover-color);
+}
+.secondary-action,.secondary-form-action,.icon-action,.home-action,.logo-button,.profile-button,.tab-button,.tenant-tab,.tenant-grid-tab,.grid-expand,.profile-menu button{
+  background:var(--theme-secondary-background);
+  border-color:var(--theme-secondary-border);
+}
+.logo-button,.logo-button:hover,.logo-button:focus-visible{border-color:transparent}
+.application-icon-button,.application-launcher-panel .home-action{color:var(--theme-toolbar-color)}
+.secondary-action:hover,.secondary-form-action:hover,.icon-action:hover,.home-action:hover,.logo-button:hover,.profile-button:hover,.tab-button:hover,.tab-button.active,.tenant-tab:hover,.tenant-tab.active,.tenant-grid-tab:hover,.tenant-grid-tab.active,.grid-expand:hover,.application-home-item:hover,.tenant-list-item:hover,.tenant-list-item.active,.profile-menu button:hover{
+  background:var(--theme-secondary-hover-background);
+  color:var(--theme-secondary-hover-color);
+  border-color:var(--theme-secondary-hover-border);
+}
+.application-home-item,
+.application-home-item:hover{
+  outline:1px solid rgba(112,159,195,.18);
+}
+.brand-mark,.avatar:not(.has-photo){
+  background:var(--theme-brand-mark-background);
+  color:var(--theme-brand-mark-color);
+  box-shadow:var(--theme-brand-mark-shadow);
+}
+.toast.success{background:var(--theme-toast-success)}
+.dialog-card::backdrop{background:var(--theme-backdrop-background)}
+table,.tenant-list-item{background:var(--theme-table-background);color:var(--theme-table-color)}
+th,.tenant-grid-head,.tenant-child-head{background:var(--theme-th-background)}
+td,.tenant-child-row,.tenant-grid-row,.tenant-grid-expanded,.tenant-app-user-row{border-color:var(--theme-td-border)}
+.grid-expand{
+  background:var(--theme-grid-background);
+  border-color:var(--theme-grid-border);
+  color:var(--theme-grid-color);
+}
+.grid-expand:hover{
+  background:var(--theme-grid-hover-background);
+  border-color:var(--theme-grid-hover-border);
+  color:var(--theme-grid-hover-color);
+}
+.application-icon-button.active,
+.application-icon-button.active:hover,
+.application-icon-button.active:focus-visible,
+.application-launcher-panel .home-action.active,
+.application-launcher-panel .home-action.active:hover,
+.application-launcher-panel .home-action.active:focus-visible{
+  background:var(--theme-app-active-background) !important;
+  border:1px solid var(--theme-app-active-border) !important;
+  color:var(--theme-app-active-color) !important;
+  box-shadow:var(--theme-app-active-shadow) !important;
+  text-shadow:none;
+}
+.application-icon-button.active .app-icon.toolbar,
+.application-launcher-panel .home-action.active .home-icon.toolbar{
+  color:var(--theme-app-active-color);
+}
+.application-icon-button.active .application-icon-label,
+.application-launcher-panel .home-action.active .home-label{
+  color:var(--theme-app-active-color);
+  font-weight:700;
+}
+
+
+/* Reuse the home surface hooks; retain the shared layout and blur. */
+#landing-home{
+  --home-tile-background:rgba(241,248,255,.84);
+  --home-tile-hover-background:rgba(248,252,255,.94);
+}

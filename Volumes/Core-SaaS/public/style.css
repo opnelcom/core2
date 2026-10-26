@@ -984,7 +984,7 @@ button:hover{background:var(--brand-dark);border-color:var(--brand-dark)}
   margin:0;
   color:var(--theme-home-heading-color,var(--ink));
   font-size:.82rem;
-  font-weight:800;
+  font-weight:500;
   text-transform:uppercase;
 }
 .tenant-icon-tile{
@@ -1387,12 +1387,12 @@ button:hover{background:var(--brand-dark);border-color:var(--brand-dark)}
   padding:18px;
   border:1px solid var(--line);
   border-radius:8px;
-  background:rgba(255,255,255,.94);
+  background:var(--theme-panel-background,var(--panel));
   color:var(--ink);
-  box-shadow:0 18px 44px rgba(23,32,51,.20);
+  box-shadow:var(--theme-shadow,var(--shadow));
   backdrop-filter:blur(10px);
 }
-.tenant-edit-panel::backdrop{background:rgba(15,23,42,.45)}
+.tenant-edit-panel::backdrop{background:var(--theme-backdrop-background,rgba(15,23,42,.45))}
 body:has(.tenant-edit-panel[open]){overflow:hidden}
 .tenant-edit-panel[hidden]{display:none}
 .tenant-edit-panel h2{
@@ -1401,7 +1401,7 @@ body:has(.tenant-edit-panel[open]){overflow:hidden}
   font-size:1rem;
   font-weight:500;
 }
-.tenant-panel-close{
+.tenant-edit-panel .tenant-panel-close{
   position:absolute;
   top:10px;
   right:10px;
@@ -1411,25 +1411,25 @@ body:has(.tenant-edit-panel[open]){overflow:hidden}
   min-width:30px;
   min-height:30px;
   padding:0;
-  border-color:#c8d4df;
-  background:white;
-  color:#344054;
+  border-color:var(--line);
+  background:var(--theme-panel-soft,var(--panel));
+  color:var(--ink);
   font-size:1rem;
   font-weight:400;
   line-height:1;
 }
-.tenant-panel-close:hover{
-  background:#eef6f8;
-  color:var(--brand-dark);
-  border-color:#8fb0b9;
+.tenant-edit-panel .tenant-panel-close:hover{
+  background:var(--theme-secondary-hover-background,var(--panel));
+  color:var(--theme-link-color,var(--brand));
+  border-color:var(--brand);
 }
 .tenant-editor-tabs{
   display:flex;
   flex-wrap:wrap;
   gap:6px;
-  border-bottom:1px solid #edf1f5;
+  border-bottom:1px solid var(--line);
 }
-.tenant-editor-tab{
+.tenant-edit-panel .tenant-editor-tab{
   width:auto;
   min-height:36px;
   padding:8px 10px;
@@ -1437,13 +1437,13 @@ body:has(.tenant-edit-panel[open]){overflow:hidden}
   border-bottom:2px solid transparent;
   border-radius:0;
   background:transparent;
-  color:#475467;
+  color:var(--muted);
   font-weight:400;
 }
-.tenant-editor-tab:hover,.tenant-editor-tab.active{
-  background:#f8fafc;
-  border-bottom-color:var(--brand-dark);
-  color:var(--brand-dark);
+.tenant-edit-panel .tenant-editor-tab:hover,.tenant-edit-panel .tenant-editor-tab.active{
+  background:var(--theme-panel-soft,var(--panel));
+  border-bottom-color:var(--theme-link-color,var(--brand));
+  color:var(--theme-link-color,var(--brand));
 }
 .tenant-editor-body{
   min-width:0;
@@ -1476,6 +1476,59 @@ body:has(.tenant-edit-panel[open]){overflow:hidden}
   gap:10px;
   padding-top:4px;
 }
+/* Shared tenant modal: consume the active palette without altering theme files. */
+.tenant-edit-panel input,.tenant-edit-panel select,.tenant-edit-panel textarea{
+  background:var(--theme-panel-soft,var(--panel));
+  color:var(--ink);
+  border-color:var(--line);
+}
+.tenant-edit-panel input::placeholder,.tenant-edit-panel textarea::placeholder{
+  color:var(--muted);
+  opacity:1;
+}
+.tenant-edit-panel input:focus,.tenant-edit-panel select:focus,.tenant-edit-panel textarea:focus,
+.tenant-edit-panel button:focus-visible{
+  outline:3px solid color-mix(in srgb,var(--brand) 30%,transparent);
+  border-color:var(--brand);
+}
+.tenant-edit-panel .tenant-editor-tab,.tenant-edit-panel .tenant-panel-close,
+.tenant-edit-panel .tenant-icon-preset-option{box-shadow:none}
+.tenant-edit-panel .tenant-editor-tab:disabled{
+  color:var(--muted);
+  background:transparent;
+  border-bottom-color:transparent;
+  opacity:.6;
+  cursor:not-allowed;
+}
+.tenant-edit-panel .tenant-icon-editor-label{color:var(--muted)}
+.tenant-edit-panel .tenant-icon-custom-state{color:var(--theme-link-color,var(--brand))}
+.tenant-edit-panel .tenant-icon-preview,.tenant-edit-panel .tenant-icon-preset-option{
+  background:var(--theme-panel-soft,var(--panel));
+  color:var(--ink);
+  border-color:var(--line);
+}
+.tenant-edit-panel .tenant-icon-preset-option:hover,
+.tenant-edit-panel .tenant-icon-preset-option:focus-visible,
+.tenant-edit-panel .tenant-icon-preset-option.selected{
+  background:color-mix(in srgb,var(--theme-panel-soft,var(--panel)) 80%,var(--brand));
+  color:var(--ink);
+  border-color:var(--brand);
+}
+.tenant-edit-panel .tenant-user-grid,.tenant-edit-panel .tenant-application-grid,
+.tenant-edit-panel .tenant-application-users,.tenant-edit-panel .new-grid-row{
+  background:var(--theme-panel-soft,var(--panel));
+  color:var(--ink);
+  border-color:var(--line);
+  box-shadow:none;
+}
+.tenant-edit-panel .tenant-child-row,.tenant-edit-panel .tenant-app-user-row{border-color:var(--line)}
+.tenant-edit-panel .status-toggle{
+  background:var(--line);
+  color:transparent;
+  box-shadow:none;
+}
+.tenant-edit-panel .status-toggle.is-active{background:var(--brand)}
+.tenant-edit-panel .status-toggle::before{background:var(--ink)}
 .tenant-grid-expanded{
   min-width:820px;
   padding:14px;

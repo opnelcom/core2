@@ -43,6 +43,7 @@ async function executeTemplateInitialisation(client, options) {
   await client.query(`INSERT INTO erp_division(tenant_id,organisation_id,division_code,division_name,workflow_status,created_by_email,updated_by_email)
     VALUES($1,$2,$3,$4,'approved',$5,$5) ON CONFLICT(tenant_id,organisation_id,division_code) WHERE workflow_status<>'deleted' DO UPDATE SET division_name=excluded.division_name,workflow_status='approved'`,
     [...values,organisation.rootDivision.code,organisation.rootDivision.name,access.auth.email]);
+  await client.query(`INSERT INTO erp_organisation_user(tenant_id,organisation_id,email) VALUES($1,$2,lower($3)) ON CONFLICT(tenant_id,organisation_id,email) DO NOTHING`,[...values,access.auth.email]);
   await seedOrganisationDefaults(ctx, access, id);
   await client.query(`INSERT INTO erp_user_role(tenant_id,organisation_id,role_id,email,valid_from,valid_to)
     SELECT $1,$2,role_id,lower($3),CURRENT_DATE,NULL FROM erp_role WHERE tenant_id=$1 AND organisation_id=$2 AND role_code='security_administrator' AND is_admin=true

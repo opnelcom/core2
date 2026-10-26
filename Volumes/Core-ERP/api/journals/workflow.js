@@ -1,5 +1,5 @@
 "use strict";
-const {authTenant,requireModuleAccess,requireResourcePermission,validateJournal,checkPeriodOpen,nullable}=require('../_shared/erp');
+const {authTenant,requireResourcePermission,validateJournal,checkPeriodOpen,nullable}=require('../_shared/erp');
 const {hasWorkflowActionRole}=require('../_shared/erp/workflow-action-roles');
 const {createTransactionPlan}=require('../_shared/erp/transaction-plan');
 module.exports=async ctx=>{
@@ -15,8 +15,6 @@ module.exports=async ctx=>{
   const journal=current.rows[0];
   access=await authTenant(ctx,journal.organisation_id);
   if(access.status)return ctx.send(access.status,access.body);
-  const deniedModule=await requireModuleAccess(plannedCtx,access,{organisationId:journal.organisation_id,resourceKind:'transaction_type',resourceCode:journal.transaction_type_id});
-  if(deniedModule)return ctx.send(deniedModule.status,deniedModule.body);
   const action=await plan.client.query(`SELECT n.* FROM erp_workflow_next n JOIN erp_workflow_path p ON p.workflow_path_id=n.workflow_path_id WHERE n.tenant_id=$1 AND n.organisation_id=$2 AND n.workflow_path_id=$3 AND n.current_step_code=$4 AND n.workflow_next_id=$5 AND p.is_active=true`,[access.tenantId,journal.organisation_id,journal.workflow_path_id,journal.workflow_status,actionId]);
   if(!action.rowCount)return ctx.send(400,{error:'Action is not configured for this transaction status'});
   if(!await hasWorkflowActionRole(plannedCtx,access,journal.organisation_id,actionId))return ctx.send(403,{error:'You do not hold an assigned permission role for this workflow action'});

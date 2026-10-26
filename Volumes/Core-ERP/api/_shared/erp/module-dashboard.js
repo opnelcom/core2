@@ -1,4 +1,6 @@
 'use strict';
+const {userDivisionAccessSql}=require('./user-access');
+const {accessibleModulesSql}=require('./permission-modules');
 
 // Trusted application definitions only: identifiers never come from a request.
 const sources = [
@@ -7,16 +9,6 @@ const sources = [
   ['accounting_dimension','erp_accounting_dimension','erp_accounting_dimension_type','accounting_dimension_type_id','owner_division_id'],
   ['transaction','erp_journal','erp_transaction_type','transaction_type_id','source_division_id'],
 ];
-
-function accessibleModulesSql() {
-  return `    SELECT module.* FROM erp_module module WHERE module.tenant_id=$1 AND module.organisation_id=$2 AND module.is_active=true
-      AND EXISTS(SELECT 1 FROM erp_user_role ur JOIN erp_role role ON role.role_id=ur.role_id
-        JOIN erp_role_module link ON link.role_id=role.role_id
-        WHERE ur.tenant_id=$1 AND ur.organisation_id=$2 AND lower(ur.email)=lower($3)
-          AND role.tenant_id=$1 AND role.organisation_id=$2 AND role.is_active=true
-          AND ur.valid_from<=CURRENT_DATE AND (ur.valid_to IS NULL OR ur.valid_to>=CURRENT_DATE)
-          AND link.module_id=module.module_id)`;
-}
 
 function dashboardSql() {
   const records = sources.map(([kind,table,typeTable,typeId,division]) => `
@@ -38,6 +30,7 @@ function dashboardSql() {
     JOIN erp_workflow_status status ON status.tenant_id=record.tenant_id
       AND status.organisation_id=record.organisation_id AND status.status_code=record.workflow_status AND status.transitional=true
     WHERE record.tenant_id=$1 AND record.organisation_id=$2
+          AND ${userDivisionAccessSql({tenant:'$1',organisation:'$2',email:'$3',division:'record.'+division})}
   `).join(' UNION ALL ');
   return `WITH RECURSIVE accessible_modules AS (
     ${accessibleModulesSql()}
@@ -50,7 +43,6 @@ function dashboardSql() {
     SELECT record.* FROM candidates record
     WHERE ($5::uuid IS NULL OR record.division_id IN(SELECT division_id FROM selected_scope))
       AND ((record.kind<>'transaction' AND $4::boolean)
-        OR (record.kind='transaction' AND lower(record.created_by_email)=lower($3))
         OR EXISTS(
           WITH RECURSIVE ancestors AS (
             SELECT division_id,parent_division_id,0 depth FROM erp_division

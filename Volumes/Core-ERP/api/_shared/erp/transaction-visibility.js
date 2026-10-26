@@ -1,10 +1,11 @@
 'use strict';
+const {userDivisionAccessSql}=require('./user-access');
 
 // SQL expressions are supplied by the calling query, never by request input.
 // Reports use the same administrator, wildcard, status and division rules as
 // transaction access; approval alone does not grant report access.
 function transactionVisibilitySql({tenant,organisation,division,transactionType,status,email,administrator}){
-  return `(${administrator}::boolean OR EXISTS (
+  return `(${userDivisionAccessSql({tenant,organisation,email,division})} AND (${administrator}::boolean OR EXISTS (
     WITH RECURSIVE ancestors AS (
       SELECT division_id,parent_division_id,0 depth
       FROM erp_division
@@ -28,7 +29,7 @@ function transactionVisibilitySql({tenant,organisation,division,transactionType,
       AND rp.resource_kind='transaction'
       AND (rp.workflow_status IN('view','*') OR rp.workflow_status=${status})
       AND (rp.resource_code=${transactionType}::text OR rp.resource_code='*')
-  ))`;
+  )))`;
 }
 
 module.exports={transactionVisibilitySql};

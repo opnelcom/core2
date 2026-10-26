@@ -11,8 +11,9 @@ function fixture(){
     CREATE TABLE erp_module(module_id,tenant_id,organisation_id,module_name,module_icon_svg,sort_order,is_active);
     CREATE TABLE erp_role(role_id,tenant_id,organisation_id,is_active);
     CREATE TABLE erp_user_role(role_id,tenant_id,organisation_id,email,valid_from,valid_to);
-    CREATE TABLE erp_role_module(role_id,module_id);
-    CREATE TABLE erp_role_permission(role_id,division_id,resource_kind,resource_code,workflow_status,valid_from,valid_to,applies_to_children);
+    CREATE TABLE erp_role_permission(tenant_id DEFAULT 'tenant',organisation_id DEFAULT 'org',role_id,division_id,resource_kind,resource_code,workflow_status,valid_from,valid_to,applies_to_children);
+    CREATE TABLE erp_report(report_id,tenant_id,organisation_id,is_active);
+    CREATE TABLE erp_report_module(report_id,module_id);
     CREATE TABLE erp_division(division_id,parent_division_id,tenant_id,organisation_id);
     CREATE TABLE erp_workflow_status(tenant_id,organisation_id,status_code,status_label,transitional);
     CREATE TABLE erp_workflow_path_status(tenant_id,organisation_id,workflow_path_id,step_code);
@@ -20,7 +21,6 @@ function fixture(){
     INSERT INTO erp_module VALUES('crm','tenant','org','CRM',NULL,1,true),('sales','tenant','org','Sales',NULL,2,true),('empty','tenant','org','Empty',NULL,3,true),('secret','tenant','org','Secret',NULL,4,true);
     INSERT INTO erp_role VALUES('role','tenant','org',true);
     INSERT INTO erp_user_role VALUES('role','tenant','org','user@example.test','2000-01-01',NULL);
-    INSERT INTO erp_role_module VALUES('role','crm'),('role','sales'),('role','empty');
     INSERT INTO erp_division VALUES('root',NULL,'tenant','org'),('child','root','tenant','org'),('foreign',NULL,'other','org');
     INSERT INTO erp_workflow_status VALUES('tenant','org','submitted','Custom submitted label',true),('tenant','org','active','Active',false),('tenant','org','draft','Draft',false),('other','org','submitted','Foreign',true);
     INSERT INTO erp_workflow_path_status VALUES('tenant','org','path','submitted'),('tenant','org','path','active');
@@ -36,7 +36,7 @@ function fixture(){
       CREATE TABLE ${typeTable}_module(${id},module_id);
       CREATE TABLE erp_${table}(${recordId},${id},tenant_id,organisation_id,${division},workflow_status,created_by_email);
       INSERT INTO ${typeTable} VALUES('${table}-type','tenant','org','${table}',true,'path');
-      INSERT INTO ${typeTable}_module VALUES('${table}-type','crm'),('${table}-type','sales'),('${table}-type','secret');
+      INSERT INTO ${typeTable}_module VALUES('${table}-type','crm'),('${table}-type','sales'),('${table}-secret','secret');
       INSERT INTO erp_${table} VALUES('${table}-root','${table}-type','tenant','org','root','submitted','author@example.test'),
         ('${table}-child','${table}-type','tenant','org','child','submitted','author@example.test'),
         ('${table}-active','${table}-type','tenant','org','root','active','author@example.test'),
@@ -45,16 +45,17 @@ function fixture(){
   }
   const sql=dashboardSql().replace(/::(?:uuid|boolean|text|integer|numeric)/g,'').replace('count(DISTINCT (kind,record_id))',"count(DISTINCT kind || ':' || record_id)");
   const query=(overrides={})=>dashboardResult(db.prepare(sql).all({$1:'tenant',$2:'org',$3:'user@example.test',$4:0,$5:'root',$6:0,...overrides}));
-  const grant=(kind,children=0,status='view')=>db.prepare('INSERT INTO erp_role_permission VALUES(?,?,?,?,?,?,?,?)').run('role','root',kind,'*',status,'2000-01-01',null,children);
+  const grant=(kind,children=0,status='view')=>db.prepare('INSERT INTO erp_role_permission(role_id,division_id,resource_kind,resource_code,workflow_status,valid_from,valid_to,applies_to_children) VALUES(?,?,?,?,?,?,?,?)').run('role','root',kind,'*',status,'2000-01-01',null,children);
+ require('./fixtures/user-access').grantUserAccess(db,{tenantId:'tenant',organisationId:'org',email:'user@example.test'});
   return {db,query,grant};
 }
 
-test('dashboard honours module membership, view permissions, divisions, transitional flags and distinct overview counts',()=>{
+test('dashboard derives modules from permissions and honours view permissions, divisions, transitional flags and distinct overview counts',()=>{
   const f=fixture();
   try{
-    let data=f.query();assert.deepEqual(data.modules.map(m=>m.module_name),['CRM','Sales','Empty']);assert.equal(data.total_records,0);
+    let data=f.query();assert.deepEqual(data.modules,[]);assert.equal(data.total_records,0);
     f.grant('accounting_object');
-    data=f.query();assert.equal(data.total_records,1);assert.equal(data.modules[0].total,1);assert.equal(data.modules[1].total,1);assert.equal(data.modules[2].total,0);
+    data=f.query();assert.equal(data.total_records,1);assert.equal(data.modules[0].total,1);assert.equal(data.modules[1].total,1);assert.equal(data.modules.length,2);
     assert.equal(data.modules[0].types[0].statuses[0].status_label,'Custom submitted label');
     assert.equal(f.query({$6:1}).total_records,1,'parent permission without inheritance cannot expose child objects');
     f.db.exec('UPDATE erp_role_permission SET applies_to_children=true');assert.equal(f.query({$6:1}).total_records,2);
@@ -69,10 +70,10 @@ test('all supported object classes and transactions retain their existing list v
     for(const kind of ['subledger_account','accounting_object','accounting_dimension','transaction'])f.grant(kind,1);
     assert.equal(f.query().total_records,4);assert.equal(f.query({$6:1}).total_records,8);
     f.db.exec('DELETE FROM erp_role_permission');
-    assert.equal(f.query({$4:1}).total_records,3,'setup administrator bypass applies to objects as in their lists');
+    assert.equal(f.query({$4:1}).total_records,0,'without grants no module navigation is derived');
     assert.equal(f.query({$3:'author@example.test'}).total_records,0,'creator still needs accessible modules');
-    f.db.exec("UPDATE erp_journal SET created_by_email='user@example.test'");assert.equal(f.query().total_records,1,'transaction creator visibility');
-    f.grant('transaction',0,'submitted');assert.equal(f.query().total_records,1,'current-status transaction permission');
+    f.db.exec("UPDATE erp_journal SET created_by_email='user@example.test'");f.grant('accounting_object');assert.equal(f.query().total_records,1,'creation alone does not grant transaction access');
+    f.grant('transaction',0,'submitted');assert.equal(f.query().total_records,2,'current-status transaction permission');
     f.db.exec("UPDATE erp_workflow_status SET transitional=false WHERE status_code='submitted'");assert.equal(f.query({$4:1}).total_records,0);
   }finally{f.db.close();}
 });

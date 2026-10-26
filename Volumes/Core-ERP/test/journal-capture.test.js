@@ -170,7 +170,7 @@ test("balancing amount is calculated from the configured posting direction", () 
 function saveFixture(typeCode = "owner_deposit", editing = false, schema = {}) {
   const selected = definitions.filter((line) => line.transaction_type_id === "owner_deposit");
   const queries = [];
-  const context = { module: { exports: {} }, require: (name) => name.endsWith('/context') ? require('../api/_shared/context') : name === "crypto" ? require("node:crypto") : name.endsWith("/line-allocation") ? require("../api/_shared/erp/line-allocation") : {
+  const context = { module: { exports: {} }, require: (name) => name.endsWith('/context') ? require('../api/_shared/context') : name.endsWith("/user-access") ? require("../api/_shared/erp/user-access") : name === "crypto" ? require("node:crypto") : name.endsWith("/line-allocation") ? require("../api/_shared/erp/line-allocation") : {
     authTenant: async () => ({ tenantId: "tenant", auth: { email: "owner@example.com" } }),
     clean: (value,fallback = "") => String(value ?? "").trim() || fallback,
     parseJson: require('../api/_shared/erp/utils').parseJson,

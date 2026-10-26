@@ -27,6 +27,7 @@ test('API denies non-administrators before reading rates or requesting a transac
     cookies:{current_tenant:id(1)},tenantSession:async function(){const auth=this.auth();return auth?{auth,tenantId:this.cookies.current_tenant}:{status:401,body:{error:"Authentication required"}};},auth:()=>({email:'user@example.com'}),send:(status,body)=>({status,body}),
     broker: async (profile, action, args) => {
       if(profile==="core_saas")throw new Error("Applications must not query SaaS tables");
+      if(args.text.includes('FROM erp_organisation_user'))return {rows:[{}],rowCount:1};
       if(args.text.includes('role.is_admin=true'))return {rows:[],rowCount:0};
       reads++; throw new Error('Unauthorised read');
     } };

@@ -10,7 +10,6 @@ const {
   nullable,
   parseJson,
   validateSchema,
-  requireModuleAccess,
   requireResourcePermission,
   prepareResourceAssignments,
 } = require("../_shared/erp");
@@ -31,12 +30,6 @@ module.exports = async (ctx) => {
     return ctx.send(400, {
       error: "Organisation, type, division, code and name are required",
     });
-  const moduleDenied = await requireModuleAccess(ctx, access, {
-    organisationId: orgId,
-    resourceKind: "accounting_dimension_type",
-    resourceCode: typeId,
-  });
-  if (moduleDenied) return ctx.send(moduleDenied.status, moduleDenied.body);
   const permissionDenied = await requireResourcePermission(ctx, access, {
     organisationId: orgId,
     divisionId,

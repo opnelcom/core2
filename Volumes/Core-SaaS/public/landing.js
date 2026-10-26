@@ -42,7 +42,7 @@ let tenantActiveTabs=new Map();
 let expandedTenantApplicationIds=new Set();
 let newTenantUserRows=new Set();
 let profilePhotoDraft;
-let newTenantIcon={tenant_icon_preset:defaultTenantIconPreset,tenant_icon_svg:null};
+let creatingTenant=false;
 
 async function api(path,options={}){
   const r=await fetch('/api/'+path,{headers:{'content-type':'application/json'},...options});
@@ -665,9 +665,10 @@ function showCoreAbout(){
 }
 
 function toggleNewTenantPanel(){
-  const panel=$('new-tenant-panel');
-  panel.hidden=!panel.hidden;
-  if(!panel.hidden)$('new-tenant-name').focus();
+  creatingTenant=true;
+  tenantEditorId=null;
+  tenantEditorTab='tenant';
+  renderTenantEditPanel();
 }
 
 function showTenantTab(panelId){
@@ -792,7 +793,6 @@ async function loadTenantManagement(preferredTenantId){
   const r=await api('tenant/manage/list');
   currentTenants=r.tenants||[];
   currentThemes=r.themes||[];
-  populateThemeSelect('new-tenant-theme');
   const selected=preferredTenantId||managedTenantId||currentTenants[0]?.tenant_id;
   if(selected){
     expandedTenantIds.add(selected);
@@ -879,12 +879,14 @@ function renderTenantGrid(){
 }
 
 async function openTenantEditPanel(tenantId,tab='tenant'){
+  creatingTenant=false;
   tenantEditorId=tenantId;
   tenantEditorTab=tab;
   await loadTenantDetail(tenantId);
 }
 
 function closeTenantEditPanel(){
+  creatingTenant=false;
   tenantEditorId=null;
   renderTenantGrid();
 }
@@ -897,7 +899,7 @@ function setTenantEditorTab(tab){
 function renderTenantEditPanel(){
   const panel=$('tenant-edit-panel');
   if(!panel)return;
-  if(!tenantEditorId){
+  if(!tenantEditorId&&!creatingTenant){
     if(panel.open)panel.close();
     panel.hidden=true;
     panel.innerHTML='';
@@ -905,7 +907,7 @@ function renderTenantEditPanel(){
   }
   const detail=tenantDetails.get(tenantEditorId);
   const listTenant=currentTenants.find(tenant=>tenant.tenant_id===tenantEditorId);
-  if(!listTenant&&!detail){
+  if(!creatingTenant&&!listTenant&&!detail){
     tenantEditorId=null;
     if(panel.open)panel.close();
     panel.hidden=true;
@@ -923,7 +925,7 @@ function renderTenantEditPanel(){
   close.addEventListener('click',closeTenantEditPanel);
   const title=document.createElement('h2');
   title.id='tenant-editor-title';
-  title.textContent='Manage Tenant';
+  title.textContent=creatingTenant?'New Tenant':'Manage Tenant';
   const tabs=document.createElement('div');
   tabs.className='tenant-editor-tabs';
   tabs.setAttribute('role','tablist');
@@ -935,12 +937,15 @@ function renderTenantEditPanel(){
     button.setAttribute('role','tab');
     button.setAttribute('aria-selected',tenantEditorTab===key?'true':'false');
     button.textContent=label;
+    button.disabled=creatingTenant&&key!=='tenant';
     button.addEventListener('click',()=>setTenantEditorTab(key));
     tabs.append(button);
   });
   const body=document.createElement('div');
   body.className='tenant-editor-body';
-  if(!detail){
+  if(creatingTenant){
+    body.append(renderTenantEditorTenantTab(null,{can_manage:true},{status:'active'}));
+  }else if(!detail){
     body.innerHTML='<p class="empty-state">Loading tenant details...</p>';
     loadTenantDetail(tenantEditorId).catch(e=>msg(e.message));
   }else if(tenantEditorTab==='tenant'){
@@ -965,7 +970,7 @@ function renderTenantEditorTenantTab(tenantId,detail,tenant){
   name.disabled=!detail.can_manage;
   const id=document.createElement('small');
   id.className='tenant-id-footnote';
-  id.textContent=tenant.tenant_id||tenantId;
+  id.textContent=tenant.tenant_id||tenantId||'';
   nameLabel.append(name,id);
   const descriptionLabel=document.createElement('label');
   descriptionLabel.textContent='Description';
@@ -985,7 +990,7 @@ function renderTenantEditorTenantTab(tenantId,detail,tenant){
   statusWrap.className='tenant-editor-status';
   const statusLabel=document.createElement('span');
   statusLabel.textContent='Status';
-  const status=createStatusToggle(tenant.status,!detail.can_manage);
+  const status=createStatusToggle(tenant.status,!detail.can_manage||creatingTenant);
   statusWrap.append(statusLabel,status);
   const iconEditor=createTenantIconEditor(tenantIcon,!detail.can_manage,value=>{tenantIcon=value});
   const actions=document.createElement('div');
@@ -993,9 +998,16 @@ function renderTenantEditorTenantTab(tenantId,detail,tenant){
   const save=document.createElement('button');
   save.type='button';
   save.className='primary-action compact';
-  save.textContent='Save Tenant';
+  save.textContent=creatingTenant?'Create Tenant':'Save Tenant';
   save.disabled=!detail.can_manage;
-  save.addEventListener('click',()=>saveTenantGrid(tenantId,{tenant_name:name.value,tenant_description:description.value,theme_id:theme.value,status:status.dataset.status,...tenantIcon}));
+  save.addEventListener('click',async ()=>{
+    const payload={tenant_name:name.value,tenant_description:description.value,theme_id:theme.value,status:status.dataset.status,...tenantIcon};
+    save.disabled=true;
+    try{
+      if(tenantId)await saveTenantGrid(tenantId,payload);
+      else await createTenant(payload);
+    }finally{save.disabled=!detail.can_manage}
+  });
   actions.append(save);
   form.append(nameLabel,descriptionLabel,themeLabel,iconEditor,statusWrap,actions);
   return form;
@@ -1274,18 +1286,18 @@ function renderApplicationUsersGrid(tenantId,detail,app){
   return wrap;
 }
 
-async function createTenant(){
+async function createTenant(payload){
   clearMsg();
   try{
-    const r=await api('tenant/manage/create',{method:'POST',body:JSON.stringify({tenant_name:$('new-tenant-name').value,theme_id:$('new-tenant-theme').value,...newTenantIcon})});
-    $('new-tenant-name').value='';
-    newTenantIcon={tenant_icon_preset:defaultTenantIconPreset,tenant_icon_svg:null};
-    renderNewTenantIconEditor();
-    $('new-tenant-panel').hidden=true;
+    const r=await api('tenant/manage/create',{method:'POST',body:JSON.stringify(payload)});
+    creatingTenant=false;
+    tenantEditorId=r.tenant.tenant_id;
+    tenantEditorTab='tenant';
     $('tenants').value=r.tenant.tenant_id;
-    msg('Tenant created.','success');
     await load();
     showTenantManagement();
+    await openTenantEditPanel(r.tenant.tenant_id);
+    msg('Tenant created.','success');
   }catch(e){msg(e.message)}
 }
 
@@ -1367,7 +1379,6 @@ bindClick('change-password-submit',changePassword);
 bindClick('core-about-button',showCoreAbout);
 bindClick('manage-tenants',showTenantManagement);
 bindClick('new-tenant-toggle',toggleNewTenantPanel);
-bindClick('create-tenant-submit',createTenant);
 const tenantEditPanel=$('tenant-edit-panel');
 if(tenantEditPanel){
   tenantEditPanel.addEventListener('cancel',event=>{
@@ -1376,12 +1387,6 @@ if(tenantEditPanel){
   });
 }
 bindClick('tenant-picker-trigger',toggleTenantPicker);
-function renderNewTenantIconEditor(){
-  const mount=$('new-tenant-icon-editor');
-  if(!mount)return;
-  mount.replaceChildren(createTenantIconEditor(newTenantIcon,false,value=>{newTenantIcon=value}));
-}
-renderNewTenantIconEditor();
 const tenantPickerTrigger=$('tenant-picker-trigger');
 if(tenantPickerTrigger){
   tenantPickerTrigger.addEventListener('keydown',event=>{

@@ -68,6 +68,13 @@ module.exports = async (ctx) => {
               SELECT tenant_id,organisation_id,'security_administrator','Security Administrator',
                 'Initial setup administrator assigned to the organisation creator.',true,true FROM created
               RETURNING tenant_id,organisation_id,role_id
+            ), user_account AS (
+              INSERT INTO erp_organisation_user(tenant_id,organisation_id,email)
+              SELECT tenant_id,organisation_id,lower($7) FROM created RETURNING user_id,tenant_id,organisation_id
+            ), user_division AS (
+              INSERT INTO erp_user_division(tenant_id,organisation_id,user_id,division_id)
+              SELECT u.tenant_id,u.organisation_id,u.user_id,root.division_id FROM user_account u CROSS JOIN root
+              RETURNING user_id
             ), assignment AS (
               INSERT INTO erp_user_role(tenant_id,organisation_id,role_id,email,valid_from,valid_to)
               SELECT tenant_id,organisation_id,role_id,lower($7),CURRENT_DATE,NULL FROM administrator

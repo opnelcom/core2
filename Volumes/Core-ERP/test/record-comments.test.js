@@ -12,7 +12,6 @@ function fixture(kind,{missing=false,permissionDenied=false,moduleDenied=false,a
   const dependency={
     authTenant:async()=>authDenied?{status:401,body:{error:'Authentication required'}}:{tenantId:'tenant-a',auth:{email:'author@example.com'}},
     clean:value=>String(value??'').trim(),
-    requireModuleAccess:async(_ctx,_access,options)=>{permissions.push({category:'module',...options});return moduleDenied?denied:null},
     requireResourcePermission:async(_ctx,_access,options)=>{permissions.push({category:'division',...options});return permissionDenied?denied:null},
     requireOrganisationResourcePermission:async(_ctx,_access,options)=>{permissions.push({category:'organisation',...options});return permissionDenied?denied:null},
   };
@@ -39,7 +38,7 @@ for(const kind of kinds){
     assert.equal(permission.workflowStatus,kind==='legal_entity'?'draft':['gl_account','subledger_account'].includes(kind)?'approved':'*');
     if(['subledger_account','accounting_object','accounting_dimension'].includes(kind)){
       assert.equal(permission.divisionId,'division-a');assert.equal(permission.resourceCode,'type-a');
-      assert.equal(f.permissions[0].resourceKind,`${kind}_type`);
+      assert.equal(f.permissions.length,1);
     }else assert.equal(permission.category,'organisation');
   });
   test(`${kind}: list is scoped, ordered and subject to edit permissions`,async()=>{
@@ -55,10 +54,10 @@ for(const kind of kinds){
     }
   });
 }
-test('module denial prevents comment reads and writes for configurable classes',async()=>{
+test('resource permissions allow comments without independent module assignments',async()=>{
   for(const kind of kinds.slice(2))for(const operation of ['listComments','submitComment']){
-    const f=fixture(kind,{moduleDenied:true});assert.equal((await f.api[operation](f.ctx)).status,403);
-    assert.equal(f.permissions.length,1);assert.equal(f.queries.length,1);
+    const f=fixture(kind,{moduleDenied:true});assert.equal((await f.api[operation](f.ctx)).status,operation==='submitComment'?201:undefined);
+    assert.equal(f.permissions.length,1);assert.equal(f.queries.length,2);
   }
 });
 test('invalid classes, missing saved IDs and blank comments cannot be inserted',async()=>{

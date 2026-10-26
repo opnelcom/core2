@@ -1058,11 +1058,37 @@ SELECT pg_advisory_xact_lock(hashtext('erp_schema'));
       UNIQUE(tenant_id,organisation_id,role_id,email)
     );
 
-    CREATE TABLE IF NOT EXISTS erp_role_module(
-      role_id uuid NOT NULL REFERENCES erp_role(role_id) ON DELETE CASCADE,
-      module_id uuid NOT NULL REFERENCES erp_module(module_id) ON DELETE CASCADE,
-      PRIMARY KEY(role_id,module_id)
+    CREATE TABLE IF NOT EXISTS erp_organisation_user(
+      user_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL,
+      organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE,
+      email text NOT NULL CHECK(email=lower(email)),
+      known_name text NOT NULL DEFAULT '', full_name text NOT NULL DEFAULT '',
+      title text NOT NULL DEFAULT '', description text NOT NULL DEFAULT '',
+      is_enabled boolean NOT NULL DEFAULT true,
+      valid_from date DEFAULT CURRENT_DATE, valid_to date,
+      created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE(tenant_id,organisation_id,email), UNIQUE(tenant_id,organisation_id,user_id),
+      CHECK(valid_from IS NULL OR valid_to IS NULL OR valid_from<=valid_to)
     );
+    CREATE UNIQUE INDEX IF NOT EXISTS erp_division_scope_id_idx ON erp_division(tenant_id,organisation_id,division_id);
+    CREATE TABLE IF NOT EXISTS erp_user_division(
+      tenant_id uuid NOT NULL, organisation_id uuid NOT NULL REFERENCES erp_organisation(organisation_id) ON DELETE CASCADE, user_id uuid NOT NULL,
+      division_id uuid NOT NULL REFERENCES erp_division(division_id),
+      valid_from date DEFAULT CURRENT_DATE, valid_to date,
+      FOREIGN KEY(tenant_id,organisation_id,division_id) REFERENCES erp_division(tenant_id,organisation_id,division_id),
+      PRIMARY KEY(user_id,division_id),
+      FOREIGN KEY(tenant_id,organisation_id,user_id) REFERENCES erp_organisation_user(tenant_id,organisation_id,user_id) ON DELETE CASCADE,
+      CHECK(valid_from IS NULL OR valid_to IS NULL OR valid_from<=valid_to)
+    );
+    -- Existing role emails become organisation users once. No division access is inferred.
+    INSERT INTO erp_organisation_user(tenant_id,organisation_id,email,valid_from)
+      SELECT tenant_id,organisation_id,lower(email),min(valid_from) FROM erp_user_role
+      WHERE organisation_id IS NOT NULL GROUP BY tenant_id,organisation_id,lower(email)
+      ON CONFLICT(tenant_id,organisation_id,email) DO NOTHING;
+
+    -- Modules are derived from resource permissions, not assigned to roles.
+    DROP TABLE IF EXISTS erp_role_module;
     CREATE TABLE IF NOT EXISTS erp_resource(
       resource_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       tenant_id uuid NOT NULL,

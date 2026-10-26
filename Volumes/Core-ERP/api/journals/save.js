@@ -1,8 +1,9 @@
 'use strict';
+const {userDivisionAccessSql}=require('../_shared/erp/user-access');
 const {randomUUID}=require('crypto');
 const {validateSchemaReferences}=require('../_shared/erp/schema-references');
 const {objectAllocationError}=require('../_shared/erp/line-allocation');
-const {authTenant,clean,nullable,parseJson,validateSchema,money,checkPeriodOpen,requireResourcePermission,requireModuleAccess,defaultWorkflowStepCode}=require('../_shared/erp');
+const {authTenant,clean,nullable,parseJson,validateSchema,money,checkPeriodOpen,requireResourcePermission,defaultWorkflowStepCode}=require('../_shared/erp');
 
 const {workflowUseSql}=require('../_shared/erp/workflow-configuration');
 const allocations=(rows,typeField,valueField)=>(Array.isArray(rows)?rows:[]).map(row=>({type_id:nullable(row[typeField]||row.type_id),value_id:nullable(row[valueField]||row.value_id)})).filter(row=>row.type_id||row.value_id);
@@ -22,17 +23,19 @@ module.exports=async ctx=>{
   if(typeof rawHeading!=='string'||!rawHeading.trim())return ctx.send(400,{error:'Transaction heading is required'});
   if(/[\r\n\u2028\u2029]/u.test(rawHeading)||rawHeading.trim().length>200)return ctx.send(400,{error:'Transaction heading must be a single line of at most 200 characters'});
   const transactionHeading=rawHeading.trim();
-  const moduleDenied=await requireModuleAccess(ctx,access,{organisationId:orgId,resourceKind:'transaction_type',resourceCode:transactionTypeId});
-  if(moduleDenied)return ctx.send(moduleDenied.status,moduleDenied.body);
   if(lines.length<2)return ctx.send(400,{error:'At least two journal lines are required'});
   await checkPeriodOpen(ctx,access.tenantId,periodId);
-  const existing=id?await ctx.broker('core_erp','query',{text:`SELECT workflow_status,posted_at,transaction_type_id,additional_data FROM erp_journal WHERE tenant_id=$1 AND organisation_id=$2 AND journal_id=$3`,values:[access.tenantId,orgId,id]}):null;
+  const existing=id?await ctx.broker('core_erp','query',{text:`SELECT workflow_status,posted_at,transaction_type_id,additional_data,source_division_id FROM erp_journal WHERE tenant_id=$1 AND organisation_id=$2 AND journal_id=$3`,values:[access.tenantId,orgId,id]}):null;
   if(existing&&!existing.rowCount)return ctx.send(404,{error:'Journal not found'});
   if(existing&&(existing.rows[0].posted_at||['deleted','archived'].includes(existing.rows[0].workflow_status)))return ctx.send(400,{error:'Posted, deleted or archived journals cannot be edited'});
   if(existing&&existing.rows[0].transaction_type_id!==transactionTypeId)return ctx.send(400,{error:'An existing transaction cannot change type'});
   const initialStep=await defaultWorkflowStepCode(ctx,access,{organisationId:orgId,typeTable:'erp_transaction_type',typeIdColumn:'transaction_type_id',typeId:transactionTypeId});
   const denied=await requireResourcePermission(ctx,access,{organisationId:orgId,divisionId,resourceKind:'transaction',resourceCode:transactionTypeId,workflowStatus:existing?.rows[0]?.workflow_status||initialStep});
   if(denied)return ctx.send(denied.status,denied.body);
+  if(existing?.rows[0]?.source_division_id&&existing.rows[0].source_division_id!==divisionId){
+    const originalDenied=await requireResourcePermission(ctx,access,{organisationId:orgId,divisionId:existing.rows[0].source_division_id,resourceKind:'transaction',resourceCode:transactionTypeId,workflowStatus:existing.rows[0].workflow_status});
+    if(originalDenied)return ctx.send(originalDenied.status,originalDenied.body);
+  }
 
   const normalisedLines=lines.map((line,index)=>{
     const debit=money(line.debit_amount);
@@ -45,6 +48,11 @@ module.exports=async ctx=>{
     if(new Set(objectAllocations.map(row=>row.type_id)).size!==objectAllocations.length||new Set(dimensionAllocations.map(row=>row.type_id)).size!==dimensionAllocations.length)throw Object.assign(new Error(`Line ${index+1} repeats an accounting object or dimension type`),{status:400});
     return {journal_line_id:randomUUID(),line_number:index+1,transaction_line_definition_id:nullable(line.transaction_line_definition_id),division_id:nullable(line.division_id)||divisionId,gl_account_id:nullable(line.gl_account_id),subledger_account_id:nullable(line.subledger_account_id),description:clean(line.description),debit_amount:debit,credit_amount:credit,currency_code:clean(line.currency_code,ctx.body.currency_code||'ZAR').toUpperCase(),accounting_objects:objectAllocations,accounting_dimensions:dimensionAllocations};
   });
+  for(const lineDivision of new Set(normalisedLines.map(line=>line.division_id))){
+    if(lineDivision===divisionId)continue;
+    const lineDenied=await requireResourcePermission(ctx,access,{organisationId:orgId,divisionId:lineDivision,resourceKind:'transaction',resourceCode:transactionTypeId,workflowStatus:existing?.rows[0]?.workflow_status||initialStep});
+    if(lineDenied)return ctx.send(lineDenied.status,lineDenied.body);
+  }
   const debitTotal=normalisedLines.reduce((sum,line)=>sum+line.debit_amount,0);
   const creditTotal=normalisedLines.reduce((sum,line)=>sum+line.credit_amount,0);
   if(Math.round(debitTotal*100)!==Math.round(creditTotal*100))return ctx.send(400,{error:'Journal debits and credits must balance'});
@@ -72,9 +80,9 @@ module.exports=async ctx=>{
   const dimensionIds=[...new Set(normalisedLines.flatMap(line=>line.accounting_dimensions.map(row=>row.value_id)))];
   const [accounts,subledgers,objects,dimensions,objectRequirements,dimensionRequirements]=await Promise.all([
     ctx.broker('core_erp','query',{text:`SELECT gl_account_id,requires_subledger,required_subledger_account_type_id FROM erp_gl_account WHERE tenant_id=$1 AND organisation_id=$2 AND gl_account_id=ANY($3::uuid[]) AND workflow_status<>'deleted'`,values:[access.tenantId,orgId,accountIds]}),
-    ctx.broker('core_erp','query',{text:`SELECT r.subledger_account_id,r.subledger_account_type_id FROM erp_subledger_account r JOIN erp_subledger_account_type t ON t.subledger_account_type_id=r.subledger_account_type_id WHERE r.tenant_id=$1 AND r.organisation_id=$2 AND r.subledger_account_id=ANY($3::uuid[]) AND r.workflow_status<>'deleted' AND ${workflowUseSql('r','t')}`,values:[access.tenantId,orgId,subledgerIds]}),
-    ctx.broker('core_erp','query',{text:`SELECT r.accounting_object_id,r.accounting_object_type_id,r.additional_data,t.type_code,t.schema_json FROM erp_accounting_object r JOIN erp_accounting_object_type t ON t.accounting_object_type_id=r.accounting_object_type_id WHERE r.tenant_id=$1 AND r.organisation_id=$2 AND r.accounting_object_id=ANY($3::uuid[]) AND r.workflow_status<>'deleted' AND ${workflowUseSql('r','t')}`,values:[access.tenantId,orgId,objectIds]}),
-    ctx.broker('core_erp','query',{text:`SELECT r.accounting_dimension_id,r.accounting_dimension_type_id FROM erp_accounting_dimension r JOIN erp_accounting_dimension_type t ON t.accounting_dimension_type_id=r.accounting_dimension_type_id WHERE r.tenant_id=$1 AND r.organisation_id=$2 AND r.accounting_dimension_id=ANY($3::uuid[]) AND r.workflow_status<>'deleted' AND ${workflowUseSql('r','t')}`,values:[access.tenantId,orgId,dimensionIds]}),
+    ctx.broker('core_erp','query',{text:`SELECT r.subledger_account_id,r.subledger_account_type_id FROM erp_subledger_account r JOIN erp_subledger_account_type t ON t.subledger_account_type_id=r.subledger_account_type_id WHERE r.tenant_id=$1 AND r.organisation_id=$2 AND ${userDivisionAccessSql({tenant:'$1',organisation:'$2',email:'$4',division:'r.owner_division_id'})} AND r.subledger_account_id=ANY($3::uuid[]) AND r.workflow_status<>'deleted' AND ${workflowUseSql('r','t')}`,values:[access.tenantId,orgId,subledgerIds,access.auth.email]}),
+    ctx.broker('core_erp','query',{text:`SELECT r.accounting_object_id,r.accounting_object_type_id,r.additional_data,t.type_code,t.schema_json FROM erp_accounting_object r JOIN erp_accounting_object_type t ON t.accounting_object_type_id=r.accounting_object_type_id WHERE r.tenant_id=$1 AND r.organisation_id=$2 AND ${userDivisionAccessSql({tenant:'$1',organisation:'$2',email:'$4',division:'r.owner_division_id'})} AND r.accounting_object_id=ANY($3::uuid[]) AND r.workflow_status<>'deleted' AND ${workflowUseSql('r','t')}`,values:[access.tenantId,orgId,objectIds,access.auth.email]}),
+    ctx.broker('core_erp','query',{text:`SELECT r.accounting_dimension_id,r.accounting_dimension_type_id FROM erp_accounting_dimension r JOIN erp_accounting_dimension_type t ON t.accounting_dimension_type_id=r.accounting_dimension_type_id WHERE r.tenant_id=$1 AND r.organisation_id=$2 AND ${userDivisionAccessSql({tenant:'$1',organisation:'$2',email:'$4',division:'r.owner_division_id'})} AND r.accounting_dimension_id=ANY($3::uuid[]) AND r.workflow_status<>'deleted' AND ${workflowUseSql('r','t')}`,values:[access.tenantId,orgId,dimensionIds,access.auth.email]}),
     ctx.broker('core_erp','query',{text:`SELECT * FROM erp_transaction_line_definition_object_type WHERE tenant_id=$1 AND organisation_id=$2`,values:[access.tenantId,orgId]}),
     ctx.broker('core_erp','query',{text:`SELECT * FROM erp_transaction_line_definition_dimension_type WHERE tenant_id=$1 AND organisation_id=$2`,values:[access.tenantId,orgId]})
   ]);

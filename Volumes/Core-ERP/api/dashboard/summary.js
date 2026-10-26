@@ -1,4 +1,5 @@
 'use strict';
+const {userDivisionAccessSql}=require('../_shared/erp/user-access');
 const {authTenant}=require('../_shared/erp');
 
 module.exports=async ctx=>{
@@ -21,10 +22,11 @@ module.exports=async ctx=>{
               SELECT child.division_id FROM erp_division child JOIN selected_scope parent ON child.parent_division_id=parent.division_id
               WHERE child.tenant_id=$1 AND child.organisation_id=$2 AND $4::boolean
             )
-            SELECT count(*) FROM ${table}
+            SELECT count(*) FROM ${table} summary_record
             WHERE tenant_id=$1 AND organisation_id=$2 ${extra}
+              AND ${userDivisionAccessSql({tenant:'$1',organisation:'$2',email:'$5',division:'summary_record.'+divisionColumn})}
               AND ($3::uuid IS NULL OR ${divisionColumn} IN (SELECT division_id FROM selected_scope))`,
-      values:[access.tenantId,orgId,activeDivisionId,includeChildren]
+      values:[access.tenantId,orgId,activeDivisionId,includeChildren,access.auth.email]
     });
     return Number(result.rows[0]?.count)||0;
   };
